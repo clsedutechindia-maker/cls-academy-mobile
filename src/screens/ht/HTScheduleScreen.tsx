@@ -67,13 +67,19 @@ export function HTScheduleScreen() {
             <View style={s.card}>
               {slots.map((sl, i) => (
                 <View key={sl.time} style={[s.slotRow, i < slots.length - 1 && s.divider, i === 0 && { backgroundColor: "#FFFBF0" }]}>
-                  <Text style={s.slotTime}>{sl.time}</Text>
+                  <View style={s.slotTimeBlock}>
+                    <Text style={s.slotTime}>{sl.time}</Text>
+                    {sl.hall && <Text style={s.slotHall}>{sl.hall}</Text>}
+                  </View>
                   <View style={[s.accentLine, { backgroundColor: sl.color }]} />
                   {sl.subject ? (
                     <>
                       <View style={{ flex: 1 }}>
-                        <Text style={s.slotSubject}>{sl.subject}</Text>
-                        <Text style={s.slotMeta}>{sl.batch} · {sl.hall}</Text>
+                        {(() => { const [subj, topic] = (sl.subject as string).split(" · "); return (<>
+                          <Text style={[s.slotSubjectTag, { color: sl.color }]}>{subj.toUpperCase()}</Text>
+                          <Text style={s.slotSubject}>{topic || subj}</Text>
+                        </>); })()}
+                        <Text style={s.slotMeta}>{sl.batch}</Text>
                       </View>
                       <View style={[s.editBtn, { backgroundColor: sl.bg }]}>
                         <Text style={[s.editText, { color: sl.color }]}>Edit</Text>
@@ -139,11 +145,14 @@ const s = StyleSheet.create({
   sectionLabel: { fontSize: 11, fontWeight: "700", fontFamily: D.fontBold, color: D.outline, letterSpacing: 0.5, marginBottom: 12 },
   card: { backgroundColor: D.surface, borderRadius: 20, borderWidth: 1, borderColor: D.outlineVariant, overflow: "hidden", shadowColor: D.primary, shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.03, shadowRadius: 5, elevation: 1 },
   divider: { borderBottomWidth: 1, borderBottomColor: D.outlineVariant },
-  slotRow: { flexDirection: "row", alignItems: "center", gap: 12, padding: 15, backgroundColor: D.surface },
-  slotTime: { width: 58, fontSize: 11, fontWeight: "700", fontFamily: D.fontBold, color: D.outline, letterSpacing: -0.1, textAlign: "right", flexShrink: 0 },
+  slotRow: { flexDirection: "row", alignItems: "center", gap: 12, padding: 14, backgroundColor: D.surface },
+  slotTimeBlock: { width: 68, flexShrink: 0 },
+  slotTime: { fontSize: 11, fontWeight: "800", fontFamily: D.fontExtraBold, color: D.onSurface, letterSpacing: -0.2 },
+  slotHall: { fontSize: 9.5, color: D.outline, marginTop: 3, fontFamily: D.font },
   accentLine: { width: 3, height: 40, borderRadius: 2, flexShrink: 0 },
-  slotSubject: { fontSize: 13, fontWeight: "700", fontFamily: D.fontBold, color: D.onSurface, letterSpacing: -0.2 },
-  slotMeta: { fontSize: 11, fontFamily: D.font, color: D.outline, marginTop: 2 },
+  slotSubjectTag: { fontSize: 9, fontWeight: "700", fontFamily: D.fontBold, letterSpacing: 0.5, marginBottom: 2 },
+  slotSubject: { fontSize: 12, fontWeight: "700", fontFamily: D.fontBold, color: D.onSurface, letterSpacing: -0.1 },
+  slotMeta: { fontSize: 9.5, fontFamily: D.font, color: D.outline, marginTop: 3 },
   editBtn: { paddingHorizontal: 10, paddingVertical: 5, borderRadius: 8 },
   editText: { fontSize: 10.5, fontWeight: "700", fontFamily: D.fontBold },
   freeSlot: { flex: 1, fontSize: 13, fontFamily: D.font, color: D.outline, fontStyle: "italic" },

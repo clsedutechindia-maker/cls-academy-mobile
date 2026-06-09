@@ -44,6 +44,19 @@ const quickActions = [
   { label: "Leave Requests", icon: "document-text-outline" as const, color: "#15803D", bg: "#F0FDF4", route: "/(head-teacher)/leave" as const },
 ];
 
+const subjectColors: Record<string, string> = {
+  Physics: "#6366F1",
+  Chemistry: "#0EA5E9",
+  Biology: "#10B981",
+  Math: "#F59E0B",
+};
+function subjectColor(subject: string) {
+  for (const key of Object.keys(subjectColors)) {
+    if (subject.includes(key)) return subjectColors[key];
+  }
+  return D.primary;
+}
+
 export function HTHomeScreen() {
   const insets = useSafeAreaInsets();
   const { profile } = useSession();
@@ -115,17 +128,25 @@ export function HTHomeScreen() {
           <Text style={s.sectionLink}>Full schedule</Text>
         </View>
         <View style={s.card}>
-          {todayClasses.map((cls, i) => (
-            <View key={cls.time} style={[s.classRow, i < todayClasses.length - 1 && s.divider]}>
-              <Text style={s.classTime}>{cls.time}</Text>
-              <View style={[s.accentLine, { backgroundColor: i === 0 ? D.primary : D.outlineVariant }]} />
-              <View style={{ flex: 1 }}>
-                <Text style={s.classSubject}>{cls.subject}</Text>
-                <Text style={s.classMeta}>{cls.batch} · {cls.room}</Text>
+          {todayClasses.map((cls, i) => {
+            const color = subjectColor(cls.subject);
+            const [subjectName, topic] = cls.subject.split(" · ");
+            return (
+              <View key={cls.time} style={[s.classRow, i < todayClasses.length - 1 && s.divider]}>
+                <View style={s.classTimeBlock}>
+                  <Text style={s.classTime}>{cls.time}</Text>
+                  <Text style={s.classTimeRoom}>{cls.room}</Text>
+                </View>
+                <View style={[s.accentLine, { backgroundColor: color }]} />
+                <View style={{ flex: 1 }}>
+                  <Text style={[s.classSubjectTag, { color }]}>{subjectName.toUpperCase()}</Text>
+                  <Text style={s.classSubject}>{topic || subjectName}</Text>
+                  <Text style={s.classMeta}>{cls.batch}</Text>
+                </View>
+                {i === 0 && <View style={s.nextBadge}><Text style={s.nextBadgeText}>NEXT</Text></View>}
               </View>
-              {i === 0 && <View style={s.nextBadge}><Text style={s.nextBadgeText}>NEXT</Text></View>}
-            </View>
-          ))}
+            );
+          })}
         </View>
 
         {/* Upcoming tests */}
@@ -196,11 +217,14 @@ const s = StyleSheet.create({
   quickLabel: { fontSize: 9.5, fontWeight: "700", letterSpacing: -0.1, textAlign: "center", lineHeight: 13, fontFamily: D.fontBold },
   card: { backgroundColor: D.surface, borderRadius: 20, borderWidth: 1, borderColor: D.outlineVariant, overflow: "hidden", marginBottom: 0, shadowColor: D.primary, shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.03, shadowRadius: 5, elevation: 1 },
   divider: { borderBottomWidth: 1, borderBottomColor: D.outlineVariant },
-  classRow: { flexDirection: "row", alignItems: "center", gap: 12, paddingVertical: 15, paddingHorizontal: 16 },
-  classTime: { width: 58, fontSize: 10.5, fontWeight: "700", color: D.outline, letterSpacing: -0.1, textAlign: "right", flexShrink: 0, fontFamily: D.fontBold },
-  accentLine: { width: 3, height: 36, borderRadius: 2, flexShrink: 0 },
-  classSubject: { fontSize: 12.5, fontWeight: "700", color: D.onSurface, letterSpacing: -0.2, marginBottom: 2, fontFamily: D.fontBold },
-  classMeta: { fontSize: 10.5, color: D.outline, fontFamily: D.font },
+  classRow: { flexDirection: "row", alignItems: "center", gap: 12, paddingVertical: 14, paddingHorizontal: 16 },
+  classTimeBlock: { width: 68, flexShrink: 0 },
+  classTime: { fontSize: 11, fontWeight: "800", color: D.onSurface, letterSpacing: -0.2, fontFamily: D.fontExtraBold },
+  classTimeRoom: { fontSize: 9.5, color: D.outline, marginTop: 3, fontFamily: D.font },
+  accentLine: { width: 3, height: 40, borderRadius: 2, flexShrink: 0 },
+  classSubjectTag: { fontSize: 9, fontWeight: "700", fontFamily: D.fontBold, letterSpacing: 0.5, marginBottom: 2 },
+  classSubject: { fontSize: 12, fontWeight: "700", color: D.onSurface, letterSpacing: -0.1, fontFamily: D.fontBold },
+  classMeta: { fontSize: 9.5, color: D.outline, marginTop: 3, fontFamily: D.font },
   nextBadge: { paddingHorizontal: 8, paddingVertical: 4, borderRadius: 7, backgroundColor: D.primary },
   nextBadgeText: { fontSize: 9, fontWeight: "800", color: "#fff", letterSpacing: 0.3, fontFamily: D.fontExtraBold },
   testRow: { flexDirection: "row", alignItems: "center", gap: 12, paddingVertical: 14, paddingHorizontal: 16 },
