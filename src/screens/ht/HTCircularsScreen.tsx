@@ -38,6 +38,7 @@ export function HTCircularsScreen() {
       </View>
 
       <ScrollView contentContainerStyle={{ padding: 18, paddingBottom: 60 }} showsVerticalScrollIndicator={false}>
+        <Text style={s.pageTitle}>Circulars</Text>
         <View style={s.searchBox}>
           <Ionicons name="search-outline" size={16} color={D.outline} />
           <Text style={s.searchPlaceholder}>Search circulars…</Text>
@@ -75,6 +76,7 @@ const s = StyleSheet.create({
   backText: { fontSize: 12.5, fontWeight: "700", fontFamily: D.fontBold, color: D.primary },
   headerTitle: { fontSize: 15, fontWeight: "700", fontFamily: D.fontBold, color: D.onSurface, letterSpacing: -0.3 },
   actionBtn: { width: 38, height: 38, borderRadius: 12, backgroundColor: D.surface, borderWidth: 1, borderColor: D.outlineVariant, alignItems: "center", justifyContent: "center" },
+  pageTitle: { fontSize: 22, fontWeight: "800", fontFamily: D.fontExtraBold, color: D.onSurface, letterSpacing: -0.7, marginBottom: 16 },
   searchBox: { flexDirection: "row", alignItems: "center", gap: 9, padding: 13, borderRadius: 16, backgroundColor: D.surface, borderWidth: 1, borderColor: D.outlineVariant },
   searchPlaceholder: { fontSize: 13, fontFamily: D.font, color: D.outline },
   sectionLabel: { fontSize: 11, fontWeight: "700", fontFamily: D.fontBold, color: D.outline, letterSpacing: 0.5, marginBottom: 12 },

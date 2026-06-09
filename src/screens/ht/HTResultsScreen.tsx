@@ -40,10 +40,7 @@ export function HTResultsScreen() {
       >
         {/* Title row */}
         <View style={s.titleRow}>
-          <View>
-            <Text style={s.pageTitle}>Results</Text>
-            <Text style={s.pageSubtitle}>Test scores across batches</Text>
-          </View>
+          <Text style={s.pageTitle}>Results</Text>
           <AnimatedPressable style={s.uploadBtn} onPress={() => router.push("/(head-teacher)/upload-result")}>
             <Ionicons name="cloud-upload-outline" size={13} color="#fff" />
             <Text style={s.uploadText}>Upload</Text>
@@ -109,9 +106,8 @@ export function HTResultsScreen() {
 }
 
 const s = StyleSheet.create({
-  titleRow: { flexDirection: "row", alignItems: "flex-end", justifyContent: "space-between", marginBottom: 16 },
-  pageTitle: { fontSize: 22, fontWeight: "800", color: D.onSurface, letterSpacing: -0.5, marginBottom: 2, fontFamily: D.fontExtraBold },
-  pageSubtitle: { fontSize: 12.5, color: D.outline, fontFamily: D.font },
+  titleRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 16 },
+  pageTitle: { fontSize: 22, fontWeight: "800", color: D.onSurface, letterSpacing: -0.5, fontFamily: D.fontExtraBold },
   uploadBtn: { flexDirection: "row", alignItems: "center", gap: 6, height: 34, paddingHorizontal: 12, borderRadius: 12, backgroundColor: D.primary, shadowColor: D.primary, shadowOpacity: 0.25, shadowRadius: 14, shadowOffset: { width: 0, height: 5 } },
   uploadText: { fontSize: 11.5, fontWeight: "700", color: "#fff", letterSpacing: -0.1, fontFamily: D.fontBold },
   chip: { paddingHorizontal: 11, paddingVertical: 6, borderRadius: 999 },

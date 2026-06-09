@@ -43,6 +43,7 @@ export function HTUploadResultScreen() {
       </View>
 
       <ScrollView contentContainerStyle={{ padding: 18, paddingBottom: 120 }} showsVerticalScrollIndicator={false}>
+        <Text style={s.pageTitle}>Upload Result</Text>
         <View style={{ flexDirection: "row", gap: 10, marginBottom: 14 }}>
           <View style={{ flex: 1 }}><Field label="Batch" value="NEET 11-B" /></View>
           <View style={{ flex: 1 }}><Field label="Subject" value="Biology" focused /></View>
@@ -97,6 +98,7 @@ const s = StyleSheet.create({
   backBtn: { flexDirection: "row", alignItems: "center", gap: 4, paddingVertical: 6, paddingRight: 10, paddingLeft: 6, borderRadius: 12, backgroundColor: D.surface, borderWidth: 1, borderColor: D.outlineVariant, height: 38 },
   backText: { fontSize: 12.5, fontWeight: "700", fontFamily: D.fontBold, color: D.primary },
   headerTitle: { fontSize: 15, fontWeight: "700", fontFamily: D.fontBold, color: D.onSurface, letterSpacing: -0.3 },
+  pageTitle: { fontSize: 22, fontWeight: "800", fontFamily: D.fontExtraBold, color: D.onSurface, letterSpacing: -0.7, marginBottom: 16 },
   fieldLabel: { fontSize: 12.5, fontWeight: "600", fontFamily: D.fontSemiBold, color: D.onSurfaceVariant, marginBottom: 5 },
   fieldBox: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", padding: 14, borderRadius: 14, borderWidth: 1, borderColor: D.outlineVariant, backgroundColor: D.surface, shadowColor: D.primary, shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.03, shadowRadius: 5, elevation: 1 },
   fieldFocused: { borderWidth: 1.5, borderColor: D.primary },

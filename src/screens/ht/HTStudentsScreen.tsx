@@ -33,10 +33,7 @@ export function HTStudentsScreen() {
         contentContainerStyle={{ paddingTop: insets.top + 20, paddingHorizontal: 18, paddingBottom: 110 }}
         showsVerticalScrollIndicator={false}
       >
-        <View style={{ marginBottom: 16 }}>
-          <Text style={s.pageTitle}>Students</Text>
-          <Text style={s.pageSubtitle}>Manage your batches and enrolments</Text>
-        </View>
+        <Text style={s.pageTitle}>Students</Text>
 
         {/* Search + filter */}
         <View style={s.searchRow}>
@@ -136,8 +133,7 @@ export function HTStudentsScreen() {
 }
 
 const s = StyleSheet.create({
-  pageTitle: { fontSize: 22, fontWeight: "800", color: D.onSurface, letterSpacing: -0.5, marginBottom: 4, fontFamily: D.fontExtraBold },
-  pageSubtitle: { fontSize: 12.5, color: D.outline, fontFamily: D.font },
+  pageTitle: { fontSize: 22, fontWeight: "800", color: D.onSurface, letterSpacing: -0.5, marginBottom: 16, fontFamily: D.fontExtraBold },
   searchRow: { flexDirection: "row", gap: 8 },
   searchBox: { flex: 1, flexDirection: "row", alignItems: "center", gap: 9, padding: 13, borderRadius: 16, backgroundColor: D.surface, borderWidth: 1, borderColor: D.outlineVariant, fontFamily: D.font },
   searchPlaceholder: { flex: 1, fontSize: 12.5, color: D.outline, letterSpacing: -0.1, fontFamily: D.font },

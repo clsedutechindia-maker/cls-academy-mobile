@@ -37,6 +37,7 @@ export function HTResultDetailScreen() {
       </View>
 
       <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 60 }} showsVerticalScrollIndicator={false}>
+        <Text style={s.pageTitle}>Test Detail</Text>
         {/* Meta card */}
         <View style={s.metaCard}>
           <Text style={s.testName}>Cell Division Unit Test</Text>
@@ -118,6 +119,7 @@ const s = StyleSheet.create({
   backBtn: { flexDirection: "row", alignItems: "center", gap: 4, paddingVertical: 6, paddingRight: 10, paddingLeft: 6, borderRadius: 12, backgroundColor: D.surface, borderWidth: 1, borderColor: D.outlineVariant, height: 38 },
   backText: { fontSize: 12.5, fontWeight: "700", fontFamily: D.fontBold, color: D.primary },
   headerTitle: { fontSize: 15, fontWeight: "700", fontFamily: D.fontBold, color: D.onSurface, letterSpacing: -0.3 },
+  pageTitle: { fontSize: 22, fontWeight: "800", fontFamily: D.fontExtraBold, color: D.onSurface, letterSpacing: -0.7, marginBottom: 14 },
   metaCard: { backgroundColor: D.surface, borderRadius: 20, padding: 16, borderWidth: 1, borderColor: D.outlineVariant, marginBottom: 12, shadowColor: D.primary, shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.03, shadowRadius: 5, elevation: 1 },
   testName: { fontSize: 16, fontWeight: "800", fontFamily: D.fontExtraBold, color: D.onSurface, letterSpacing: -0.5, marginBottom: 10 },
   badge: { paddingHorizontal: 8, paddingVertical: 3, borderRadius: 6 },

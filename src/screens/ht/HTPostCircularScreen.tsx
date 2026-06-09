@@ -34,6 +34,7 @@ export function HTPostCircularScreen() {
       </View>
 
       <ScrollView contentContainerStyle={{ padding: 18, paddingBottom: 120 }} showsVerticalScrollIndicator={false}>
+        <Text style={s.pageTitle}>Post Circular</Text>
         <Field label="Title" value="JEE Mock #14 — schedule released" focused />
         <Field label="Body" value="Computer-based test will be held in Hall C on Saturday, Jun 14 at 1:30 PM. Students must carry their hall tickets and report 30 minutes early." multiline />
 
@@ -81,6 +82,7 @@ const s = StyleSheet.create({
   backBtn: { flexDirection: "row", alignItems: "center", gap: 4, paddingVertical: 6, paddingRight: 10, paddingLeft: 6, borderRadius: 12, backgroundColor: D.surface, borderWidth: 1, borderColor: D.outlineVariant, height: 38 },
   backText: { fontSize: 12.5, fontWeight: "700", fontFamily: D.fontBold, color: D.primary },
   headerTitle: { fontSize: 15, fontWeight: "700", fontFamily: D.fontBold, color: D.onSurface, letterSpacing: -0.3 },
+  pageTitle: { fontSize: 22, fontWeight: "800", fontFamily: D.fontExtraBold, color: D.onSurface, letterSpacing: -0.7, marginBottom: 16 },
   fieldLabel: { fontSize: 12.5, fontWeight: "600", fontFamily: D.fontSemiBold, color: D.onSurfaceVariant, marginBottom: 7 },
   fieldBox: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", padding: 14, borderRadius: 14, borderWidth: 1, borderColor: D.outlineVariant, backgroundColor: D.surface, shadowColor: D.primary, shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.03, shadowRadius: 5, elevation: 1 },
   fieldFocused: { borderWidth: 1.5, borderColor: D.primary },

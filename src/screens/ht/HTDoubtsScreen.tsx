@@ -37,6 +37,7 @@ export function HTDoubtsScreen() {
       </View>
 
       <ScrollView contentContainerStyle={{ padding: 18, paddingBottom: 60 }} showsVerticalScrollIndicator={false}>
+        <Text style={s.pageTitle}>Doubts</Text>
         {/* Stats strip */}
         <View style={{ flexDirection: "row", gap: 8, marginBottom: 18 }}>
           {[
@@ -122,6 +123,7 @@ const s = StyleSheet.create({
   backBtn: { flexDirection: "row", alignItems: "center", gap: 4, paddingVertical: 6, paddingRight: 10, paddingLeft: 6, borderRadius: 12, backgroundColor: D.surface, borderWidth: 1, borderColor: D.outlineVariant, height: 38 },
   backText: { fontSize: 12.5, fontWeight: "700", fontFamily: D.fontBold, color: D.primary },
   headerTitle: { fontSize: 15, fontWeight: "700", fontFamily: D.fontBold, color: D.onSurface, letterSpacing: -0.3 },
+  pageTitle: { fontSize: 22, fontWeight: "800", fontFamily: D.fontExtraBold, color: D.onSurface, letterSpacing: -0.7, marginBottom: 16 },
   statTile: { flex: 1, padding: 14, borderRadius: 18, backgroundColor: D.surface, borderWidth: 1, alignItems: "center", shadowColor: D.primary, shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.03, shadowRadius: 5, elevation: 1 },
   statValue: { fontSize: 18, fontWeight: "800", fontFamily: D.fontExtraBold, letterSpacing: -0.5 },
   statLabel: { fontSize: 10.5, fontWeight: "700", fontFamily: D.fontBold, color: D.outline, marginTop: 2 },

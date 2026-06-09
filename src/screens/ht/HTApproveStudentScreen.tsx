@@ -37,6 +37,7 @@ export function HTApproveStudentScreen() {
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
       >
+        <Text style={s.pageTitle}>Approve Student</Text>
         {/* Info banner */}
         <View style={s.infoBanner}>
           <Ionicons name="information-circle-outline" size={16} color={D.primary} style={{ flexShrink: 0, marginTop: 1 }} />
@@ -92,6 +93,7 @@ const s = StyleSheet.create({
   backBtn: { flexDirection: "row", alignItems: "center", gap: 4, paddingVertical: 6, paddingRight: 10, paddingLeft: 6, borderRadius: 12, backgroundColor: D.surface, borderWidth: 1, borderColor: D.outlineVariant, height: 38 },
   backText: { fontSize: 12.5, fontWeight: "700", fontFamily: D.fontBold, color: D.primary },
   headerTitle: { fontSize: 15, fontWeight: "700", fontFamily: D.fontBold, color: D.onSurface, letterSpacing: -0.3 },
+  pageTitle: { fontSize: 22, fontWeight: "800", fontFamily: D.fontExtraBold, color: D.onSurface, letterSpacing: -0.7, marginBottom: 16 },
   infoBanner: { flexDirection: "row", gap: 10, alignItems: "flex-start", padding: 14, borderRadius: 16, backgroundColor: D.surfaceLow, borderWidth: 1, borderColor: D.primaryFixed, marginBottom: 18 },
   infoText: { flex: 1, fontSize: 12.5, fontFamily: D.fontMedium, color: D.primary, lineHeight: 18, fontWeight: "500" },
   fieldLabel: { fontSize: 12.5, fontWeight: "600", fontFamily: D.fontSemiBold, color: D.onSurfaceVariant, marginBottom: 5 },

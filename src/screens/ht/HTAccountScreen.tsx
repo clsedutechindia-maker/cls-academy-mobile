@@ -28,10 +28,7 @@ export function HTAccountScreen() {
         contentContainerStyle={{ paddingTop: insets.top + 20, paddingHorizontal: 18, paddingBottom: 100 }}
         showsVerticalScrollIndicator={false}
       >
-        <View style={{ marginBottom: 20 }}>
-          <Text style={s.pageTitle}>Account</Text>
-          <Text style={s.pageSubtitle}>Profile & settings</Text>
-        </View>
+        <Text style={s.pageTitle}>Account</Text>
 
         {/* Profile hero */}
         <View style={s.profileCard}>
@@ -89,8 +86,7 @@ export function HTAccountScreen() {
 }
 
 const s = StyleSheet.create({
-  pageTitle: { fontSize: 22, fontWeight: "800", color: D.onSurface, letterSpacing: -0.5, marginBottom: 3, fontFamily: D.fontExtraBold },
-  pageSubtitle: { fontSize: 12.5, color: D.outline, fontFamily: D.font },
+  pageTitle: { fontSize: 22, fontWeight: "800", color: D.onSurface, letterSpacing: -0.5, marginBottom: 18, fontFamily: D.fontExtraBold },
   profileCard: { flexDirection: "row", alignItems: "center", gap: 14, padding: 16, borderRadius: 20, backgroundColor: D.surface, borderWidth: 1, borderColor: D.outlineVariant, marginBottom: 14, shadowColor: D.primary, shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.03, shadowRadius: 5, elevation: 1 },
   avatar: { width: 48, height: 48, borderRadius: 24, backgroundColor: D.primary, alignItems: "center", justifyContent: "center" },
   avatarText: { fontSize: 15, fontWeight: "800", color: "#fff", fontFamily: D.fontExtraBold },

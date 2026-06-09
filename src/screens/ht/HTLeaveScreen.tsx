@@ -41,6 +41,7 @@ export function HTLeaveScreen() {
       </View>
 
       <ScrollView contentContainerStyle={{ padding: 18, paddingBottom: 60 }} showsVerticalScrollIndicator={false}>
+        <Text style={s.pageTitle}>Leave</Text>
         {/* Segmented control */}
         <View style={s.segControl}>
           {["Staff Requests", "My Leave"].map((t, i) => (
@@ -126,6 +127,7 @@ const s = StyleSheet.create({
   backText: { fontSize: 12.5, fontWeight: "700", fontFamily: D.fontBold, color: D.primary },
   headerTitle: { fontSize: 15, fontWeight: "700", fontFamily: D.fontBold, color: D.onSurface, letterSpacing: -0.3 },
   actionBtn: { width: 38, height: 38, borderRadius: 12, backgroundColor: D.surface, borderWidth: 1, borderColor: D.outlineVariant, alignItems: "center", justifyContent: "center" },
+  pageTitle: { fontSize: 22, fontWeight: "800", fontFamily: D.fontExtraBold, color: D.onSurface, letterSpacing: -0.7, marginBottom: 16 },
   segControl: { flexDirection: "row", padding: 3, borderRadius: 14, backgroundColor: D.surfaceLow, marginBottom: 16 },
   segBtn: { flex: 1, paddingVertical: 8, borderRadius: 11, alignItems: "center" },
   segBtnActive: { backgroundColor: D.surface, shadowColor: "#000", shadowOpacity: 0.06, shadowRadius: 3, shadowOffset: { width: 0, height: 1 } },
