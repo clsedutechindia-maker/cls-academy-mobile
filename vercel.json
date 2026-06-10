@@ -1,6 +1,10 @@
 {
-  "buildCommand": "npx expo export --platform web",
+  "buildCommand": "NODE_OPTIONS=--max-old-space-size=4096 npx expo export --platform web",
   "outputDirectory": "dist",
   "installCommand": "npm install",
-  "framework": null
+  "framework": null,
+  "env": {
+    "CI": "1",
+    "NODE_ENV": "production"
+  }
 }
