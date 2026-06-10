@@ -26,7 +26,6 @@ const ROLES: {
 ];
 
 export function DevSwitcher() {
-  if (!__DEV__) return null;
   const [open, setOpen] = useState(false);
   const [active, setActive] = useState<DemoRole | null>(getDemoRole());
   const [switching, setSwitching] = useState<DemoRole | null>(null);
