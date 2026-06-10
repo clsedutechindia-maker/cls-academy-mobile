@@ -1,1 +1,1 @@
-export * from "../../../packages/shared/src";
+export * from "./shared/index";
