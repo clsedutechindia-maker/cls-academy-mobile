@@ -1,171 +1,223 @@
-import { ScrollView, StyleSheet, Text, View } from "react-native";
+import { Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { useState } from "react";
 import { D } from "../../components/theme";
 import { AnimatedPressable } from "../../components/motion";
 import { AvatarCircle } from "../../components/ui";
-
-const pending = [
-  { n: "Vikram Nair", b: "NEET 11-B" },
-  { n: "Sneha Gupta", b: "NEET 11-B" },
-];
-
-const students = [
-  { n: "Aanya Verma", roll: "043", b: "NEET 11-B", att: 96 },
-  { n: "Arjun Singh", roll: "046", b: "NEET 11-B", att: 74 },
-  { n: "Karthik Reddy", roll: "044", b: "NEET 11-B", att: 81 },
-  { n: "Meera Patel", roll: "048", b: "NEET 11-A", att: 94 },
-  { n: "Priya Joshi", roll: "047", b: "NEET 12-A", att: 68 },
-  { n: "Rahul Sharma", roll: "042", b: "NEET 11-B", att: 92 },
-  { n: "Sahil Kumar", roll: "051", b: "NEET 12-A", att: 88 },
-  { n: "Tanvi Nair", roll: "052", b: "NEET 11-A", att: 79 },
-];
-
-const batches = ["All · 124", "NEET 11-B", "NEET 11-A", "NEET 12-A"];
+import { useSession } from "../../providers/session";
+import { useResource } from "../../hooks/useResource";
+import { listTeacherStudents, listPendingStudentsForTeacher } from "../../lib/erp";
 
 export function HTStudentsScreen() {
   const insets = useSafeAreaInsets();
+  const { profile } = useSession();
+  const [selectedBatch, setSelectedBatch] = useState("All");
+  const [pickerOpen, setPickerOpen] = useState(false);
+  const [search, setSearch] = useState("");
+  const [searchVisible, setSearchVisible] = useState(false);
+
+  const { data: students, loading, error } = useResource(
+    async () => {
+      if (!profile) return [];
+      return listTeacherStudents(profile);
+    },
+    [profile?.userId],
+  );
+
+  const { data: pendingStudents } = useResource(
+    async () => {
+      if (!profile) return [];
+      return listPendingStudentsForTeacher(profile);
+    },
+    [profile?.userId],
+  );
+  const pendingCount = pendingStudents?.length ?? 0;
+
+  const classNames: string[] = Array.from(
+    new Set(profile?.teacherClassNames ?? [])
+  ).filter(Boolean) as string[];
+
+  const batches = ["All", ...classNames];
+
+  const filtered = (students ?? []).filter((st) => {
+    if (selectedBatch !== "All" && st.className !== selectedBatch) return false;
+    if (search.trim()) {
+      const term = search.trim().toLowerCase();
+      return [st.name, st.rollNumber, st.className].join(" ").toLowerCase().includes(term);
+    }
+    return true;
+  });
 
   return (
     <View style={{ flex: 1, backgroundColor: D.bg }}>
-      <ScrollView
-        contentContainerStyle={{ paddingTop: insets.top + 20, paddingHorizontal: 18, paddingBottom: 110 }}
-        showsVerticalScrollIndicator={false}
-      >
-        <Text style={s.pageTitle}>Students</Text>
+      <ScrollView contentContainerStyle={{ paddingBottom: 140 }} showsVerticalScrollIndicator={false}>
 
-        {/* Search + filter */}
-        <View style={s.searchRow}>
-          <View style={s.searchBox}>
-            <Ionicons name="search-outline" size={15} color={D.outline} />
-            <Text style={s.searchPlaceholder}>Search by name or roll…</Text>
-          </View>
-          <View style={s.filterBtn}>
-            <Ionicons name="options-outline" size={17} color={D.onSurface} />
-          </View>
-        </View>
-
-        {/* Batch chips */}
-        <View style={{ flexDirection: "row", gap: 7, marginTop: 12, marginBottom: 16 }}>
-          {batches.map((b, i) => (
-            <View key={b} style={[s.chip, i === 0 ? s.chipActive : s.chipInactive]}>
-              <Text style={[s.chipText, { color: i === 0 ? "#fff" : D.onSurfaceVariant }]}>{b}</Text>
-            </View>
-          ))}
-        </View>
-
-        {/* Pending approvals banner */}
-        <View style={s.pendingBanner}>
-          <View style={s.pendingHeader}>
-            <View style={s.pendingTitleRow}>
-              <View style={s.pendingIcon}>
-                <Ionicons name="alert-circle-outline" size={13} color="#92400E" />
-              </View>
-              <Text style={s.pendingTitle}>Pending Approvals · {pending.length}</Text>
-            </View>
-            <Text style={s.pendingLink}>Review all</Text>
-          </View>
-          {pending.map((p, i) => (
-            <View key={p.n} style={[s.pendingRow, i > 0 && { borderTopWidth: 1, borderTopColor: "#FDE68A", paddingTop: 10 }]}>
-              <AvatarCircle name={p.n} size={28} />
-              <View style={{ flex: 1 }}>
-                <Text style={s.pendingName}>{p.n}</Text>
-                <Text style={s.pendingBatch}>{p.b} · Awaiting approval</Text>
-              </View>
-              <AnimatedPressable style={s.reviewBtn} onPress={() => router.push("/(head-teacher)/approve-student")}>
-                <Text style={s.reviewBtnText}>Review</Text>
+        {/* Heading Section */}
+        <View style={[s.headerSection, { paddingTop: insets.top + 20 }]}>
+          <View style={s.titleRow}>
+            <Text style={s.pageTitle}>Students</Text>
+            <View style={{ flexDirection: "row", gap: 8, alignItems: "center" }}>
+              <AnimatedPressable style={s.batchDropdown} onPress={() => setPickerOpen(true)}>
+                <Text style={s.batchDropdownText} numberOfLines={1}>{selectedBatch}</Text>
+                <Ionicons name="chevron-down" size={13} color={D.primary} />
+              </AnimatedPressable>
+              <AnimatedPressable style={s.searchIconBtn} onPress={() => { setSearchVisible((v) => !v); if (searchVisible) setSearch(""); }}>
+                <Ionicons name={searchVisible ? "close" : "search"} size={20} color={D.onSurface} />
               </AnimatedPressable>
             </View>
-          ))}
+          </View>
         </View>
 
-        {/* Stats */}
-        <View style={{ flexDirection: "row", gap: 10, marginTop: 16, marginBottom: 18 }}>
-          {[
-            { label: "My students", value: "124", sub: "3 batches" },
-            { label: "Avg att.", value: "84%", sub: "This month" },
-            { label: "At risk", value: "7", sub: "Att < 75%", accent: "#B91C1C" },
-          ].map((c) => (
-            <View key={c.label} style={s.statTile}>
-              <Text style={s.statLabel}>{c.label}</Text>
-              <Text style={[s.statValue, c.accent ? { color: c.accent } : {}]}>{c.value}</Text>
-              <Text style={s.statSub}>{c.sub}</Text>
+        {searchVisible && (
+          <View style={{ paddingHorizontal: 18, paddingBottom: 10, backgroundColor: D.bg }}>
+            <View style={{ flexDirection: "row", alignItems: "center", gap: 10, padding: 12, borderRadius: 12, backgroundColor: D.surface, borderWidth: 1, borderColor: D.outlineVariant }}>
+              <Ionicons name="search-outline" size={17} color={D.outline} />
+              <TextInput
+                style={{ flex: 1, fontSize: 13, fontFamily: D.fontMedium, color: D.onSurface }}
+                placeholder="Search by name or roll number…"
+                placeholderTextColor={D.outline}
+                value={search}
+                onChangeText={setSearch}
+                autoFocus
+                autoCapitalize="none"
+              />
+              {search.length > 0 && (
+                <Pressable onPress={() => setSearch("")}>
+                  <Ionicons name="close-circle" size={17} color={D.outline} />
+                </Pressable>
+              )}
             </View>
-          ))}
-        </View>
+          </View>
+        )}
 
-        <Text style={s.sectionLabel}>ALL STUDENTS</Text>
-        <View style={s.card}>
-          {students.map((s2, i) => (
-            <AnimatedPressable
-              key={s2.n}
-              style={[s.studentRow, i < students.length - 1 && s.divider]}
-              onPress={() => router.push("/(head-teacher)/student-detail")}
-            >
-              <AvatarCircle name={s2.n} size={34} />
-              <View style={{ flex: 1 }}>
-                <Text style={s.studentName}>{s2.n}</Text>
-                <Text style={s.studentMeta}>Roll {s2.roll} · {s2.b}</Text>
+        <View style={s.contentArea}>
+          {/* Summary stats — 2 per row */}
+          <View style={s.grid2}>
+            {/* Non-interactive stat */}
+              <View style={s.featureCard}>
+                <View style={s.fcTopRow}>
+                  <View style={[s.fcIcon, { backgroundColor: D.surfaceLow }]}>
+                    <Ionicons name="people-outline" size={14} color={D.primary} />
+                  </View>
+                </View>
+                <Text style={s.fcLabel}>MY STUDENTS</Text>
+                <Text style={s.fcValue}>{String(students?.length ?? "—")}</Text>
+                <Text style={s.fcSub}>{classNames.length} batch{classNames.length !== 1 ? "es" : ""}</Text>
               </View>
-              <View style={{ alignItems: "flex-end", marginRight: 4 }}>
-                <Text style={[s.attValue, { color: s2.att < 75 ? "#B91C1C" : D.onSurface }]}>
-                  {s2.att}<Text style={s.attPct}>%</Text>
-                </Text>
-                <Text style={[s.attLabel, { color: s2.att < 75 ? "#EF4444" : "#15803D" }]}>ATT</Text>
-              </View>
-              <Ionicons name="chevron-forward" size={13} color={D.outline} />
-            </AnimatedPressable>
-          ))}
+              {/* Tappable pending card */}
+              <AnimatedPressable style={s.featureCard} onPress={() => router.push("/(head-teacher)/approve-student")}>
+                <View style={s.fcTopRow}>
+                  <View style={[s.fcIcon, { backgroundColor: "#FEF3C7" }]}>
+                    <Ionicons name="time-outline" size={14} color="#B45309" />
+                  </View>
+                  <Ionicons name="chevron-forward" size={14} color={D.outline} />
+                </View>
+                <Text style={s.fcLabel}>PENDING</Text>
+                <Text style={s.fcValue}>{pendingCount > 0 ? String(pendingCount) : "—"}</Text>
+                <Text style={s.fcSub}>Approvals</Text>
+              </AnimatedPressable>
+          </View>
+
+          <View style={s.sectionHeader}>
+            <Text style={s.sectionTitle}>All students</Text>
+          </View>
+
+          {loading && (
+            <View style={[s.card, { padding: 20, alignItems: "center" }]}>
+              <Text style={{ fontSize: 13, fontFamily: D.font, color: D.outline }}>Loading students…</Text>
+            </View>
+          )}
+
+          {error && (
+            <View style={[s.card, { padding: 16 }]}>
+              <Text style={{ fontSize: 13, fontFamily: D.font, color: "#B91C1C" }}>{error}</Text>
+            </View>
+          )}
+
+          {!loading && !error && filtered.length === 0 && (
+            <View style={[s.card, { padding: 20, alignItems: "center" }]}>
+              <Text style={{ fontSize: 13, fontFamily: D.font, color: D.outline }}>No students found.</Text>
+            </View>
+          )}
+
+          {!loading && !error && filtered.length > 0 && (
+            <View style={s.card}>
+              {filtered.map((st, i) => (
+                <AnimatedPressable
+                  key={st.userId}
+                  style={[s.studentRow, i < filtered.length - 1 && s.divider]}
+                  onPress={() =>
+                    router.push({
+                      pathname: "/(head-teacher)/student-detail",
+                      params: { userId: st.userId, name: st.name },
+                    })
+                  }
+                >
+                  <AvatarCircle name={st.name} size={32} />
+                  <View style={{ flex: 1 }}>
+                    <Text style={s.studentName}>{st.name}</Text>
+                    <Text style={s.studentMeta}>
+                      {st.rollNumber ? `Roll ${st.rollNumber} · ` : ""}{st.className}
+                    </Text>
+                  </View>
+                  <Ionicons name="chevron-forward" size={13} color={D.outline} />
+                </AnimatedPressable>
+              ))}
+            </View>
+          )}
         </View>
       </ScrollView>
 
-      {/* FAB */}
-      <AnimatedPressable
-        style={s.fab}
-        onPress={() => router.push("/(head-teacher)/approve-student")}
-      >
-        <Ionicons name="add" size={16} color="#fff" />
-        <Text style={s.fabText}>Approve Student</Text>
-      </AnimatedPressable>
+      {/* Batch picker modal */}
+      <Modal visible={pickerOpen} transparent animationType="fade" onRequestClose={() => setPickerOpen(false)}>
+        <Pressable style={s.modalOverlay} onPress={() => setPickerOpen(false)}>
+          <View style={s.modalSheet}>
+            <Text style={s.modalTitle}>Select Batch</Text>
+            {batches.map((b) => (
+              <Pressable
+                key={b}
+                style={[s.modalOption, b === selectedBatch && s.modalOptionActive]}
+                onPress={() => { setSelectedBatch(b); setPickerOpen(false); }}
+              >
+                <Text style={[s.modalOptionText, b === selectedBatch && { color: D.primary, fontFamily: D.fontBold }]}>{b}</Text>
+                {b === selectedBatch && <Ionicons name="checkmark" size={16} color={D.primary} />}
+              </Pressable>
+            ))}
+          </View>
+        </Pressable>
+      </Modal>
     </View>
   );
 }
 
 const s = StyleSheet.create({
-  pageTitle: { fontSize: 22, fontWeight: "800", color: D.onSurface, letterSpacing: -0.5, marginBottom: 16, fontFamily: D.fontExtraBold },
-  searchRow: { flexDirection: "row", gap: 8 },
-  searchBox: { flex: 1, flexDirection: "row", alignItems: "center", gap: 9, padding: 13, borderRadius: 16, backgroundColor: D.surface, borderWidth: 1, borderColor: D.outlineVariant, fontFamily: D.font },
-  searchPlaceholder: { flex: 1, fontSize: 12.5, color: D.outline, letterSpacing: -0.1, fontFamily: D.font },
-  filterBtn: { width: 46, height: 46, borderRadius: 16, backgroundColor: D.surface, borderWidth: 1, borderColor: D.outlineVariant, alignItems: "center", justifyContent: "center" },
-  chip: { paddingHorizontal: 11, paddingVertical: 6, borderRadius: 999 },
-  chipActive: { backgroundColor: D.primary, borderWidth: 1, borderColor: D.primary },
-  chipInactive: { backgroundColor: D.surface, borderWidth: 1, borderColor: D.outlineVariant },
-  chipText: { fontSize: 11, fontWeight: "600", fontFamily: D.fontSemiBold },
-  pendingBanner: { padding: 14, borderRadius: 18, backgroundColor: "#FEF3C7", borderWidth: 1, borderColor: "#FDE68A" },
-  pendingHeader: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 12 },
-  pendingTitleRow: { flexDirection: "row", alignItems: "center", gap: 8 },
-  pendingIcon: { width: 24, height: 24, borderRadius: 7, backgroundColor: "#FCD34D", alignItems: "center", justifyContent: "center" },
-  pendingTitle: { fontSize: 12, fontWeight: "700", color: "#92400E", fontFamily: D.fontBold },
-  pendingLink: { fontSize: 11, fontWeight: "700", color: "#B45309", fontFamily: D.fontBold },
-  pendingRow: { flexDirection: "row", alignItems: "center", gap: 10 },
-  pendingName: { fontSize: 12, fontWeight: "600", color: "#78350F", fontFamily: D.fontSemiBold },
-  pendingBatch: { fontSize: 10.5, color: "#B45309", marginTop: 1, fontFamily: D.font },
-  reviewBtn: { paddingHorizontal: 10, paddingVertical: 5, borderRadius: 8, backgroundColor: D.surface, borderWidth: 1, borderColor: "#FCD34D" },
-  reviewBtnText: { fontSize: 10.5, fontWeight: "700", color: "#92400E", fontFamily: D.fontBold },
-  statTile: { flex: 1, padding: 14, borderRadius: 18, backgroundColor: D.surface, borderWidth: 1, borderColor: D.outlineVariant, shadowColor: D.primary, shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.03, shadowRadius: 5, elevation: 1 },
-  statLabel: { fontSize: 9.5, fontWeight: "700", color: D.outline, letterSpacing: 0.5, textTransform: "uppercase", marginBottom: 5, fontFamily: D.fontBold },
-  statValue: { fontSize: 18, fontWeight: "800", color: D.onSurface, letterSpacing: -0.5, lineHeight: 22, fontFamily: D.fontExtraBold },
-  statSub: { fontSize: 10, color: D.outline, marginTop: 4, fontFamily: D.font },
-  sectionLabel: { fontSize: 10, fontWeight: "700", color: D.outline, letterSpacing: 0.5, marginBottom: 10, fontFamily: D.fontBold },
-  card: { backgroundColor: D.surface, borderRadius: 20, borderWidth: 1, borderColor: D.outlineVariant, overflow: "hidden", shadowColor: D.primary, shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.03, shadowRadius: 5, elevation: 1 },
+  headerSection: { paddingHorizontal: 18, paddingBottom: 16, backgroundColor: D.bg },
+  titleRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
+  pageTitle: { fontSize: 24, fontWeight: "800", fontFamily: D.fontExtraBold, color: D.onSurface, letterSpacing: -0.5 },
+  batchDropdown: { flexDirection: "row", alignItems: "center", gap: 6, paddingHorizontal: 12, paddingVertical: 7, borderRadius: 10, backgroundColor: D.surfaceLow, borderWidth: 1, borderColor: D.surfaceHigh, maxWidth: 130 },
+  batchDropdownText: { fontSize: 11, fontWeight: "700", fontFamily: D.fontBold, color: D.primary, flex: 1 },
+  searchIconBtn: { width: 36, height: 36, borderRadius: 8, alignItems: "center", justifyContent: "center", backgroundColor: D.surface, borderWidth: 1, borderColor: D.outlineVariant },
+  modalOverlay: { flex: 1, backgroundColor: "rgba(0,0,0,0.4)", justifyContent: "flex-end" },
+  modalSheet: { backgroundColor: "#fff", borderTopLeftRadius: 24, borderTopRightRadius: 24, paddingTop: 20, paddingHorizontal: 18, paddingBottom: 40 },
+  modalTitle: { fontSize: 15, fontWeight: "700", fontFamily: D.fontBold, color: D.onSurface, marginBottom: 16, letterSpacing: -0.2 },
+  modalOption: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: D.outlineVariant },
+  modalOptionActive: { backgroundColor: D.surfaceLow, marginHorizontal: -18, paddingHorizontal: 18, borderRadius: 0 },
+  modalOptionText: { fontSize: 13, fontFamily: D.fontMedium, color: D.onSurface },
+  contentArea: { paddingHorizontal: 18 },
+  grid2: { flexDirection: "row", gap: 16 },
+  featureCard: { flex: 1, backgroundColor: "#fff", borderRadius: 12, padding: 14, borderWidth: 1, borderColor: D.outlineVariant, shadowColor: D.primary, shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.025, shadowRadius: 4, elevation: 1 },
+  fcTopRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
+  fcIcon: { width: 24, height: 24, borderRadius: 6, alignItems: "center", justifyContent: "center" },
+  fcLabel: { marginTop: 10, fontSize: 9, fontWeight: "700", fontFamily: D.fontBold, color: D.outline, letterSpacing: 0.5 },
+  fcValue: { marginTop: 4, fontSize: 16, fontWeight: "800", fontFamily: D.fontExtraBold, color: D.onSurface, letterSpacing: -0.35 },
+  fcSub: { marginTop: 3, fontSize: 9.5, color: D.onSurfaceVariant, letterSpacing: -0.05, fontFamily: D.font },
+  sectionHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginTop: 24, marginBottom: 12, paddingHorizontal: 2 },
+  sectionTitle: { fontSize: 12, fontWeight: "700", fontFamily: D.fontBold, color: D.onSurface, letterSpacing: -0.1 },
+  card: { backgroundColor: D.surface, borderRadius: 12, borderWidth: 1, borderColor: D.outlineVariant, overflow: "hidden", shadowColor: D.primary, shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.03, shadowRadius: 5, elevation: 1 },
   divider: { borderBottomWidth: 1, borderBottomColor: D.outlineVariant },
   studentRow: { flexDirection: "row", alignItems: "center", gap: 12, padding: 14 },
-  studentName: { fontSize: 12.5, fontWeight: "700", color: D.onSurface, letterSpacing: -0.15, fontFamily: D.fontBold },
-  studentMeta: { fontSize: 10.5, color: D.outline, marginTop: 1, fontFamily: D.font },
-  attValue: { fontSize: 13, fontWeight: "800", letterSpacing: -0.3, fontFamily: D.fontExtraBold },
-  attPct: { fontSize: 9.5, fontWeight: "600", color: D.outline, fontFamily: D.fontSemiBold },
-  attLabel: { fontSize: 9, fontWeight: "700", letterSpacing: 0.4, marginTop: 1, fontFamily: D.fontBold },
-  fab: { position: "absolute", bottom: 88, right: 18, flexDirection: "row", alignItems: "center", gap: 7, height: 44, paddingLeft: 14, paddingRight: 16, borderRadius: 22, backgroundColor: D.primary, shadowColor: D.primary, shadowOpacity: 0.35, shadowRadius: 20, shadowOffset: { width: 0, height: 8 } },
-  fabText: { fontSize: 12.5, fontWeight: "700", color: "#fff", letterSpacing: -0.1, fontFamily: D.fontBold },
+  studentName: { fontSize: 12, fontWeight: "700", color: D.onSurface, letterSpacing: -0.1, fontFamily: D.fontBold },
+  studentMeta: { fontSize: 10.5, color: D.outline, marginTop: 2, fontFamily: D.font },
 });

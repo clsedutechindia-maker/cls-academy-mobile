@@ -5,43 +5,15 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useSession } from "../../providers/session";
 import { D } from "../../components/theme";
 import { AnimatedPressable } from "../../components/motion";
-
-const summaryCards = [
-  { label: "My Students", value: "124", sub: "3 batches", accent: D.primary, bg: D.surfaceLow },
-  { label: "Today's Att.", value: "87%", sub: "across batches", accent: "#15803D", bg: "#F0FDF4" },
-  { label: "Leave Requests", value: "3", sub: "pending review", accent: "#B45309", bg: "#FEF3C7" },
-  { label: "Open Doubts", value: "5", sub: "unanswered", accent: "#0369A1", bg: "#F0F9FF" },
-];
-
-const alerts = [
-  { label: "Staff leave awaiting approval", count: 2, color: "#B45309", bg: "#FEF3C7", border: "#FDE68A" },
-  { label: "Pending student enrolments", count: 2, color: D.primaryBtn, bg: D.surfaceLow, border: D.surfaceHigh },
-];
-
-const todayClasses = [
-  { time: "8:00 AM", subject: "Physics · Optics", batch: "NEET 11-B", room: "R-3" },
-  { time: "10:00 AM", subject: "Chemistry · Equilibrium", batch: "NEET 11-A", room: "R-5" },
-  { time: "12:30 PM", subject: "Biology · Cell Division", batch: "NEET 12-A", room: "R-1" },
-];
-
-const upcomingTests = [
-  { date: "Jun 11", label: "Physics Unit Test", batch: "NEET 11-B", daysLeft: 2 },
-  { date: "Jun 13", label: "Chemistry Mock", batch: "NEET 11-A", daysLeft: 4 },
-  { date: "Jun 17", label: "Biology Mid-term", batch: "NEET 12-A", daysLeft: 8 },
-];
-
-const activityFeed = [
-  { icon: "help-circle-outline" as const, color: "#0369A1", bg: "#F0F9FF", label: "New doubt posted", sub: "Rahul Sharma · NEET 11-B", time: "9 min ago" },
-  { icon: "document-outline" as const, color: "#B45309", bg: "#FEF3C7", label: "Leave request submitted", sub: "Ms. Priya Iyer · Chemistry", time: "42 min ago" },
-  { icon: "bar-chart-outline" as const, color: "#15803D", bg: "#F0FDF4", label: "Results uploaded", sub: "Physics Unit Test · NEET 11-B", time: "2 hr ago" },
-  { icon: "megaphone-outline" as const, color: D.primaryBtn, bg: D.surfaceLow, label: "Circular posted", sub: "Holiday notice · All batches", time: "4 hr ago" },
-  { icon: "person-add-outline" as const, color: "#15803D", bg: "#F0FDF4", label: "Student approved", sub: "Sneha Gupta · NEET 11-B", time: "Yesterday" },
-];
+import { LinearGradient } from "expo-linear-gradient";
+import { useResource } from "../../hooks/useResource";
+import { listDoubtsForTeacher, listPendingStudentsForTeacher, listTeacherTimetable } from "../../lib/erp";
 
 const quickActions = [
-  { label: "Upload Result", icon: "bar-chart-outline" as const, color: D.primary, bg: D.surfaceLow, route: "/(head-teacher)/upload-result" as const },
-  { label: "Post Circular", icon: "megaphone-outline" as const, color: "#0369A1", bg: "#F0F9FF", route: "/(head-teacher)/post-circular" as const },
-  { label: "Leave Requests", icon: "document-text-outline" as const, color: "#15803D", bg: "#F0FDF4", route: "/(head-teacher)/leave" as const },
+  { label: "Upload\nResult", icon: "bar-chart-outline" as const, color: D.primary, route: "/(head-teacher)/upload-result" as const },
+  { label: "Post\nCircular", icon: "megaphone-outline" as const, color: "#0369A1", route: "/(head-teacher)/post-circular" as const },
+  { label: "Leave\nRequests", icon: "document-text-outline" as const, color: "#15803D", route: "/(head-teacher)/leave" as const },
+  { label: "Answer\nDoubts", icon: "help-circle-outline" as const, color: "#EC4899", route: "/(head-teacher)/doubts" as const },
 ];
 
 const subjectColors: Record<string, string> = {
@@ -60,162 +32,290 @@ function subjectColor(subject: string) {
 export function HTHomeScreen() {
   const insets = useSafeAreaInsets();
   const { profile } = useSession();
-  const firstName = profile?.name?.split(" ")[0] ?? "Teacher";
 
-  const dayNames = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
-  const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+  const { data: doubts } = useResource(
+    async () => {
+      if (!profile) return [];
+      return listDoubtsForTeacher(profile);
+    },
+    [profile?.userId],
+  );
+
+  const { data: pendingStudents } = useResource(
+    async () => {
+      if (!profile) return [];
+      return listPendingStudentsForTeacher(profile);
+    },
+    [profile?.userId],
+  );
+
+  const { data: timetable } = useResource(
+    async () => {
+      if (!profile) return { timetableEntries: [], tests: [] };
+      return listTeacherTimetable(profile);
+    },
+    [profile?.userId],
+  );
+
+  const openDoubtsCount = (doubts ?? []).filter((d) => d.status === "open").length;
+  const pendingCount = pendingStudents?.length ?? 0;
+  const classNames: string[] = Array.from(new Set(profile?.teacherClassNames ?? [])).filter(Boolean) as string[];
+
+  const summaryCards = [
+    {
+      label: "Open Doubts",
+      value: String(openDoubtsCount),
+      sub: "unanswered",
+      icon: "help-circle-outline" as const,
+      tone: { bg: "#FDF2F8", fg: "#EC4899" },
+      onPress: () => router.push("/(head-teacher)/doubts"),
+    },
+    {
+      label: "Pending Approvals",
+      value: pendingCount > 0 ? String(pendingCount) : "—",
+      sub: "new enrollments",
+      icon: "time-outline" as const,
+      tone: { bg: "#FEF3C7", fg: "#B45309" },
+      onPress: () => router.push("/(head-teacher)/approve-student"),
+    },
+  ];
+
+  const initials = profile?.name?.split(" ").map((n) => n[0]).join("").substring(0, 2).toUpperCase() || "HT";
+  const subjects = (profile as any)?.teacherSubjectNames?.join(", ") || "Physics, Chemistry";
+  const centre = (profile as any)?.centreName || "CLS Raipur";
+  const roleLabel = "TEAM · " + centre.toUpperCase();
+
   const now = new Date();
-  const dateLabel = `${dayNames[now.getDay()]}, ${monthNames[now.getMonth()]} ${now.getDate()} · NEET session`;
+  const hour = now.getHours();
+  const greeting = hour < 12 ? "GOOD MORNING" : hour < 17 ? "GOOD AFTERNOON" : "GOOD EVENING";
+
+  const todayDayKey = (() => {
+    const map: Record<number, string> = { 1: "monday", 2: "tuesday", 3: "wednesday", 4: "thursday", 5: "friday", 6: "saturday" };
+    return map[new Date().getDay()] ?? "monday";
+  })();
+  const todayClasses = (timetable?.timetableEntries ?? [])
+    .filter((e) => e.dayKey === todayDayKey)
+    .sort((a, b) => a.startTime.localeCompare(b.startTime))
+    .slice(0, 4)
+    .map((e) => {
+      const [h, m] = e.startTime.split(":").map(Number);
+      const ampm = (h ?? 0) >= 12 ? "PM" : "AM";
+      const hour = (h ?? 0) % 12 || 12;
+      const time = `${hour}:${String(m ?? 0).padStart(2, "0")} ${ampm}`;
+      return { time, subject: e.subjectName, batch: e.className, room: "—" };
+    });
+
+  // Activity feed from recent doubts
+  function relativeTime(isoStr: string) {
+    if (!isoStr) return "—";
+    const diff = Date.now() - new Date(isoStr).getTime();
+    const mins = Math.floor(diff / 60000);
+    if (mins < 60) return `${mins}m ago`;
+    const hrs = Math.floor(mins / 60);
+    if (hrs < 24) return `${hrs}h ago`;
+    return `${Math.floor(hrs / 24)}d ago`;
+  }
+
+  const activityFeed = (doubts ?? []).slice(0, 5).map((d) => ({
+    icon: "help-circle-outline" as const,
+    color: "#0369A1",
+    bg: "#F0F9FF",
+    label: d.status === "open" ? "New doubt posted" : "Doubt replied",
+    sub: `${d.studentName} · ${d.studentClassName}`,
+    time: relativeTime(d.updatedAtIso || d.createdAtIso),
+  }));
 
   return (
     <View style={{ flex: 1, backgroundColor: D.bg }}>
-      <ScrollView
-        contentContainerStyle={{ paddingTop: insets.top + 20, paddingHorizontal: 18, paddingBottom: 100 }}
-        showsVerticalScrollIndicator={false}
-      >
-        {/* Greeting header */}
-        <View style={[s.row, { marginBottom: 20 }]}>
-          <View style={{ flex: 1 }}>
-            <Text style={s.dateLabel}>{dateLabel}</Text>
-            <Text style={s.greeting}>Good morning,{"\n"}Mr. {firstName}</Text>
-          </View>
-          <View style={s.bellWrap}>
-            <Ionicons name="notifications-outline" size={18} color={D.onSurface} />
-            <View style={s.bellBadge}><Text style={s.bellBadgeText}>4</Text></View>
-          </View>
-        </View>
-
-        {/* Alert rows */}
-        <View style={{ gap: 8, marginBottom: 20 }}>
-          {alerts.map((a) => (
-            <AnimatedPressable key={a.label} style={[s.alertRow, { backgroundColor: a.bg, borderColor: a.border }]}>
-              <View style={[s.alertCount, { backgroundColor: a.color }]}>
-                <Text style={s.alertCountText}>{a.count}</Text>
+      <ScrollView contentContainerStyle={{ paddingBottom: 100 }} showsVerticalScrollIndicator={false}>
+        {/* Purple gradient header */}
+        <LinearGradient
+          colors={[D.primary, D.primaryBtn, "#8B5CF6"]}
+          style={[s.topGradient, { paddingTop: Math.max(insets.top + 24, 60) }]}
+        >
+          <View style={{ paddingHorizontal: 22, paddingBottom: 24 }}>
+            <View style={s.topBarRow}>
+              <View style={s.userRow}>
+                <View style={s.avatarCircle}>
+                  <Text style={s.avatarText}>{initials}</Text>
+                </View>
+                <View>
+                  <Text style={s.greetingText}>{greeting}</Text>
+                  <Text style={s.nameText}>{profile?.name || "Teacher"}</Text>
+                </View>
               </View>
-              <Text style={[s.alertLabel, { color: a.color }]}>{a.label}</Text>
-              <Ionicons name="chevron-forward" size={14} color={a.color} />
-            </AnimatedPressable>
-          ))}
-        </View>
-
-        {/* Summary 2×2 grid */}
-        <View style={s.grid2}>
-          {summaryCards.map((c) => (
-            <View key={c.label} style={s.summaryCard}>
-              <Text style={s.summaryLabel}>{c.label}</Text>
-              <Text style={[s.summaryValue, { color: c.accent }]}>{c.value}</Text>
-              <Text style={s.summarySub}>{c.sub}</Text>
+              <AnimatedPressable style={s.bellBtn} onPress={() => router.push("/(head-teacher)/notifications")}>
+                <Ionicons name="notifications-outline" size={20} color="#fff" />
+                <View style={s.bellDot} />
+              </AnimatedPressable>
             </View>
-          ))}
-        </View>
 
-        {/* Quick actions */}
-        <Text style={s.sectionLabel}>QUICK ACTIONS</Text>
-        <View style={[s.row, { gap: 10, marginBottom: 24 }]}>
-          {quickActions.map((q) => (
-            <AnimatedPressable key={q.label} style={[s.quickAction, { backgroundColor: q.bg }]} onPress={() => router.push(q.route as any)}>
-              <View style={s.quickIcon}>
-                <Ionicons name={q.icon} size={17} color={q.color} />
+            {/* Role / subject card */}
+            <View style={s.roleCard}>
+              <View>
+                <Text style={s.roleLabel}>{roleLabel}</Text>
+                <Text style={s.roleSub}>{subjects}</Text>
               </View>
-              <Text style={[s.quickLabel, { color: q.color }]}>{q.label}</Text>
-            </AnimatedPressable>
-          ))}
-        </View>
-
-        {/* Today's classes */}
-        <View style={[s.row, { marginBottom: 12 }]}>
-          <Text style={s.sectionLabel}>TODAY'S CLASSES</Text>
-          <Text style={s.sectionLink}>Full schedule</Text>
-        </View>
-        <View style={s.card}>
-          {todayClasses.map((cls, i) => {
-            const color = subjectColor(cls.subject);
-            const [subjectName, topic] = cls.subject.split(" · ");
-            return (
-              <View key={cls.time} style={[s.classRow, i < todayClasses.length - 1 && s.divider]}>
-                <View style={s.classTimeBlock}>
-                  <Text style={s.classTime}>{cls.time}</Text>
-                  <Text style={s.classTimeRoom}>{cls.room}</Text>
-                </View>
-                <View style={[s.accentLine, { backgroundColor: color }]} />
-                <View style={{ flex: 1 }}>
-                  <Text style={[s.classSubjectTag, { color }]}>{subjectName.toUpperCase()}</Text>
-                  <Text style={s.classSubject}>{topic || subjectName}</Text>
-                  <Text style={s.classMeta}>{cls.batch}</Text>
-                </View>
-                {i === 0 && <View style={s.nextBadge}><Text style={s.nextBadgeText}>NEXT</Text></View>}
-              </View>
-            );
-          })}
-        </View>
-
-        {/* Upcoming tests */}
-        <View style={[s.row, { marginBottom: 12, marginTop: 22 }]}>
-          <Text style={s.sectionLabel}>UPCOMING TESTS</Text>
-          <Text style={s.sectionLink}>View all</Text>
-        </View>
-        <View style={s.card}>
-          {upcomingTests.map((t, i) => {
-            const [mon, day] = t.date.split(" ");
-            return (
-              <View key={t.label} style={[s.testRow, i < upcomingTests.length - 1 && s.divider]}>
-                <View style={s.datePill}>
-                  <Text style={s.datePillMon}>{mon}</Text>
-                  <Text style={s.datePillDay}>{day}</Text>
-                </View>
-                <View style={{ flex: 1 }}>
-                  <Text style={s.testName}>{t.label}</Text>
-                  <Text style={s.testBatch}>{t.batch}</Text>
-                </View>
-                <Text style={[s.daysLeft, { color: t.daysLeft <= 3 ? "#B45309" : D.outline }]}>in {t.daysLeft}d</Text>
-              </View>
-            );
-          })}
-        </View>
-
-        {/* Recent activity */}
-        <Text style={[s.sectionLabel, { marginTop: 22, marginBottom: 12 }]}>RECENT ACTIVITY</Text>
-        <View style={s.card}>
-          {activityFeed.map((ev, i) => (
-            <View key={ev.label} style={[s.activityRow, i < activityFeed.length - 1 && s.divider]}>
-              <View style={[s.activityIcon, { backgroundColor: ev.bg }]}>
-                <Ionicons name={ev.icon} size={15} color={ev.color} />
-              </View>
-              <View style={{ flex: 1 }}>
-                <Text style={s.activityLabel}>{ev.label}</Text>
-                <Text style={s.activitySub}>{ev.sub}</Text>
-              </View>
-              <Text style={s.activityTime}>{ev.time}</Text>
             </View>
-          ))}
+          </View>
+        </LinearGradient>
+
+        {/* Content */}
+        <View style={s.contentOverlap}>
+          {/* Summary 2×2 grid — FeatureCard style */}
+          <View style={s.grid2}>
+            {summaryCards.map((c) => (
+              <AnimatedPressable key={c.label} style={s.featureCard} onPress={c.onPress}>
+                <View style={s.fcTopRow}>
+                  <View style={[s.fcIcon, { backgroundColor: c.tone.bg }]}>
+                    <Ionicons name={c.icon} size={18} color={c.tone.fg} />
+                  </View>
+                  <Ionicons name="chevron-forward" size={16} color={D.outline} />
+                </View>
+                <Text style={s.fcLabel}>{c.label.toUpperCase()}</Text>
+                <Text style={s.fcValue}>{c.value}</Text>
+                <Text style={s.fcSub}>{c.sub}</Text>
+              </AnimatedPressable>
+            ))}
+          </View>
+
+          {/* Quick links — 4 cols style */}
+          <SectionHeader title="Quick links" />
+          <View style={s.grid4}>
+            {quickActions.map((q) => (
+              <QuickLink key={q.label} icon={q.icon} label={q.label} color={q.color} onPress={() => router.push(q.route as any)} />
+            ))}
+          </View>
+
+          {/* Today's classes */}
+          <SectionHeader title="Today's classes" action="Full schedule" onPress={() => router.push("/(head-teacher)/schedule")} />
+          <View style={s.card}>
+            {todayClasses.length === 0 ? (
+              <View style={{ padding: 16, alignItems: "center" }}>
+                <Text style={{ fontSize: 13, fontFamily: D.font, color: D.outline }}>No classes scheduled. View full schedule for details.</Text>
+              </View>
+            ) : (
+              todayClasses.map((cls, i) => {
+                const color = subjectColor(cls.subject);
+                return (
+                  <View key={cls.batch} style={[s.classRow, i < todayClasses.length - 1 && s.divider]}>
+                    <View style={s.classTimeBlock}>
+                      <Text style={s.classTime}>{cls.time}</Text>
+                    </View>
+                    <View style={[s.accentLine, { backgroundColor: color }]} />
+                    <View style={{ flex: 1 }}>
+                      <Text style={s.classSubject}>{cls.subject}</Text>
+                      <Text style={s.classMeta}>{cls.batch}</Text>
+                    </View>
+                    {i === 0 && <View style={s.nextBadge}><Text style={s.nextBadgeText}>NEXT</Text></View>}
+                  </View>
+                );
+              })
+            )}
+          </View>
+
+          {/* Upcoming tests */}
+          <SectionHeader title="Upcoming tests" action="View all" onPress={() => router.push("/(head-teacher)/schedule")} />
+          <View style={[s.card, { padding: 16, alignItems: "center" }]}>
+            <Text style={{ fontSize: 13, fontFamily: D.font, color: D.outline }}>View schedule for upcoming test details.</Text>
+          </View>
+
+          {/* Recent activity */}
+          <SectionHeader title="Recent activity" />
+          <View style={s.card}>
+            {activityFeed.length === 0 ? (
+              <View style={{ padding: 16, alignItems: "center" }}>
+                <Text style={{ fontSize: 13, fontFamily: D.font, color: D.outline }}>No recent activity.</Text>
+              </View>
+            ) : (
+              activityFeed.map((ev, i) => (
+                <View key={`${ev.sub}-${i}`} style={[s.activityRow, i < activityFeed.length - 1 && s.divider]}>
+                  <View style={[s.activityIcon, { backgroundColor: ev.bg }]}>
+                    <Ionicons name={ev.icon} size={15} color={ev.color} />
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={s.activityLabel}>{ev.label}</Text>
+                    <Text style={s.activitySub}>{ev.sub}</Text>
+                  </View>
+                  <Text style={s.activityTime}>{ev.time}</Text>
+                </View>
+              ))
+            )}
+          </View>
+
+          <View style={{ height: 124 }} />
         </View>
       </ScrollView>
     </View>
   );
 }
 
+function SectionHeader({ title, action, onPress }: { title: string; action?: string; onPress?: () => void }) {
+  return (
+    <View style={s.sectionHeader}>
+      <Text style={s.sectionTitle}>{title}</Text>
+      {action && (
+        <AnimatedPressable onPress={onPress}>
+          <Text style={s.sectionAction}>{action}</Text>
+        </AnimatedPressable>
+      )}
+    </View>
+  );
+}
+
+function QuickLink({ icon, label, color, onPress }: { icon: React.ComponentProps<typeof Ionicons>["name"]; label: string; color: string; onPress: () => void }) {
+  const lines = String(label).replace(/\\n/g, "\n").split("\n");
+  return (
+    <AnimatedPressable style={s.qlBox} onPress={onPress}>
+      <View style={[s.qlIcon, { backgroundColor: color + "18" }]}>
+        <Ionicons name={icon} size={20} color={color} />
+      </View>
+      <Text style={s.qlLabel}>
+        {lines.map((line: string, index: number) => (
+          <Text key={`${line}-${index}`}>
+            {line}
+            {index < lines.length - 1 ? "\n" : ""}
+          </Text>
+        ))}
+      </Text>
+    </AnimatedPressable>
+  );
+}
+
 const s = StyleSheet.create({
-  row: { flexDirection: "row", alignItems: "center" },
-  dateLabel: { fontSize: 11.5, fontWeight: "600", color: D.outline, letterSpacing: 0.2, marginBottom: 4, fontFamily: D.fontSemiBold },
-  greeting: { fontSize: 20, fontWeight: "800", color: D.onSurface, letterSpacing: -0.5, lineHeight: 26, fontFamily: D.fontExtraBold },
-  bellWrap: { width: 38, height: 38, borderRadius: 12, backgroundColor: D.surface, borderWidth: 1, borderColor: D.outlineVariant, alignItems: "center", justifyContent: "center", marginTop: 4, shadowColor: "#000", shadowOpacity: 0.05, shadowRadius: 5, shadowOffset: { width: 0, height: 2 } },
-  bellBadge: { position: "absolute", top: -4, right: -4, width: 16, height: 16, borderRadius: 8, backgroundColor: "#EF4444", borderWidth: 2, borderColor: D.bg, alignItems: "center", justifyContent: "center" },
-  bellBadgeText: { fontSize: 9, fontWeight: "800", color: "#fff", fontFamily: D.fontExtraBold },
-  alertRow: { flexDirection: "row", alignItems: "center", gap: 10, padding: 13, borderRadius: 14, borderWidth: 1 },
-  alertCount: { width: 22, height: 22, borderRadius: 7, alignItems: "center", justifyContent: "center" },
+  topGradient: { borderBottomLeftRadius: 16, borderBottomRightRadius: 16 },
+  topBarRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", paddingTop: 4 },
+  userRow: { flexDirection: "row", alignItems: "center", gap: 12 },
+  avatarCircle: { width: 34, height: 34, borderRadius: 17, backgroundColor: "#F3E8FF", alignItems: "center", justifyContent: "center", borderWidth: 1.5, borderColor: "rgba(255,255,255,0.45)" },
+  avatarText: { color: D.primary, fontWeight: "800", fontSize: 12, fontFamily: D.fontExtraBold },
+  greetingText: { fontSize: 9, color: "rgba(255,255,255,0.72)", letterSpacing: 0.35, fontWeight: "700", fontFamily: D.fontBold },
+  nameText: { fontSize: 15, color: "#fff", fontWeight: "800", letterSpacing: -0.2, marginTop: 2, fontFamily: D.fontExtraBold },
+  bellBtn: { width: 34, height: 34, borderRadius: 10, backgroundColor: "rgba(255,255,255,0.16)", borderWidth: 1, borderColor: "rgba(255,255,255,0.22)", alignItems: "center", justifyContent: "center" },
+  bellDot: { position: "absolute", top: 7, right: 7, width: 6, height: 6, borderRadius: 3, backgroundColor: "#F472B6", borderWidth: 2, borderColor: D.primaryBtn },
+  roleCard: { marginTop: 18, paddingVertical: 12, paddingHorizontal: 14, borderRadius: 10, backgroundColor: "rgba(255,255,255,0.13)", borderWidth: 1, borderColor: "rgba(255,255,255,0.18)" },
+  roleLabel: { fontSize: 9, color: "rgba(255,255,255,0.7)", fontWeight: "700", letterSpacing: 0.6, fontFamily: D.fontBold },
+  roleSub: { fontSize: 11, color: "#fff", fontWeight: "600", marginTop: 4, letterSpacing: -0.05, fontFamily: D.fontSemiBold },
+  contentOverlap: { marginTop: -12, paddingHorizontal: 18 },
+  alertRow: { flexDirection: "row", alignItems: "center", gap: 10, padding: 13, borderRadius: 10, borderWidth: 1 },
+  alertCount: { width: 22, height: 22, borderRadius: 6, alignItems: "center", justifyContent: "center" },
   alertCountText: { fontSize: 10, fontWeight: "800", color: "#fff", fontFamily: D.fontExtraBold },
   alertLabel: { flex: 1, fontSize: 12, fontWeight: "600", letterSpacing: -0.1, fontFamily: D.fontSemiBold },
-  grid2: { flexDirection: "row", flexWrap: "wrap", gap: 10, marginBottom: 22 },
-  summaryCard: { width: "47.5%", padding: 16, borderRadius: 18, borderWidth: 1, borderColor: D.outlineVariant, backgroundColor: D.surface, shadowColor: D.primary, shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.03, shadowRadius: 5, elevation: 1 },
-  summaryLabel: { fontSize: 9.5, fontWeight: "700", color: D.outline, letterSpacing: 0.5, textTransform: "uppercase", marginBottom: 6, fontFamily: D.fontBold },
-  summaryValue: { fontSize: 18, fontWeight: "800", letterSpacing: -0.5, lineHeight: 22, fontFamily: D.fontExtraBold },
-  summarySub: { fontSize: 10.5, color: D.onSurfaceVariant, marginTop: 4, fontFamily: D.font },
-  sectionLabel: { fontSize: 10, fontWeight: "700", color: D.outline, letterSpacing: 0.5, marginBottom: 12, fontFamily: D.fontBold },
-  sectionLink: { flex: 1, textAlign: "right", fontSize: 11, fontWeight: "600", color: D.primary, fontFamily: D.fontSemiBold },
-  quickAction: { flex: 1, padding: 14, borderRadius: 18, borderWidth: 1, borderColor: D.outlineVariant, alignItems: "center", gap: 8 },
-  quickIcon: { width: 32, height: 32, borderRadius: 10, backgroundColor: D.surface, alignItems: "center", justifyContent: "center", shadowColor: "#000", shadowOpacity: 0.06, shadowRadius: 5, shadowOffset: { width: 0, height: 2 } },
-  quickLabel: { fontSize: 9.5, fontWeight: "700", letterSpacing: -0.1, textAlign: "center", lineHeight: 13, fontFamily: D.fontBold },
-  card: { backgroundColor: D.surface, borderRadius: 20, borderWidth: 1, borderColor: D.outlineVariant, overflow: "hidden", marginBottom: 0, shadowColor: D.primary, shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.03, shadowRadius: 5, elevation: 1 },
+  grid2: { flexDirection: "row", flexWrap: "wrap", gap: 12, marginBottom: 4 },
+  grid4: { flexDirection: "row", gap: 10 },
+  featureCard: { width: "48%", backgroundColor: "#fff", borderRadius: 12, padding: 14, borderWidth: 1, borderColor: D.outlineVariant, shadowColor: D.primary, shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.025, shadowRadius: 4, elevation: 1 },
+  fcTopRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
+  fcIcon: { width: 26, height: 26, borderRadius: 8, alignItems: "center", justifyContent: "center" },
+  fcLabel: { marginTop: 10, fontSize: 9.5, fontWeight: "700", fontFamily: D.fontBold, color: D.outline, letterSpacing: 0.5 },
+  fcValue: { marginTop: 4, fontSize: 16, fontWeight: "800", fontFamily: D.fontExtraBold, color: D.onSurface, letterSpacing: -0.35 },
+  fcSub: { marginTop: 4, fontSize: 9.5, color: D.onSurfaceVariant, letterSpacing: -0.05, fontFamily: D.font, lineHeight: 14 },
+  sectionHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginTop: 22, marginBottom: 12, paddingHorizontal: 2 },
+  sectionTitle: { fontSize: 13, fontWeight: "700", fontFamily: D.fontBold, color: D.onSurface, letterSpacing: -0.15 },
+  sectionAction: { fontSize: 11, fontWeight: "600", fontFamily: D.fontSemiBold, color: D.primary },
+  grid3: { flexDirection: "row", gap: 10 },
+  qlBox: { flex: 1, minWidth: 0, aspectRatio: 0.92, backgroundColor: "#fff", borderRadius: 12, paddingVertical: 14, paddingHorizontal: 6, borderWidth: 1, borderColor: D.outlineVariant, alignItems: "center", justifyContent: "center" },
+  qlIcon: { width: 32, height: 32, borderRadius: 10, alignItems: "center", justifyContent: "center", marginBottom: 10 },
+  qlLabel: { fontSize: 9.5, fontWeight: "700", fontFamily: D.fontBold, color: D.onSurface, textAlign: "center", lineHeight: 14, letterSpacing: -0.1, width: "100%", minHeight: 28 },
+  card: { backgroundColor: "#fff", borderRadius: 16, borderWidth: 1, borderColor: D.outlineVariant, overflow: "hidden", shadowColor: D.primary, shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.03, shadowRadius: 5, elevation: 1 },
   divider: { borderBottomWidth: 1, borderBottomColor: D.outlineVariant },
   classRow: { flexDirection: "row", alignItems: "center", gap: 12, paddingVertical: 14, paddingHorizontal: 16 },
   classTimeBlock: { width: 68, flexShrink: 0 },
@@ -225,17 +325,17 @@ const s = StyleSheet.create({
   classSubjectTag: { fontSize: 9, fontWeight: "700", fontFamily: D.fontBold, letterSpacing: 0.5, marginBottom: 2 },
   classSubject: { fontSize: 12, fontWeight: "700", color: D.onSurface, letterSpacing: -0.1, fontFamily: D.fontBold },
   classMeta: { fontSize: 9.5, color: D.outline, marginTop: 3, fontFamily: D.font },
-  nextBadge: { paddingHorizontal: 8, paddingVertical: 4, borderRadius: 7, backgroundColor: D.primary },
+  nextBadge: { paddingHorizontal: 8, paddingVertical: 4, borderRadius: 6, backgroundColor: D.primary },
   nextBadgeText: { fontSize: 9, fontWeight: "800", color: "#fff", letterSpacing: 0.3, fontFamily: D.fontExtraBold },
   testRow: { flexDirection: "row", alignItems: "center", gap: 12, paddingVertical: 14, paddingHorizontal: 16 },
-  datePill: { width: 40, borderRadius: 10, backgroundColor: D.surfaceLow, borderWidth: 1, borderColor: D.surfaceHigh, paddingVertical: 6, alignItems: "center" },
+  datePill: { width: 40, borderRadius: 8, backgroundColor: D.surfaceLow, borderWidth: 1, borderColor: D.surfaceHigh, paddingVertical: 6, alignItems: "center" },
   datePillMon: { fontSize: 8.5, fontWeight: "700", color: D.primary, letterSpacing: 0.4, textTransform: "uppercase", fontFamily: D.fontBold },
   datePillDay: { fontSize: 14, fontWeight: "800", color: D.primary, letterSpacing: -0.4, lineHeight: 17, fontFamily: D.fontExtraBold },
   testName: { fontSize: 12.5, fontWeight: "700", color: D.onSurface, letterSpacing: -0.2, fontFamily: D.fontBold },
   testBatch: { fontSize: 10.5, color: D.outline, marginTop: 2, fontFamily: D.font },
   daysLeft: { fontSize: 10.5, fontWeight: "700", letterSpacing: -0.1, fontFamily: D.fontBold },
   activityRow: { flexDirection: "row", alignItems: "center", gap: 12, paddingVertical: 14, paddingHorizontal: 16 },
-  activityIcon: { width: 32, height: 32, borderRadius: 10, alignItems: "center", justifyContent: "center", flexShrink: 0 },
+  activityIcon: { width: 32, height: 32, borderRadius: 8, alignItems: "center", justifyContent: "center", flexShrink: 0 },
   activityLabel: { fontSize: 12, fontWeight: "700", color: D.onSurface, letterSpacing: -0.1, fontFamily: D.fontBold },
   activitySub: { fontSize: 10.5, color: D.outline, marginTop: 2, fontFamily: D.font },
   activityTime: { fontSize: 10, color: D.outline, fontWeight: "500", flexShrink: 0, letterSpacing: -0.1, fontFamily: D.fontMedium },

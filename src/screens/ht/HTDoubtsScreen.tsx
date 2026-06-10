@@ -1,18 +1,13 @@
-import { ScrollView, StyleSheet, Text, View } from "react-native";
+import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
+import { useState } from "react";
 import { Ionicons } from "@expo/vector-icons";
-import { router } from "expo-router";
+import { router, useSegments } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { D } from "../../components/theme";
 import { AnimatedPressable } from "../../components/motion";
-
-const doubts = [
-  { student: "Aanya Verma", initials: "AV", color: "#EC4899", subject: "Physics", question: "In the derivation of electric field due to a dipole at a general point, how do we resolve axial and equatorial components?", time: "2h ago", batch: "NEET 12-A", answered: false },
-  { student: "Rahul Sharma", initials: "RS", color: "#7C3AED", subject: "Chemistry", question: "Why does SN2 reaction fail for tertiary halides despite having a good leaving group?", time: "4h ago", batch: "NEET 11-B", answered: false },
-  { student: "Karthik Reddy", initials: "KR", color: "#F59E0B", subject: "Biology", question: "Difference between incomplete dominance and codominance with examples from NEET perspective?", time: "Yesterday", batch: "NEET 11-A", answered: false },
-  { student: "Meera Patel", initials: "MP", color: "#10B981", subject: "Physics", question: "Can you explain the concept of mutual inductance with a numerical example?", time: "Yesterday", batch: "NEET 12-A", answered: false },
-  { student: "Sahil Kumar", initials: "SK", color: "#0EA5E9", subject: "Chemistry", question: "In which cases do we prefer mole fraction over molarity for concentration?", time: "Jun 7", batch: "NEET 11-B", answered: false },
-  { student: "Priya Joshi", initials: "PJ", color: "#EF4444", subject: "Biology", question: "Explain the molecular basis of inheritance with respect to transcription in eukaryotes.", time: "Jun 6", batch: "NEET 11-A", answered: true },
-];
+import { useSession } from "../../providers/session";
+import { useResource } from "../../hooks/useResource";
+import { listDoubtsForTeacher } from "../../lib/erp";
 
 const subjectColor: Record<string, { bg: string; color: string }> = {
   Physics: { bg: "#EEF2FF", color: "#6366F1" },
@@ -20,30 +15,101 @@ const subjectColor: Record<string, { bg: string; color: string }> = {
   Biology: { bg: "#F0FDF4", color: "#10B981" },
 };
 
+function getSubjectColor(subjectName: string) {
+  for (const key of Object.keys(subjectColor)) {
+    if (subjectName.includes(key)) return subjectColor[key]!;
+  }
+  return { bg: "#F4F4F2", color: "#555" };
+}
+
+function relativeTime(isoStr: string) {
+  if (!isoStr) return "—";
+  const diff = Date.now() - new Date(isoStr).getTime();
+  const mins = Math.floor(diff / 60000);
+  if (mins < 60) return `${mins}m ago`;
+  const hrs = Math.floor(mins / 60);
+  if (hrs < 24) return `${hrs}h ago`;
+  return `${Math.floor(hrs / 24)}d ago`;
+}
+
+const FILTER_OPTIONS = ["All", "Unanswered", "Answered"] as const;
+type FilterOption = typeof FILTER_OPTIONS[number];
+
 export function HTDoubtsScreen() {
   const insets = useSafeAreaInsets();
-  const unanswered = doubts.filter((d) => !d.answered);
-  const answered = doubts.filter((d) => d.answered);
+  const { profile } = useSession();
+  const segments = useSegments();
+  const doubtDetailPath = (segments[0] as string) === "(teacher)" ? "/(teacher)/doubt-detail" : "/(head-teacher)/doubt-detail";
+  const [activeFilter, setActiveFilter] = useState<FilterOption>("All");
+  const [search, setSearch] = useState("");
+  const [searchVisible, setSearchVisible] = useState(false);
+
+  const { data: doubts, loading, error } = useResource(
+    async () => {
+      if (!profile) return [];
+      return listDoubtsForTeacher(profile);
+    },
+    [profile?.userId],
+  );
+
+  const searchMatch = (d: { studentName: string; questionText: string }) => {
+    if (!search.trim()) return true;
+    const term = search.trim().toLowerCase();
+    return d.studentName.toLowerCase().includes(term) || d.questionText.toLowerCase().includes(term);
+  };
+  const unanswered = (doubts ?? []).filter((d) => d.status === "open" && searchMatch(d));
+  const answered = (doubts ?? []).filter((d) => (d.status === "replied" || d.status === "resolved") && searchMatch(d));
 
   return (
     <View style={{ flex: 1, backgroundColor: D.bg }}>
-      <View style={[s.header, { paddingTop: insets.top + 14 }]}>
-        <AnimatedPressable style={s.backBtn} onPress={() => router.back()}>
-          <Ionicons name="chevron-back" size={16} color={D.primary} />
-          <Text style={s.backText}>Other</Text>
-        </AnimatedPressable>
-        <Text style={s.headerTitle}>Doubts</Text>
-        <View style={{ width: 38 }} />
+      {/* Heading Section */}
+      <View style={[s.headerSection, { paddingTop: insets.top + 20 }]}>
+        <View style={s.titleRow}>
+          <Text style={s.pageTitle}>Doubts</Text>
+          <AnimatedPressable style={s.searchIconBtn} onPress={() => { setSearchVisible((v) => !v); if (searchVisible) setSearch(""); }}>
+            <Ionicons name={searchVisible ? "close" : "search"} size={20} color={D.onSurface} />
+          </AnimatedPressable>
+        </View>
+
+        {searchVisible && (
+          <View style={s.searchBar}>
+            <Ionicons name="search-outline" size={17} color={D.outline} />
+            <TextInput
+              style={s.searchInput}
+              placeholder="Search by student or question…"
+              placeholderTextColor={D.outline}
+              value={search}
+              onChangeText={setSearch}
+              autoFocus
+            />
+            {search.length > 0 && (
+              <Pressable onPress={() => setSearch("")}>
+                <Ionicons name="close-circle" size={17} color={D.outline} />
+              </Pressable>
+            )}
+          </View>
+        )}
+
+        {/* Filters */}
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.chipsScroll}>
+          {FILTER_OPTIONS.map((b) => {
+            const active = b === activeFilter;
+            return (
+              <AnimatedPressable key={b} style={[s.chip, active ? s.chipActive : s.chipInactive]} onPress={() => setActiveFilter(b)}>
+                <Text style={[s.chipText, { color: active ? "#fff" : D.onSurfaceVariant }]}>{b}</Text>
+              </AnimatedPressable>
+            );
+          })}
+        </ScrollView>
       </View>
 
-      <ScrollView contentContainerStyle={{ padding: 18, paddingBottom: 60 }} showsVerticalScrollIndicator={false}>
-        <Text style={s.pageTitle}>Doubts</Text>
-        {/* Stats strip */}
-        <View style={{ flexDirection: "row", gap: 8, marginBottom: 18 }}>
+      <ScrollView contentContainerStyle={{ paddingHorizontal: 18, paddingBottom: 140 }} showsVerticalScrollIndicator={false}>
+        {/* Stats 2 per row */}
+        <View style={s.grid2}>
           {[
-            { label: "Unanswered", value: String(unanswered.length), color: "#B91C1C", bg: "#FEE2E2" },
-            { label: "Answered", value: String(answered.length), color: "#15803D", bg: "#DCFCE7" },
-            { label: "Total", value: String(doubts.length), color: D.primary, bg: D.surfaceLow },
+            { label: "Unanswered", value: loading ? "—" : String(unanswered.length), color: "#B91C1C", bg: "#FEE2E2" },
+            { label: "Answered", value: loading ? "—" : String(answered.length), color: "#15803D", bg: "#DCFCE7" },
+            { label: "Total Doubts", value: loading ? "—" : String((doubts ?? []).length), color: D.primary, bg: D.surfaceLow },
           ].map((stat) => (
             <View key={stat.label} style={[s.statTile, { borderColor: stat.bg }]}>
               <Text style={[s.statValue, { color: stat.color }]}>{stat.value}</Text>
@@ -52,65 +118,106 @@ export function HTDoubtsScreen() {
           ))}
         </View>
 
-        <Text style={s.sectionLabel}>UNANSWERED · {unanswered.length}</Text>
-        <View style={[s.card, { marginBottom: 16 }]}>
-          {unanswered.map((d, i) => {
-            const sc = subjectColor[d.subject] ?? { bg: "#F4F4F2", color: "#555" };
-            return (
-              <AnimatedPressable
-                key={i}
-                style={[s.doubtRow, i < unanswered.length - 1 && s.divider]}
-                onPress={() => router.push("/(head-teacher)/doubt-detail")}
-              >
-                <View style={[s.avatar, { backgroundColor: d.color }]}>
-                  <Text style={s.avatarText}>{d.initials}</Text>
-                </View>
-                <View style={{ flex: 1 }}>
-                  <View style={{ flexDirection: "row", alignItems: "center", gap: 7, marginBottom: 4 }}>
-                    <Text style={s.studentName}>{d.student}</Text>
-                    <View style={[s.subjectBadge, { backgroundColor: sc.bg }]}>
-                      <Text style={[s.subjectBadgeText, { color: sc.color }]}>{d.subject}</Text>
-                    </View>
-                  </View>
-                  <Text style={s.questionText} numberOfLines={2}>{d.question}</Text>
-                  <Text style={s.metaText}>{d.batch} · {d.time}</Text>
-                </View>
-                <Ionicons name="chevron-forward" size={14} color={D.outline} />
-              </AnimatedPressable>
-            );
-          })}
-        </View>
+        {loading && (
+          <View style={[s.card, { padding: 20, alignItems: "center" }]}>
+            <Text style={{ fontSize: 13, fontFamily: D.font, color: D.outline }}>Loading doubts…</Text>
+          </View>
+        )}
 
-        {answered.length > 0 && (
+        {error && (
+          <View style={[s.card, { padding: 16 }]}>
+            <Text style={{ fontSize: 13, fontFamily: D.font, color: "#B91C1C" }}>{error}</Text>
+          </View>
+        )}
+
+        {!loading && !error && (
           <>
-            <Text style={s.sectionLabel}>ANSWERED · {answered.length}</Text>
-            <View style={s.card}>
-              {answered.map((d, i) => {
-                const sc = subjectColor[d.subject] ?? { bg: "#F4F4F2", color: "#555" };
-                return (
-                  <AnimatedPressable
-                    key={i}
-                    style={[s.doubtRow, { opacity: 0.6 }]}
-                    onPress={() => router.push("/(head-teacher)/doubt-detail")}
-                  >
-                    <View style={[s.avatar, { backgroundColor: d.color }]}>
-                      <Text style={s.avatarText}>{d.initials}</Text>
-                    </View>
-                    <View style={{ flex: 1 }}>
-                      <View style={{ flexDirection: "row", alignItems: "center", gap: 7, marginBottom: 4 }}>
-                        <Text style={s.studentName}>{d.student}</Text>
-                        <View style={[s.subjectBadge, { backgroundColor: sc.bg }]}>
-                          <Text style={[s.subjectBadgeText, { color: sc.color }]}>{d.subject}</Text>
+            {activeFilter !== "Answered" && unanswered.length > 0 && (
+              <>
+                <Text style={s.sectionLabel}>UNANSWERED · {unanswered.length}</Text>
+                <View style={[s.card, { marginBottom: 16 }]}>
+                  {unanswered.map((d, i) => {
+                    const sc = getSubjectColor(d.subjectName || "");
+                    const initials = d.studentName.split(" ").slice(0, 2).map((w) => w[0] ?? "").join("").toUpperCase();
+                    return (
+                      <AnimatedPressable
+                        key={d.id}
+                        style={[s.doubtRow, i < unanswered.length - 1 && s.divider]}
+                        onPress={() =>
+                          router.push({
+                            pathname: doubtDetailPath as any,
+                            params: { doubtId: d.id },
+                          })
+                        }
+                      >
+                        <View style={[s.avatar, { backgroundColor: D.primary }]}>
+                          <Text style={s.avatarText}>{initials}</Text>
                         </View>
-                        <View style={s.answeredBadge}><Text style={s.answeredText}>Answered</Text></View>
-                      </View>
-                      <Text style={s.questionText} numberOfLines={2}>{d.question}</Text>
-                    </View>
-                    <Ionicons name="chevron-forward" size={14} color={D.outline} />
-                  </AnimatedPressable>
-                );
-              })}
-            </View>
+                        <View style={{ flex: 1 }}>
+                          <View style={{ flexDirection: "row", alignItems: "center", gap: 7, marginBottom: 4 }}>
+                            <Text style={s.studentName}>{d.studentName}</Text>
+                            <View style={[s.subjectBadge, { backgroundColor: sc.bg }]}>
+                              <Text style={[s.subjectBadgeText, { color: sc.color }]}>{d.subjectName}</Text>
+                            </View>
+                          </View>
+                          <Text style={s.questionText} numberOfLines={2}>{d.questionText}</Text>
+                          <Text style={s.metaText}>{d.studentClassName} · {relativeTime(d.updatedAtIso || d.createdAtIso)}</Text>
+                        </View>
+                        <Ionicons name="chevron-forward" size={13} color={D.outline} />
+                      </AnimatedPressable>
+                    );
+                  })}
+                </View>
+              </>
+            )}
+
+            {activeFilter !== "Answered" && unanswered.length === 0 && !loading && (
+              <View style={[s.card, { marginBottom: 16, padding: 20, alignItems: "center" }]}>
+                <Ionicons name="checkmark-circle-outline" size={28} color="#15803D" style={{ marginBottom: 8 }} />
+                <Text style={{ fontSize: 13, fontFamily: D.fontBold, color: D.onSurface }}>All doubts answered</Text>
+              </View>
+            )}
+
+            {activeFilter !== "Unanswered" && answered.length > 0 && (
+              <>
+                <Text style={s.sectionLabel}>ANSWERED · {answered.length}</Text>
+                <View style={s.card}>
+                  {answered.map((d, i) => {
+                    const sc = getSubjectColor(d.subjectName || "");
+                    const initials = d.studentName.split(" ").slice(0, 2).map((w) => w[0] ?? "").join("").toUpperCase();
+                    return (
+                      <AnimatedPressable
+                        key={d.id}
+                        style={[s.doubtRow, { opacity: 0.7 }, i < answered.length - 1 && s.divider]}
+                        onPress={() =>
+                          router.push({
+                            pathname: doubtDetailPath as any,
+                            params: { doubtId: d.id },
+                          })
+                        }
+                      >
+                        <View style={[s.avatar, { backgroundColor: "#10B981" }]}>
+                          <Text style={s.avatarText}>{initials}</Text>
+                        </View>
+                        <View style={{ flex: 1 }}>
+                          <View style={{ flexDirection: "row", alignItems: "center", gap: 7, marginBottom: 4 }}>
+                            <Text style={s.studentName}>{d.studentName}</Text>
+                            <View style={[s.subjectBadge, { backgroundColor: sc.bg }]}>
+                              <Text style={[s.subjectBadgeText, { color: sc.color }]}>{d.subjectName}</Text>
+                            </View>
+                            <View style={s.answeredBadge}>
+                              <Text style={s.answeredText}>{d.status === "resolved" ? "Resolved" : "Answered"}</Text>
+                            </View>
+                          </View>
+                          <Text style={s.questionText} numberOfLines={2}>{d.questionText}</Text>
+                        </View>
+                        <Ionicons name="chevron-forward" size={13} color={D.outline} />
+                      </AnimatedPressable>
+                    );
+                  })}
+                </View>
+              </>
+            )}
           </>
         )}
       </ScrollView>
@@ -119,25 +226,32 @@ export function HTDoubtsScreen() {
 }
 
 const s = StyleSheet.create({
-  header: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingHorizontal: 18, paddingBottom: 10, backgroundColor: D.bg },
-  backBtn: { flexDirection: "row", alignItems: "center", gap: 4, paddingVertical: 6, paddingRight: 10, paddingLeft: 6, borderRadius: 12, backgroundColor: D.surface, borderWidth: 1, borderColor: D.outlineVariant, height: 38 },
-  backText: { fontSize: 12.5, fontWeight: "700", fontFamily: D.fontBold, color: D.primary },
-  headerTitle: { fontSize: 15, fontWeight: "700", fontFamily: D.fontBold, color: D.onSurface, letterSpacing: -0.3 },
-  pageTitle: { fontSize: 22, fontWeight: "800", fontFamily: D.fontExtraBold, color: D.onSurface, letterSpacing: -0.7, marginBottom: 16 },
-  statTile: { flex: 1, padding: 14, borderRadius: 18, backgroundColor: D.surface, borderWidth: 1, alignItems: "center", shadowColor: D.primary, shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.03, shadowRadius: 5, elevation: 1 },
+  headerSection: { paddingHorizontal: 18, paddingBottom: 16, backgroundColor: D.bg },
+  titleRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 16 },
+  pageTitle: { fontSize: 24, fontWeight: "800", fontFamily: D.fontExtraBold, color: D.onSurface, letterSpacing: -0.5 },
+  searchIconBtn: { width: 36, height: 36, borderRadius: 8, alignItems: "center", justifyContent: "center", backgroundColor: D.surface, borderWidth: 1, borderColor: D.outlineVariant },
+  searchBar: { flexDirection: "row", alignItems: "center", gap: 8, marginBottom: 12, paddingHorizontal: 12, paddingVertical: 8, borderRadius: 10, backgroundColor: D.surface, borderWidth: 1, borderColor: D.outlineVariant },
+  searchInput: { flex: 1, fontSize: 13, fontFamily: D.font, color: D.onSurface },
+  chipsScroll: { paddingRight: 18, gap: 8 },
+  chip: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 8 },
+  chipActive: { backgroundColor: D.primary, borderWidth: 1, borderColor: D.primary },
+  chipInactive: { backgroundColor: D.surface, borderWidth: 1, borderColor: D.outlineVariant },
+  chipText: { fontSize: 11, fontWeight: "600", fontFamily: D.fontSemiBold },
+  grid2: { flexDirection: "row", flexWrap: "wrap", gap: 16, marginBottom: 18 },
+  statTile: { width: "47%", padding: 14, borderRadius: 12, backgroundColor: D.surface, borderWidth: 1, alignItems: "center", shadowColor: D.primary, shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.03, shadowRadius: 5, elevation: 1 },
   statValue: { fontSize: 18, fontWeight: "800", fontFamily: D.fontExtraBold, letterSpacing: -0.5 },
   statLabel: { fontSize: 10.5, fontWeight: "700", fontFamily: D.fontBold, color: D.outline, marginTop: 2 },
   sectionLabel: { fontSize: 11, fontWeight: "700", fontFamily: D.fontBold, color: D.outline, letterSpacing: 0.5, marginBottom: 12 },
-  card: { backgroundColor: D.surface, borderRadius: 20, borderWidth: 1, borderColor: D.outlineVariant, overflow: "hidden", shadowColor: D.primary, shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.03, shadowRadius: 5, elevation: 1 },
+  card: { backgroundColor: D.surface, borderRadius: 12, borderWidth: 1, borderColor: D.outlineVariant, overflow: "hidden", shadowColor: D.primary, shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.03, shadowRadius: 5, elevation: 1 },
   divider: { borderBottomWidth: 1, borderBottomColor: D.outlineVariant },
   doubtRow: { flexDirection: "row", alignItems: "flex-start", gap: 10, padding: 14 },
-  avatar: { width: 36, height: 36, borderRadius: 18, alignItems: "center", justifyContent: "center", flexShrink: 0 },
-  avatarText: { fontSize: 11, fontWeight: "700", fontFamily: D.fontBold, color: "#fff" },
-  studentName: { fontSize: 13, fontWeight: "700", fontFamily: D.fontBold, color: D.onSurface, letterSpacing: -0.1 },
-  subjectBadge: { paddingHorizontal: 7, paddingVertical: 2, borderRadius: 5 },
-  subjectBadgeText: { fontSize: 10, fontWeight: "700", fontFamily: D.fontBold },
-  questionText: { fontSize: 12, fontFamily: D.font, color: D.onSurfaceVariant, lineHeight: 17, letterSpacing: -0.1 },
-  metaText: { fontSize: 11, fontFamily: D.font, color: D.outline, marginTop: 3 },
-  answeredBadge: { paddingHorizontal: 7, paddingVertical: 2, borderRadius: 5, backgroundColor: "#DCFCE7" },
-  answeredText: { fontSize: 10, fontWeight: "700", fontFamily: D.fontBold, color: "#15803D" },
+  avatar: { width: 32, height: 32, borderRadius: 16, alignItems: "center", justifyContent: "center", flexShrink: 0 },
+  avatarText: { fontSize: 10.5, fontWeight: "700", fontFamily: D.fontBold, color: "#fff" },
+  studentName: { fontSize: 12, fontWeight: "700", fontFamily: D.fontBold, color: D.onSurface, letterSpacing: -0.1 },
+  subjectBadge: { paddingHorizontal: 6, paddingVertical: 3, borderRadius: 5 },
+  subjectBadgeText: { fontSize: 9, fontWeight: "700", fontFamily: D.fontBold },
+  questionText: { fontSize: 11.5, fontFamily: D.font, color: D.onSurfaceVariant, lineHeight: 17, letterSpacing: -0.1 },
+  metaText: { fontSize: 10.5, fontFamily: D.font, color: D.outline, marginTop: 3 },
+  answeredBadge: { paddingHorizontal: 6, paddingVertical: 3, borderRadius: 5, backgroundColor: "#DCFCE7" },
+  answeredText: { fontSize: 9, fontWeight: "700", fontFamily: D.fontBold, color: "#15803D" },
 });

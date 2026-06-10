@@ -1,108 +1,122 @@
-import { ScrollView, StyleSheet, Text, View } from "react-native";
+import { ActivityIndicator, ScrollView, StyleSheet, Text, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
+import { navigateBack } from "../../lib/navigation";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { D } from "../../components/theme";
 import { AnimatedPressable } from "../../components/motion";
-
-type FieldProps = { label: string; value?: string; placeholder?: string; focused?: boolean; half?: boolean };
-
-function Field({ label, value, placeholder, focused }: FieldProps) {
-  return (
-    <View style={{ marginBottom: 12 }}>
-      <Text style={s.fieldLabel}>{label}</Text>
-      <View style={[s.fieldBox, focused && s.fieldFocused]}>
-        <Text style={[s.fieldText, !value && { color: D.outline }]}>{value || placeholder || ""}</Text>
-      </View>
-    </View>
-  );
-}
+import { AvatarCircle } from "../../components/ui";
+import { useSession } from "../../providers/session";
+import { useResource } from "../../hooks/useResource";
+import { listPendingStudentsForTeacher } from "../../lib/erp";
 
 export function HTApproveStudentScreen() {
   const insets = useSafeAreaInsets();
+  const { profile } = useSession();
+
+  const { data: pending, loading, error } = useResource(
+    async () => {
+      if (!profile) return [];
+      return listPendingStudentsForTeacher(profile);
+    },
+    [profile?.userId],
+  );
 
   return (
     <View style={{ flex: 1, backgroundColor: D.bg }}>
-      <View style={[s.header, { paddingTop: insets.top + 14 }]}>
-        <AnimatedPressable style={s.backBtn} onPress={() => router.back()}>
-          <Ionicons name="chevron-back" size={16} color={D.primary} />
-          <Text style={s.backText}>Back</Text>
+      {/* Nav header */}
+      <View style={[s.navHeader, { paddingTop: insets.top + 12 }]}>
+        <AnimatedPressable style={s.navBack} onPress={() => navigateBack(router)}>
+          <Ionicons name="chevron-back" size={20} color={D.onSurface} />
         </AnimatedPressable>
-        <Text style={s.headerTitle}>Approve Student</Text>
-        <View style={{ width: 38 }} />
+        <Text style={s.navTitle}>Pending Approvals</Text>
+        <View style={{ width: 36 }} />
       </View>
 
       <ScrollView
-        contentContainerStyle={{ padding: 16, paddingBottom: 120 }}
+        contentContainerStyle={{ paddingHorizontal: 18, paddingBottom: 40 }}
         showsVerticalScrollIndicator={false}
-        keyboardShouldPersistTaps="handled"
       >
-        <Text style={s.pageTitle}>Approve Student</Text>
         {/* Info banner */}
         <View style={s.infoBanner}>
           <Ionicons name="information-circle-outline" size={16} color={D.primary} style={{ flexShrink: 0, marginTop: 1 }} />
           <Text style={s.infoText}>
-            On submit, the student will be enrolled and admin will be notified via SMS and in-app.
+            These students have registered but are not yet active. Tap a student to review their details and approve or reject.
           </Text>
         </View>
 
-        <Field label="Full Name" value="Vikram Nair" />
+        {loading && (
+          <View style={{ paddingVertical: 40, alignItems: "center" }}>
+            <ActivityIndicator color={D.primary} />
+          </View>
+        )}
 
-        <View style={{ flexDirection: "row", gap: 10 }}>
-          <View style={{ flex: 1 }}><Field label="Phone" value="+91 98001 23456" /></View>
-          <View style={{ flex: 1 }}><Field label="Email" placeholder="student@email.com" /></View>
-        </View>
+        {error && (
+          <View style={[s.card, { padding: 16 }]}>
+            <Text style={{ fontSize: 13, fontFamily: D.font, color: "#B91C1C" }}>{error}</Text>
+          </View>
+        )}
 
-        <View style={{ flexDirection: "row", gap: 10 }}>
-          <View style={{ flex: 1 }}><Field label="Class" value="Class XI" /></View>
-          <View style={{ flex: 1 }}><Field label="Stream" value="NEET (PCB)" /></View>
-        </View>
+        {!loading && !error && (pending ?? []).length === 0 && (
+          <View style={[s.card, { padding: 28, alignItems: "center" }]}>
+            <Ionicons name="checkmark-circle-outline" size={36} color="#15803D" style={{ marginBottom: 10 }} />
+            <Text style={{ fontSize: 14, fontWeight: "700", fontFamily: D.fontBold, color: D.onSurface, marginBottom: 4 }}>
+              All caught up!
+            </Text>
+            <Text style={{ fontSize: 12, fontFamily: D.font, color: D.outline, textAlign: "center" }}>
+              No pending student approvals.
+            </Text>
+          </View>
+        )}
 
-        <Field label="Batch" value="NEET 11-B · Ace" focused />
-
-        <View style={{ flexDirection: "row", gap: 10 }}>
-          <View style={{ flex: 1 }}><Field label="Roll No." placeholder="Auto-assign" /></View>
-          <View style={{ flex: 1 }}><Field label="CLS ID" placeholder="Auto-generated" /></View>
-        </View>
-
-        <Field label="Bus Route" value="Route 4 · Civil Lines → CLS" />
-        <Field label="Parent / Guardian" value="Suresh Nair" />
-
-        <View style={{ flexDirection: "row", gap: 10 }}>
-          <View style={{ flex: 1 }}><Field label="Parent Phone" value="+91 97001 55678" /></View>
-          <View style={{ flex: 1 }}><Field label="Parent Email" placeholder="parent@email.com" /></View>
-        </View>
+        {!loading && !error && (pending ?? []).length > 0 && (
+          <>
+            <Text style={s.sectionLabel}>PENDING · {(pending ?? []).length}</Text>
+            <View style={s.card}>
+              {(pending ?? []).map((st, i) => (
+                <AnimatedPressable
+                  key={st.userId}
+                  style={[s.studentRow, i < (pending ?? []).length - 1 && s.divider]}
+                  onPress={() =>
+                    router.push({
+                      pathname: "/(head-teacher)/student-detail",
+                      params: { userId: st.userId, name: st.name, mode: "approve" },
+                    })
+                  }
+                >
+                  <AvatarCircle name={st.name} size={36} />
+                  <View style={{ flex: 1 }}>
+                    <Text style={s.studentName}>{st.name}</Text>
+                    <Text style={s.studentMeta}>
+                      {st.className || "—"}{st.phone ? ` · ${st.phone}` : ""}
+                    </Text>
+                  </View>
+                  <View style={s.pendingBadge}>
+                    <Text style={s.pendingBadgeText}>PENDING</Text>
+                  </View>
+                  <Ionicons name="chevron-forward" size={13} color={D.outline} />
+                </AnimatedPressable>
+              ))}
+            </View>
+          </>
+        )}
       </ScrollView>
-
-      {/* Sticky action bar */}
-      <View style={s.actionBar}>
-        <AnimatedPressable style={s.cancelBtn} onPress={() => router.back()}>
-          <Text style={s.cancelText}>Cancel</Text>
-        </AnimatedPressable>
-        <AnimatedPressable style={s.submitBtn}>
-          <Ionicons name="checkmark" size={16} color="#fff" />
-          <Text style={s.submitText}>Submit & Notify Admin</Text>
-        </AnimatedPressable>
-      </View>
     </View>
   );
 }
 
 const s = StyleSheet.create({
-  header: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingHorizontal: 18, paddingBottom: 10, backgroundColor: D.bg },
-  backBtn: { flexDirection: "row", alignItems: "center", gap: 4, paddingVertical: 6, paddingRight: 10, paddingLeft: 6, borderRadius: 12, backgroundColor: D.surface, borderWidth: 1, borderColor: D.outlineVariant, height: 38 },
-  backText: { fontSize: 12.5, fontWeight: "700", fontFamily: D.fontBold, color: D.primary },
-  headerTitle: { fontSize: 15, fontWeight: "700", fontFamily: D.fontBold, color: D.onSurface, letterSpacing: -0.3 },
-  pageTitle: { fontSize: 22, fontWeight: "800", fontFamily: D.fontExtraBold, color: D.onSurface, letterSpacing: -0.7, marginBottom: 16 },
-  infoBanner: { flexDirection: "row", gap: 10, alignItems: "flex-start", padding: 14, borderRadius: 16, backgroundColor: D.surfaceLow, borderWidth: 1, borderColor: D.primaryFixed, marginBottom: 18 },
+  navHeader: { flexDirection: "row", alignItems: "center", paddingHorizontal: 16, paddingBottom: 12, backgroundColor: D.bg },
+  navBack: { width: 36, height: 36, borderRadius: 10, backgroundColor: D.surface, borderWidth: 1, borderColor: D.outlineVariant, alignItems: "center", justifyContent: "center" },
+  navTitle: { flex: 1, fontSize: 16, fontWeight: "700", fontFamily: D.fontBold, color: D.onSurface, textAlign: "center", letterSpacing: -0.3 },
+  infoBanner: { flexDirection: "row", gap: 10, alignItems: "flex-start", padding: 14, borderRadius: 12, backgroundColor: D.surfaceLow, borderWidth: 1, borderColor: D.primaryFixed, marginBottom: 18 },
   infoText: { flex: 1, fontSize: 12.5, fontFamily: D.fontMedium, color: D.primary, lineHeight: 18, fontWeight: "500" },
-  fieldLabel: { fontSize: 12.5, fontWeight: "600", fontFamily: D.fontSemiBold, color: D.onSurfaceVariant, marginBottom: 5 },
-  fieldBox: { padding: 13, borderRadius: 12, borderWidth: 1, borderColor: D.outlineVariant, backgroundColor: D.surface },
-  fieldFocused: { borderWidth: 1.5, borderColor: D.primary, shadowColor: D.primary, shadowOpacity: 0.12, shadowRadius: 4, shadowOffset: { width: 0, height: 0 } },
-  fieldText: { fontSize: 14, fontFamily: D.fontMedium, color: D.onSurface, letterSpacing: -0.2, fontWeight: "500" },
-  actionBar: { position: "absolute", bottom: 0, left: 0, right: 0, flexDirection: "row", gap: 10, padding: 14, paddingBottom: 30, backgroundColor: D.bg },
-  cancelBtn: { width: 80, height: 54, borderRadius: 16, backgroundColor: D.surface, borderWidth: 1.5, borderColor: D.outlineVariant, alignItems: "center", justifyContent: "center" },
-  cancelText: { fontSize: 14, fontWeight: "600", fontFamily: D.fontSemiBold, color: D.onSurface },
-  submitBtn: { flex: 1, height: 54, borderRadius: 16, backgroundColor: D.primary, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 7, shadowColor: D.primary, shadowOpacity: 0.28, shadowRadius: 20, shadowOffset: { width: 0, height: 8 } },
-  submitText: { fontSize: 13.5, fontWeight: "700", fontFamily: D.fontBold, color: "#fff", letterSpacing: -0.2 },
+  sectionLabel: { fontSize: 11, fontWeight: "700", fontFamily: D.fontBold, color: D.outline, letterSpacing: 0.5, marginBottom: 12 },
+  card: { backgroundColor: D.surface, borderRadius: 14, borderWidth: 1, borderColor: D.outlineVariant, overflow: "hidden", shadowColor: D.primary, shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.03, shadowRadius: 5, elevation: 1 },
+  divider: { borderBottomWidth: 1, borderBottomColor: D.outlineVariant },
+  studentRow: { flexDirection: "row", alignItems: "center", gap: 12, padding: 14 },
+  studentName: { fontSize: 13, fontWeight: "700", color: D.onSurface, letterSpacing: -0.1, fontFamily: D.fontBold },
+  studentMeta: { fontSize: 11, color: D.outline, marginTop: 2, fontFamily: D.font },
+  pendingBadge: { paddingHorizontal: 8, paddingVertical: 4, borderRadius: 6, backgroundColor: "#FEF3C7" },
+  pendingBadgeText: { fontSize: 9, fontWeight: "700", fontFamily: D.fontBold, color: "#B45309", letterSpacing: 0.3 },
 });

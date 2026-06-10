@@ -1,91 +1,173 @@
-import { ScrollView, StyleSheet, Text, View } from "react-native";
+import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { useState } from "react";
 import { D } from "../../components/theme";
 import { AnimatedPressable } from "../../components/motion";
+import { useSession } from "../../providers/session";
+import { useResource } from "../../hooks/useResource";
+import { listAnnouncementsForProfile } from "../../lib/erp";
+import { formatDateTimeLabel } from "../../lib/date";
 
 const tagColor: Record<string, { bg: string; color: string }> = {
-  Exam: { bg: D.surfaceLow, color: D.primary },
-  Holiday: { bg: "#DCFCE7", color: "#15803D" },
-  PTM: { bg: "#FEF3C7", color: "#B45309" },
-  Fees: { bg: "#FEE2E2", color: "#B91C1C" },
-  General: { bg: "#F4F4F2", color: "#555" },
+  exam: { bg: D.surfaceLow, color: D.primary },
+  holiday: { bg: "#DCFCE7", color: "#15803D" },
+  ptm: { bg: "#FEF3C7", color: "#B45309" },
+  fees: { bg: "#FEE2E2", color: "#B91C1C" },
+  general: { bg: "#F4F4F2", color: "#555" },
 };
 
-const circulars = [
-  { title: "JEE Mock #14 — schedule released", date: "Jun 9", preview: "Computer-based test in Hall C on Saturday, Jun 14 at 1:30 PM…", attach: true, tag: "Exam" },
-  { title: "Holiday notice — Jun 12", date: "Jun 8", preview: "Institute will remain closed on Jun 12 (public holiday)…", attach: false, tag: "Holiday" },
-  { title: "Parent-Teacher Meeting — Jun 18", date: "Jun 6", preview: "PTM for NEET 11 batches scheduled for June 18 at 10 AM…", attach: false, tag: "PTM" },
-  { title: "Fee reminder — Term 3", date: "Jun 3", preview: "Kindly clear Term 3 dues before June 30 to avoid late fee…", attach: true, tag: "Fees" },
-  { title: "New batch timings from July", date: "May 28", preview: "Batch timings for NEET 11-B will change starting July 1…", attach: false, tag: "General" },
-];
+const FILTERS = ["All", "Exam", "Holiday", "PTM", "Fees", "General"];
 
 export function HTCircularsScreen() {
   const insets = useSafeAreaInsets();
+  const { profile } = useSession();
+  const [activeFilter, setActiveFilter] = useState("All");
+  const [search, setSearch] = useState("");
+  const [searchVisible, setSearchVisible] = useState(false);
+
+  const { data: announcements, loading, error } = useResource(
+    async () => {
+      if (!profile) return [];
+      return listAnnouncementsForProfile(profile);
+    },
+    [profile?.userId, profile?.regionId, profile?.centreId],
+  );
+
+  const filtered = (announcements ?? []).filter((a: any) => {
+    if (activeFilter !== "All") {
+      const tag = a.tag ?? a.kind ?? "";
+      if (tag.toLowerCase() !== activeFilter.toLowerCase()) return false;
+    }
+    if (search.trim()) {
+      const term = search.trim().toLowerCase();
+      return (a.title ?? "").toLowerCase().includes(term) || (a.message ?? "").toLowerCase().includes(term);
+    }
+    return true;
+  });
 
   return (
     <View style={{ flex: 1, backgroundColor: D.bg }}>
-      <View style={[s.header, { paddingTop: insets.top + 14 }]}>
-        <AnimatedPressable style={s.backBtn} onPress={() => router.back()}>
-          <Ionicons name="chevron-back" size={16} color={D.primary} />
-          <Text style={s.backText}>Other</Text>
-        </AnimatedPressable>
-        <Text style={s.headerTitle}>Circulars</Text>
-        <AnimatedPressable style={s.actionBtn} onPress={() => router.push("/(head-teacher)/post-circular")}>
-          <Ionicons name="add" size={18} color={D.onSurface} />
-        </AnimatedPressable>
+      <View style={[s.headerSection, { paddingTop: insets.top + 20 }]}>
+        <View style={s.titleRow}>
+          <Text style={s.pageTitle}>Circulars</Text>
+          <View style={{ flexDirection: "row", gap: 8 }}>
+            <AnimatedPressable style={s.searchIconBtn} onPress={() => { setSearchVisible((v) => !v); if (searchVisible) setSearch(""); }}>
+              <Ionicons name={searchVisible ? "close" : "search"} size={20} color={D.onSurface} />
+            </AnimatedPressable>
+            <AnimatedPressable style={s.searchIconBtn} onPress={() => router.push("/(head-teacher)/post-circular")}>
+              <Ionicons name="add" size={20} color={D.onSurface} />
+            </AnimatedPressable>
+          </View>
+        </View>
+
+        {searchVisible && (
+          <View style={s.searchBar}>
+            <Ionicons name="search-outline" size={17} color={D.outline} />
+            <TextInput
+              style={s.searchInput}
+              placeholder="Search circulars…"
+              placeholderTextColor={D.outline}
+              value={search}
+              onChangeText={setSearch}
+              autoFocus
+            />
+            {search.length > 0 && (
+              <Pressable onPress={() => setSearch("")}>
+                <Ionicons name="close-circle" size={17} color={D.outline} />
+              </Pressable>
+            )}
+          </View>
+        )}
+
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.chipsScroll}>
+          {FILTERS.map((b) => (
+            <AnimatedPressable key={b} style={[s.chip, b === activeFilter ? s.chipActive : s.chipInactive]} onPress={() => setActiveFilter(b)}>
+              <Text style={[s.chipText, { color: b === activeFilter ? "#fff" : D.onSurfaceVariant }]}>{b}</Text>
+            </AnimatedPressable>
+          ))}
+        </ScrollView>
       </View>
 
-      <ScrollView contentContainerStyle={{ padding: 18, paddingBottom: 60 }} showsVerticalScrollIndicator={false}>
-        <Text style={s.pageTitle}>Circulars</Text>
-        <View style={s.searchBox}>
-          <Ionicons name="search-outline" size={16} color={D.outline} />
-          <Text style={s.searchPlaceholder}>Search circulars…</Text>
-        </View>
-
-        <Text style={[s.sectionLabel, { marginTop: 16 }]}>RECENT</Text>
-        <View style={s.card}>
-          {circulars.map((c, i) => {
-            const tc = tagColor[c.tag] ?? { bg: "#F4F4F2", color: "#555" };
-            return (
-              <AnimatedPressable
-                key={i}
-                style={[s.circularRow, i < circulars.length - 1 && s.divider]}
-                onPress={() => router.push("/(head-teacher)/circular-detail")}
-              >
-                <View style={{ flexDirection: "row", alignItems: "center", gap: 7, marginBottom: 5 }}>
-                  <View style={[s.badge, { backgroundColor: tc.bg }]}><Text style={[s.badgeText, { color: tc.color }]}>{c.tag}</Text></View>
-                  <Text style={s.circularDate}>{c.date}</Text>
-                  {c.attach && <Ionicons name="attach" size={13} color={D.outline} />}
-                </View>
-                <Text style={s.circularTitle}>{c.title}</Text>
-                <Text style={s.circularPreview}>{c.preview}</Text>
-              </AnimatedPressable>
-            );
-          })}
-        </View>
+      <ScrollView contentContainerStyle={{ padding: 18, paddingBottom: 140 }} showsVerticalScrollIndicator={false}>
+        {loading && (
+          <View style={{ padding: 32, alignItems: "center" }}>
+            <ActivityIndicator size="large" color={D.primary} />
+          </View>
+        )}
+        {error && (
+          <View style={[s.card, { padding: 16 }]}>
+            <Text style={{ fontSize: 13, fontFamily: D.font, color: "#B91C1C" }}>{error}</Text>
+          </View>
+        )}
+        {!loading && !error && filtered.length === 0 && (
+          <View style={[s.card, { padding: 20, alignItems: "center" }]}>
+            <Text style={{ fontSize: 13, fontFamily: D.font, color: D.outline }}>No circulars found.</Text>
+          </View>
+        )}
+        {!loading && !error && filtered.length > 0 && (
+          <View style={s.card}>
+            {filtered.map((c: any, i: number) => {
+              const rawTag = c.tag ?? "general";
+              const tc = tagColor[rawTag.toLowerCase()] ?? tagColor.general!;
+              const dateLabel = formatDateTimeLabel(c.createdAtIso);
+              const hasAttach = c.attachments && c.attachments.length > 0;
+              return (
+                <AnimatedPressable
+                  key={c.id}
+                  style={[s.circularRow, i < filtered.length - 1 && s.divider]}
+                  onPress={() =>
+                    router.push({
+                      pathname: "/(head-teacher)/circular-detail",
+                      params: {
+                        id: c.id,
+                        title: c.title,
+                        message: c.message,
+                        createdByName: c.createdByName,
+                        createdAtIso: c.createdAtIso,
+                        attachmentsJson: JSON.stringify(c.attachments ?? []),
+                      },
+                    })
+                  }
+                >
+                  <View style={{ flexDirection: "row", alignItems: "center", gap: 7, marginBottom: 5 }}>
+                    <View style={[s.badge, { backgroundColor: tc.bg }]}>
+                      <Text style={[s.badgeText, { color: tc.color }]}>{rawTag}</Text>
+                    </View>
+                    <Text style={s.circularDate}>{dateLabel}</Text>
+                    {hasAttach && <Ionicons name="attach" size={13} color={D.outline} />}
+                  </View>
+                  <Text style={s.circularTitle}>{c.title}</Text>
+                  <Text style={s.circularPreview} numberOfLines={2}>{c.message}</Text>
+                </AnimatedPressable>
+              );
+            })}
+          </View>
+        )}
       </ScrollView>
     </View>
   );
 }
 
 const s = StyleSheet.create({
-  header: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingHorizontal: 18, paddingBottom: 10, backgroundColor: D.bg },
-  backBtn: { flexDirection: "row", alignItems: "center", gap: 4, paddingVertical: 6, paddingRight: 10, paddingLeft: 6, borderRadius: 12, backgroundColor: D.surface, borderWidth: 1, borderColor: D.outlineVariant, height: 38 },
-  backText: { fontSize: 12.5, fontWeight: "700", fontFamily: D.fontBold, color: D.primary },
-  headerTitle: { fontSize: 15, fontWeight: "700", fontFamily: D.fontBold, color: D.onSurface, letterSpacing: -0.3 },
-  actionBtn: { width: 38, height: 38, borderRadius: 12, backgroundColor: D.surface, borderWidth: 1, borderColor: D.outlineVariant, alignItems: "center", justifyContent: "center" },
-  pageTitle: { fontSize: 22, fontWeight: "800", fontFamily: D.fontExtraBold, color: D.onSurface, letterSpacing: -0.7, marginBottom: 16 },
-  searchBox: { flexDirection: "row", alignItems: "center", gap: 9, padding: 13, borderRadius: 16, backgroundColor: D.surface, borderWidth: 1, borderColor: D.outlineVariant },
-  searchPlaceholder: { fontSize: 13, fontFamily: D.font, color: D.outline },
-  sectionLabel: { fontSize: 11, fontWeight: "700", fontFamily: D.fontBold, color: D.outline, letterSpacing: 0.5, marginBottom: 12 },
-  card: { backgroundColor: D.surface, borderRadius: 20, borderWidth: 1, borderColor: D.outlineVariant, overflow: "hidden", shadowColor: D.primary, shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.03, shadowRadius: 5, elevation: 1 },
+  headerSection: { paddingHorizontal: 18, paddingBottom: 16, backgroundColor: D.bg },
+  titleRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 16 },
+  pageTitle: { fontSize: 24, fontWeight: "800", fontFamily: D.fontExtraBold, color: D.onSurface, letterSpacing: -0.5 },
+  searchIconBtn: { width: 36, height: 36, borderRadius: 8, alignItems: "center", justifyContent: "center", backgroundColor: D.surface, borderWidth: 1, borderColor: D.outlineVariant },
+  searchBar: { flexDirection: "row", alignItems: "center", gap: 8, marginBottom: 12, paddingHorizontal: 12, paddingVertical: 8, borderRadius: 10, backgroundColor: D.surface, borderWidth: 1, borderColor: D.outlineVariant },
+  searchInput: { flex: 1, fontSize: 13, fontFamily: D.font, color: D.onSurface },
+  chipsScroll: { paddingRight: 18, gap: 8 },
+  chip: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 8 },
+  chipActive: { backgroundColor: D.primary, borderWidth: 1, borderColor: D.primary },
+  chipInactive: { backgroundColor: D.surface, borderWidth: 1, borderColor: D.outlineVariant },
+  chipText: { fontSize: 11, fontWeight: "600", fontFamily: D.fontSemiBold },
+  card: { backgroundColor: D.surface, borderRadius: 12, borderWidth: 1, borderColor: D.outlineVariant, overflow: "hidden", shadowColor: D.primary, shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.03, shadowRadius: 5, elevation: 1 },
   divider: { borderBottomWidth: 1, borderBottomColor: D.outlineVariant },
-  circularRow: { padding: 15 },
-  badge: { paddingHorizontal: 7, paddingVertical: 2, borderRadius: 5 },
-  badgeText: { fontSize: 10, fontWeight: "700", fontFamily: D.fontBold },
-  circularDate: { fontSize: 11, fontFamily: D.font, color: D.outline },
-  circularTitle: { fontSize: 13, fontWeight: "700", fontFamily: D.fontBold, color: D.onSurface, letterSpacing: -0.2, marginBottom: 3 },
+  circularRow: { padding: 14 },
+  badge: { paddingHorizontal: 6, paddingVertical: 3, borderRadius: 5 },
+  badgeText: { fontSize: 9, fontWeight: "700", fontFamily: D.fontBold, letterSpacing: 0.2, textTransform: "capitalize" },
+  circularDate: { fontSize: 10.5, fontFamily: D.font, color: D.outline },
+  circularTitle: { fontSize: 12, fontWeight: "700", fontFamily: D.fontBold, color: D.onSurface, letterSpacing: -0.1, marginBottom: 3 },
   circularPreview: { fontSize: 11, fontFamily: D.font, color: D.outline, lineHeight: 16 },
 });

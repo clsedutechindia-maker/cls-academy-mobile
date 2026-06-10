@@ -1,0 +1,49 @@
+{
+  "expo": {
+    "name": "CLS Academy",
+    "slug": "cls-academy-mobile",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "light",
+    "ios": {
+      "supportsTablet": true
+    },
+    "android": {
+      "package": "com.clsacademy.mobile",
+      "googleServicesFile": "./google-services.json",
+      "adaptiveIcon": {
+        "backgroundColor": "#E6F4FE",
+        "foregroundImage": "./assets/android-icon-foreground.png",
+        "backgroundImage": "./assets/android-icon-background.png",
+        "monochromeImage": "./assets/android-icon-monochrome.png"
+      },
+      "predictiveBackGestureEnabled": false
+    },
+    "web": {
+      "favicon": "./assets/favicon.png"
+    },
+    "plugins": [
+      "expo-router",
+      [
+        "@react-native-google-signin/google-signin",
+        {
+          "iosUrlScheme": "com.googleusercontent.apps.377305665442-co8u2vmlgstaj8hu4e6j752h15p531ut"
+        }
+      ],
+      [
+        "expo-notifications",
+        {
+          "color": "#3525CD"
+        }
+      ]
+    ],
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "d8973aa7-81ac-4d3e-ae9c-e84f7529e62f"
+      }
+    },
+    "owner": "saurish29"
+  }
+}

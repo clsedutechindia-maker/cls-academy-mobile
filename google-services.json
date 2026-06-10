@@ -1,0 +1,39 @@
+{
+  "project_info": {
+    "project_number": "377305665442",
+    "project_id": "cls-edutech",
+    "storage_bucket": "cls-edutech.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:377305665442:android:27eb2f672832bb44262cfb",
+        "android_client_info": {
+          "package_name": "com.clsacademy.mobile"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "377305665442-co8u2vmlgstaj8hu4e6j752h15p531ut.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyD1uSdF6Q41zr-TvpWG2tRezM4Fb9wCPgc"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "377305665442-co8u2vmlgstaj8hu4e6j752h15p531ut.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
