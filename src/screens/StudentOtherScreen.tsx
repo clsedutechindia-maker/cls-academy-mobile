@@ -29,6 +29,15 @@ const SECTIONS = [
     badgeKey: null as null | "doubts" | "circulars",
   },
   {
+    title: "Teaching Plan",
+    subtitle: "Subject-wise weekly plan",
+    icon: "reader-outline" as const,
+    href: "/(student)/teaching-plan" as const,
+    color: "#7C3AED",
+    bg: "#F3E8FF",
+    badgeKey: null as null | "doubts" | "circulars",
+  },
+  {
     title: "Circulars",
     subtitle: "Notices & announcements",
     icon: "megaphone-outline" as const,

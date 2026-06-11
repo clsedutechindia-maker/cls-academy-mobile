@@ -1,7 +1,7 @@
-import { router, useLocalSearchParams } from "expo-router";
+import { router, useFocusEffect, useLocalSearchParams } from "expo-router";
 import { navigateBack } from "../lib/navigation";
-import { useMemo, useState } from "react";
-import { StyleSheet, Text, View, ScrollView, Pressable } from "react-native";
+import { useCallback, useMemo, useState } from "react";
+import { StyleSheet, Text, View, ScrollView, Pressable, RefreshControl } from "react-native";
 import { Card, EmptyCard, ErrorCard, LoadingCard, MOBILE_BOTTOM_SPACING, uiStyles, D } from "../components/ui";
 import { Stagger } from "../components/motion";
 import { listStudentSchedules } from "../lib/erp";
@@ -62,7 +62,19 @@ export function SchedulesScreen() {
   const insets = useSafeAreaInsets();
   const [view, setView] = useState<"timetable" | "tests">("timetable");
   const [day, setDay] = useState<ScheduleDayKey>(todayDayKey());
+  const [refreshing, setRefreshing] = useState(false);
   const today = new Date().toISOString().slice(0, 10);
+
+  useFocusEffect(useCallback(() => { void resource.reload(); }, [resource]));
+
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    try {
+      await resource.reload();
+    } finally {
+      setRefreshing(false);
+    }
+  }, [resource]);
 
   const dayEntries = (resource.data?.timetableEntries ?? []).filter((entry) => entry.dayKey === day);
   const upcoming = (resource.data?.tests ?? []).filter((test) => !test.scheduleDate || test.scheduleDate >= today).sort((a, b) => a.scheduleDate.localeCompare(b.scheduleDate));
@@ -70,7 +82,11 @@ export function SchedulesScreen() {
 
   return (
     <View style={styles.page}>
-      <ScrollView contentContainerStyle={[styles.pageContent, { paddingTop: Math.max(insets.top + 24, 56) }]} showsVerticalScrollIndicator={false}>
+      <ScrollView
+        contentContainerStyle={[styles.pageContent, { paddingTop: Math.max(insets.top + 24, 56) }]}
+        showsVerticalScrollIndicator={false}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={D.primary} colors={[D.primary]} />}
+      >
       <View style={styles.topHeader}>
         <Pressable onPress={() => navigateBack(router)} style={styles.iconBtn}>
           <Ionicons name="chevron-back" size={20} color={D.onSurface} />

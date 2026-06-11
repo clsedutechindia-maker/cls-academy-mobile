@@ -1,13 +1,15 @@
 import { ActivityIndicator, ScrollView, StyleSheet, Text, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
+import { router, useFocusEffect } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { useState } from "react";
+import { useCallback, useState } from "react";
 import { D } from "../../components/theme";
 import { AnimatedPressable } from "../../components/motion";
 import { useSession } from "../../providers/session";
 import { useResource } from "../../hooks/useResource";
-import { listTeacherTimetable } from "../../lib/erp";
-import type { ScheduleDayKey } from "../../shared";
+import { listHeadTeacherClasses, listTeacherTimetable } from "../../lib/erp";
+import { OptionSheet } from "../schedule/scheduleEditorKit";
+import type { ClassTimetableRecord, ScheduleDayKey, TestScheduleRecord } from "../../shared";
 
 const DAY_KEYS: ScheduleDayKey[] = ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday"];
 const DAY_LABELS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
@@ -74,8 +76,10 @@ export function HTScheduleScreen() {
   const { profile } = useSession();
   const [activeTab, setActiveTab] = useState(0);
   const [selectedDay, setSelectedDay] = useState<ScheduleDayKey>(todayDayKey());
+  const [selectedClassId, setSelectedClassId] = useState("");
+  const [classSheet, setClassSheet] = useState(false);
 
-  const { data, loading, error } = useResource(
+  const { data, loading, error, reload } = useResource(
     async () => {
       if (!profile) return { timetableEntries: [], tests: [] };
       return listTeacherTimetable(profile);
@@ -83,8 +87,28 @@ export function HTScheduleScreen() {
     [profile?.userId],
   );
 
-  const timetableEntries = data?.timetableEntries ?? [];
-  const tests = data?.tests ?? [];
+  const classesResource = useResource(
+    async () => {
+      if (!profile) return [];
+      return listHeadTeacherClasses(profile);
+    },
+    [profile?.userId],
+  );
+
+  const classes = classesResource.data ?? [];
+
+  useFocusEffect(useCallback(() => { void reload(); }, [reload]));
+
+  if (classes.length > 0 && !selectedClassId) {
+    setSelectedClassId(classes[0]!.id);
+  }
+
+  const selectedClass = classes.find((c) => c.id === selectedClassId) ?? null;
+
+  const timetableEntries = (data?.timetableEntries ?? []).filter(
+    (e) => !selectedClassId || e.classId === selectedClassId,
+  );
+  const tests = (data?.tests ?? []).filter((t) => !selectedClassId || t.classId === selectedClassId);
 
   const todaySlots = timetableEntries
     .filter((e) => e.dayKey === selectedDay)
@@ -94,12 +118,41 @@ export function HTScheduleScreen() {
     .filter((t) => daysUntil(t.scheduleDate) >= 0)
     .sort((a, b) => a.scheduleDate.localeCompare(b.scheduleDate));
 
+  function openCreate() {
+    if (!selectedClassId) return;
+    if (activeTab === 0) {
+      router.push({ pathname: "/(head-teacher)/timetable-editor", params: { classId: selectedClassId, mode: "create", day: selectedDay } });
+    } else {
+      router.push({ pathname: "/(head-teacher)/exam-editor", params: { classId: selectedClassId, mode: "create" } });
+    }
+  }
+
+  function openEditSlot(entry: ClassTimetableRecord) {
+    router.push({ pathname: "/(head-teacher)/timetable-editor", params: { classId: entry.classId, entryId: entry.id, mode: "edit", day: entry.dayKey } });
+  }
+
+  function openEditExam(entry: TestScheduleRecord) {
+    router.push({ pathname: "/(head-teacher)/exam-editor", params: { classId: entry.classId, entryId: entry.id, mode: "edit" } });
+  }
+
   return (
     <View style={{ flex: 1, backgroundColor: D.bg }}>
       <View style={[s.headerSection, { paddingTop: insets.top + 20 }]}>
         <View style={s.titleRow}>
           <Text style={s.pageTitle}>Schedule</Text>
         </View>
+        {classes.length > 0 && (
+          <View style={s.toolbar}>
+            <AnimatedPressable style={s.classPick} onPress={() => setClassSheet(true)}>
+              <Ionicons name="school-outline" size={15} color={D.primary} />
+              <Text style={s.classPickText} numberOfLines={1}>{selectedClass ? selectedClass.name : "Select class"}</Text>
+              <Ionicons name="chevron-down" size={14} color={D.outline} />
+            </AnimatedPressable>
+            <AnimatedPressable style={[s.addBtn, !selectedClassId && { opacity: 0.5 }]} onPress={openCreate} disabled={!selectedClassId}>
+              <Ionicons name="add" size={20} color="#fff" />
+            </AnimatedPressable>
+          </View>
+        )}
         <View style={s.segControl}>
           {["Timetable", "Exam Schedule"].map((t, i) => (
             <AnimatedPressable key={t} style={[s.segBtn, i === activeTab && s.segBtnActive]} onPress={() => setActiveTab(i)}>
@@ -153,7 +206,7 @@ export function HTScheduleScreen() {
                 {todaySlots.map((sl, i) => {
                   const sc = subjectStyle(sl.subjectName);
                   return (
-                    <View key={sl.id} style={[s.slotRow, i < todaySlots.length - 1 && s.divider]}>
+                    <AnimatedPressable key={sl.id} style={[s.slotRow, i < todaySlots.length - 1 && s.divider]} onPress={() => openEditSlot(sl)}>
                       <View style={s.slotTimeBlock}>
                         <Text style={s.slotTime}>{formatTime(sl.startTime)}</Text>
                         {sl.endTime && <Text style={s.slotHall}>{formatTime(sl.endTime)}</Text>}
@@ -164,7 +217,7 @@ export function HTScheduleScreen() {
                         <Text style={s.slotSubject}>{sl.className}</Text>
                         {sl.notes ? <Text style={s.slotMeta}>{sl.notes}</Text> : null}
                       </View>
-                    </View>
+                    </AnimatedPressable>
                   );
                 })}
               </View>
@@ -187,7 +240,7 @@ export function HTScheduleScreen() {
                   const { mon, day } = formatExamDate(e.scheduleDate);
                   const dl = daysUntil(e.scheduleDate);
                   return (
-                    <View key={e.id} style={[s.examRow, i < upcomingTests.length - 1 && s.divider]}>
+                    <AnimatedPressable key={e.id} style={[s.examRow, i < upcomingTests.length - 1 && s.divider]} onPress={() => openEditExam(e)}>
                       <View style={s.datePill}>
                         <Text style={[s.datePillMon, { color: D.outline }]}>{mon}</Text>
                         <Text style={[s.datePillDay, { color: D.onSurface }]}>{day}</Text>
@@ -201,7 +254,7 @@ export function HTScheduleScreen() {
                       <Text style={[s.daysLeft, { color: dl <= 3 ? "#B45309" : D.outline }]}>
                         {dl === 0 ? "Today" : dl === 1 ? "Tomorrow" : `in ${dl}d`}
                       </Text>
-                    </View>
+                    </AnimatedPressable>
                   );
                 })}
               </View>
@@ -209,6 +262,16 @@ export function HTScheduleScreen() {
           </>
         )}
       </ScrollView>
+
+      <OptionSheet
+        visible={classSheet}
+        title="Select Class"
+        options={classes.map((c) => ({ key: c.id, label: c.name }))}
+        selectedKey={selectedClassId}
+        emptyText="No classes assigned to you."
+        onSelect={setSelectedClassId}
+        onClose={() => setClassSheet(false)}
+      />
     </View>
   );
 }
@@ -217,6 +280,10 @@ const s = StyleSheet.create({
   headerSection: { paddingHorizontal: 18, paddingBottom: 16, backgroundColor: D.bg },
   titleRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 16 },
   pageTitle: { fontSize: 28, fontWeight: "800", fontFamily: D.fontExtraBold, color: D.onSurface, letterSpacing: -0.7 },
+  toolbar: { flexDirection: "row", alignItems: "center", gap: 8, marginBottom: 14 },
+  classPick: { flex: 1, flexDirection: "row", alignItems: "center", gap: 7, paddingHorizontal: 12, paddingVertical: 10, borderRadius: 12, backgroundColor: D.surface, borderWidth: 1, borderColor: D.outlineVariant },
+  classPickText: { flex: 1, fontSize: 13, fontFamily: D.fontSemiBold, color: D.onSurface, letterSpacing: -0.1 },
+  addBtn: { width: 40, height: 40, borderRadius: 12, backgroundColor: D.primaryBtn, alignItems: "center", justifyContent: "center" },
   segControl: { flexDirection: "row", padding: 3, borderRadius: 10, backgroundColor: D.surfaceLow },
   segBtn: { flex: 1, paddingVertical: 8, borderRadius: 8, alignItems: "center" },
   segBtnActive: { backgroundColor: D.surface, shadowColor: "#000", shadowOpacity: 0.06, shadowRadius: 3, shadowOffset: { width: 0, height: 1 } },

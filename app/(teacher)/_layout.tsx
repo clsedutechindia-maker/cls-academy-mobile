@@ -76,7 +76,7 @@ export default function TeacherLayout() {
       }}
     >
       <Tabs.Screen name="home" options={{ title: "Home", tabBarIcon: ActiveTabIcon("home-outline", "home", []) }} />
-      <Tabs.Screen name="attendance" options={{ title: "Attendance", tabBarIcon: ActiveTabIcon("checkmark-circle-outline", "checkmark-circle", []) }} />
+      <Tabs.Screen name="students" options={{ title: "Students", tabBarIcon: ActiveTabIcon("people-outline", "people", ["/student-detail"]) }} />
       <Tabs.Screen
         name="results"
         options={{
@@ -88,11 +88,14 @@ export default function TeacherLayout() {
         name="other"
         options={{
           title: "Other",
-          tabBarIcon: ActiveTabIcon("grid-outline", "grid", ["/schedules", "/announcements", "/students", "/student-detail", "/doubts", "/doubt-detail", "/materials", "/material-detail", "/post-material"]),
+          tabBarIcon: ActiveTabIcon("grid-outline", "grid", ["/schedules", "/announcements", "/attendance", "/doubts", "/doubt-detail", "/materials", "/material-detail", "/post-material", "/teaching-plans", "/teaching-plan-detail", "/teaching-plan-editor"]),
         }}
       />
       <Tabs.Screen name="account" options={{ title: "Account", tabBarIcon: ActiveTabIcon("person-outline", "person", []) }} />
       {/* Hidden sub-screens */}
+      <Tabs.Screen name="teaching-plans" options={{ href: null }} />
+      <Tabs.Screen name="teaching-plan-detail" options={{ href: null }} />
+      <Tabs.Screen name="teaching-plan-editor" options={{ href: null }} />
       <Tabs.Screen name="announcements" options={{ href: null }} />
       <Tabs.Screen name="schedules" options={{ href: null }} />
       <Tabs.Screen name="upload-result" options={{ href: null }} />
@@ -103,7 +106,7 @@ export default function TeacherLayout() {
       <Tabs.Screen name="material-detail" options={{ href: null }} />
       <Tabs.Screen name="post-material" options={{ href: null }} />
       <Tabs.Screen name="notifications" options={{ href: null }} />
-      <Tabs.Screen name="students" options={{ href: null }} />
+      <Tabs.Screen name="attendance" options={{ href: null }} />
       <Tabs.Screen name="student-detail" options={{ href: null }} />
     </Tabs>
   );

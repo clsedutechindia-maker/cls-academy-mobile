@@ -167,19 +167,19 @@ export function AdminOverviewScreen() {
             <EmptyCard title="No data" message="Unable to load overview." />
           ) : (
             <>
-              {/* Today's attendance — students present/total, staff present/total */}
+              {/* Pending leave requests / open complaints */}
               <Animated.View entering={enter(0)} style={s.statsCard}>
-                <View style={s.statSec}>
-                  <CountUp value={resource.data.studentsPresent} suffix={`/${resource.data.studentsTotal}`} style={s.statVal} />
-                  <Text style={s.statKey}>Students Present</Text>
-                  <Text style={s.statSub}>Today</Text>
-                </View>
+                <AnimatedPressable style={s.statSec} onPress={() => router.push("/(admin)/leave")}>
+                  <CountUp value={resource.data.pendingLeaveRequests} style={s.statVal} />
+                  <Text style={s.statKey}>Leave Requests</Text>
+                  <Text style={s.statSub}>Pending</Text>
+                </AnimatedPressable>
                 <View style={s.divider} />
-                <View style={s.statSec}>
-                  <CountUp value={resource.data.staffPresent} suffix={`/${resource.data.staffTotal}`} style={s.statVal} />
-                  <Text style={s.statKey}>Staff Present</Text>
-                  <Text style={s.statSub}>Today</Text>
-                </View>
+                <AnimatedPressable style={s.statSec} onPress={() => router.push("/(admin)/complaints")}>
+                  <CountUp value={resource.data.openComplaints} style={s.statVal} />
+                  <Text style={s.statKey}>Complaints</Text>
+                  <Text style={s.statSub}>Open</Text>
+                </AnimatedPressable>
               </Animated.View>
 
               {/* Recent Results */}
@@ -282,22 +282,6 @@ export function AdminOverviewScreen() {
                   })
                 )}
               </Animated.View>
-
-              {/* Leave requests / Open complaints */}
-              <Animated.View entering={enter(4)} style={s.twoCol}>
-                <AnimatedPressable style={s.qlBox} onPress={() => router.push("/(admin)/leave")}>
-                  <View style={[s.qlIcon, { backgroundColor: "#fff7ed" }]}>
-                    <Ionicons name="calendar-outline" size={20} color="#F97316" />
-                  </View>
-                  <Text style={s.qlLabel}>Leave Requests</Text>
-                </AnimatedPressable>
-                <AnimatedPressable style={s.qlBox} onPress={() => router.push("/(admin)/complaints")}>
-                  <View style={[s.qlIcon, { backgroundColor: "#FEE2E2" }]}>
-                    <Ionicons name="warning-outline" size={20} color={D.error} />
-                  </View>
-                  <Text style={s.qlLabel}>Open Complaints</Text>
-                </AnimatedPressable>
-              </Animated.View>
             </>
           )}
         </View>
@@ -321,16 +305,16 @@ const s = StyleSheet.create({
   userRow: { flexDirection: "row", alignItems: "center", gap: 12, flex: 1, minWidth: 0 },
   avatarCircle: { width: 34, height: 34, borderRadius: 17, backgroundColor: "#F3E8FF", alignItems: "center", justifyContent: "center", borderWidth: 1.5, borderColor: "rgba(255,255,255,0.45)", flexShrink: 0 },
   avatarText: { color: D.primary, fontWeight: "800", fontSize: 12, fontFamily: D.fontExtraBold },
-  greetingText: { fontSize: 9, color: "rgba(255,255,255,0.72)", letterSpacing: 0.35, fontWeight: "700", fontFamily: D.fontBold },
-  nameText: { fontSize: 15, color: "#fff", fontWeight: "800", letterSpacing: -0.2, marginTop: 2, fontFamily: D.fontExtraBold },
+  greetingText: { fontSize: 8.5, color: "rgba(255,255,255,0.72)", letterSpacing: 0.35, fontWeight: "700", fontFamily: D.fontBold },
+  nameText: { fontSize: 14, color: "#fff", fontWeight: "800", letterSpacing: -0.2, marginTop: 3, fontFamily: D.fontExtraBold },
   bellBtn: { width: 34, height: 34, borderRadius: 10, backgroundColor: "rgba(255,255,255,0.16)", borderWidth: 1, borderColor: "rgba(255,255,255,0.22)", alignItems: "center", justifyContent: "center", flexShrink: 0, marginLeft: 12 },
-  bellDot: { position: "absolute", top: 7, right: 7, width: 6, height: 6, borderRadius: 3, backgroundColor: "#F472B6", borderWidth: 2, borderColor: D.primaryBtn },
+  bellDot: { position: "absolute", top: 6, right: 6, width: 9, height: 9, borderRadius: 4.5, backgroundColor: "#FF4D67", borderWidth: 2, borderColor: "#fff" },
   roleCard: { marginTop: 18, paddingVertical: 12, paddingHorizontal: 14, borderRadius: 14, backgroundColor: "rgba(255,255,255,0.13)", borderWidth: 1, borderColor: "rgba(255,255,255,0.18)" },
   roleLabel: { fontSize: 9, color: "rgba(255,255,255,0.7)", fontWeight: "700", letterSpacing: 0.6, fontFamily: D.fontBold },
   roleSub: { fontSize: 11, color: "#fff", fontWeight: "600", marginTop: 4, letterSpacing: -0.05, fontFamily: D.fontSemiBold },
 
   // Content overlap
-  content: { marginTop: -44, paddingHorizontal: 18, gap: 18 },
+  content: { marginTop: -44, paddingHorizontal: 18, gap: 22 },
 
   // Stats card — single card, sections divided
   statsCard: {
@@ -346,18 +330,18 @@ const s = StyleSheet.create({
     shadowRadius: 5,
     elevation: 1,
   },
-  statSec: { flex: 1, alignItems: "center", paddingVertical: 20, paddingHorizontal: 8, gap: 3 },
-  divider: { width: 1, backgroundColor: D.outlineVariant, marginVertical: 16 },
-  statVal: { fontSize: 24, fontFamily: D.fontBold, color: D.onSurface, letterSpacing: -0.7 },
-  statKey: { fontSize: 9, fontFamily: D.fontBold, color: D.outline, letterSpacing: 0.5, textTransform: "uppercase" },
-  statSub: { fontSize: 9.5, color: D.onSurfaceVariant },
+  statSec: { flex: 1, alignItems: "center", paddingVertical: 22, paddingHorizontal: 8, gap: 4 },
+  divider: { width: 1, backgroundColor: D.outlineVariant, marginVertical: 18 },
+  statVal: { fontSize: 20, fontFamily: D.fontBold, color: D.onSurface, letterSpacing: -0.5 },
+  statKey: { fontSize: 8.5, fontFamily: D.fontBold, color: D.outline, letterSpacing: 0.5, textTransform: "uppercase" },
+  statSub: { fontSize: 9, color: D.onSurfaceVariant },
 
   // Card
   card: {
     backgroundColor: D.surface,
     borderRadius: 18,
-    padding: 18,
-    gap: 14,
+    padding: 20,
+    gap: 16,
     borderWidth: 1,
     borderColor: D.outlineVariant,
     shadowColor: D.primary,
@@ -366,69 +350,44 @@ const s = StyleSheet.create({
     shadowRadius: 5,
     elevation: 1,
   },
-  cardTitle: { fontSize: 14, fontFamily: D.fontBold, color: D.onSurface, letterSpacing: -0.2 },
+  cardTitle: { fontSize: 13, fontFamily: D.fontBold, color: D.onSurface, letterSpacing: -0.2 },
 
   // Generic section list (Recent Results / Today's Schedule / Upcoming Exams)
-  sectionHeader: { flexDirection: "row", alignItems: "center", gap: 8, paddingBottom: 14, borderBottomWidth: 1, borderBottomColor: D.surfaceContainer },
+  sectionHeader: { flexDirection: "row", alignItems: "center", gap: 8, paddingBottom: 16, borderBottomWidth: 1, borderBottomColor: D.surfaceContainer },
   sectionEmpty: { alignItems: "center", paddingVertical: 24 },
-  sectionEmptyText: { fontSize: 12.5, color: D.onSurfaceVariant, fontFamily: D.font },
+  sectionEmptyText: { fontSize: 12, color: D.onSurfaceVariant, fontFamily: D.font },
   listRow: {
     flexDirection: "row",
     alignItems: "center",
     gap: 10,
-    paddingVertical: 13,
+    paddingVertical: 15,
     borderBottomWidth: 1,
     borderBottomColor: D.surfaceContainer,
   },
-  listRowTitle: { fontSize: 12.5, fontFamily: D.fontSemiBold, color: D.onSurface },
-  listRowSub: { fontSize: 10.5, color: D.onSurfaceVariant, marginTop: 1, fontFamily: D.font },
-  listRowMeta: { fontSize: 12, fontFamily: D.fontBold, color: D.primary },
+  listRowTitle: { fontSize: 12, fontFamily: D.fontSemiBold, color: D.onSurface },
+  listRowSub: { fontSize: 10, color: D.onSurfaceVariant, marginTop: 2, fontFamily: D.font },
+  listRowMeta: { fontSize: 11, fontFamily: D.fontBold, color: D.primary },
   subjectIcon: { width: 36, height: 36, borderRadius: 11, alignItems: "center", justifyContent: "center", flexShrink: 0 },
   subjectIconText: { fontSize: 9.5, fontWeight: "800", fontFamily: D.fontExtraBold },
   listDivider: { borderBottomWidth: 1, borderBottomColor: D.surfaceContainer },
 
   // Today's Schedule rows
-  slotRow: { flexDirection: "row", alignItems: "center", gap: 12, paddingVertical: 13 },
+  slotRow: { flexDirection: "row", alignItems: "center", gap: 12, paddingVertical: 15 },
   slotTimeBlock: { width: 68, flexShrink: 0 },
-  slotTime: { fontSize: 11, fontWeight: "800", fontFamily: D.fontExtraBold, color: D.onSurface, letterSpacing: -0.2 },
-  slotHall: { fontSize: 9.5, color: D.outline, marginTop: 3, fontFamily: D.font },
+  slotTime: { fontSize: 10.5, fontWeight: "800", fontFamily: D.fontExtraBold, color: D.onSurface, letterSpacing: -0.2 },
+  slotHall: { fontSize: 9, color: D.outline, marginTop: 4, fontFamily: D.font },
   accentLine: { width: 3, height: 40, borderRadius: 2, flexShrink: 0 },
-  slotSubjectTag: { fontSize: 9, fontWeight: "700", fontFamily: D.fontBold, letterSpacing: 0.5, marginBottom: 2 },
-  slotSubject: { fontSize: 12, fontWeight: "700", fontFamily: D.fontBold, color: D.onSurface, letterSpacing: -0.1 },
-  slotMeta: { fontSize: 9.5, fontFamily: D.font, color: D.outline, marginTop: 3 },
+  slotSubjectTag: { fontSize: 8.5, fontWeight: "700", fontFamily: D.fontBold, letterSpacing: 0.5, marginBottom: 3 },
+  slotSubject: { fontSize: 11.5, fontWeight: "700", fontFamily: D.fontBold, color: D.onSurface, letterSpacing: -0.1 },
+  slotMeta: { fontSize: 9, fontFamily: D.font, color: D.outline, marginTop: 4 },
 
   // Upcoming Exams rows
-  examRow: { flexDirection: "row", alignItems: "center", gap: 12, paddingVertical: 13 },
+  examRow: { flexDirection: "row", alignItems: "center", gap: 12, paddingVertical: 15 },
   datePill: { width: 40, alignItems: "center", flexShrink: 0 },
-  datePillMon: { fontSize: 9, fontWeight: "700", fontFamily: D.fontBold, letterSpacing: 0.4, textTransform: "uppercase", color: D.outline },
-  datePillDay: { fontSize: 16, fontWeight: "800", fontFamily: D.fontExtraBold, letterSpacing: -0.4, lineHeight: 20, color: D.onSurface },
-  subjInline: { fontSize: 9, fontWeight: "700", fontFamily: D.fontBold, letterSpacing: 0.5, marginBottom: 2 },
-  examName: { fontSize: 13, fontWeight: "700", fontFamily: D.fontBold, color: D.onSurface, letterSpacing: -0.2 },
-  examBatch: { fontSize: 11, fontFamily: D.font, color: D.outline, marginTop: 1 },
-  daysLeft: { fontSize: 12, fontWeight: "700", fontFamily: D.fontBold, flexShrink: 0 },
-
-  // Leave requests / Open complaints — quick links style
-  twoCol: { flexDirection: "row", gap: 10 },
-  qlBox: {
-    flex: 1,
-    minWidth: 0,
-    aspectRatio: 0.92,
-    backgroundColor: D.surface,
-    borderRadius: 14,
-    paddingVertical: 14,
-    paddingHorizontal: 6,
-    borderWidth: 1,
-    borderColor: D.outlineVariant,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  qlIcon: { width: 38, height: 38, borderRadius: 11, alignItems: "center", justifyContent: "center", marginBottom: 10 },
-  qlLabel: {
-    fontSize: 12.5,
-    fontWeight: "700",
-    fontFamily: D.fontBold,
-    color: D.onSurface,
-    textAlign: "center",
-    letterSpacing: -0.1,
-  },
+  datePillMon: { fontSize: 8.5, fontWeight: "700", fontFamily: D.fontBold, letterSpacing: 0.4, textTransform: "uppercase", color: D.outline },
+  datePillDay: { fontSize: 15, fontWeight: "800", fontFamily: D.fontExtraBold, letterSpacing: -0.4, lineHeight: 19, color: D.onSurface },
+  subjInline: { fontSize: 8.5, fontWeight: "700", fontFamily: D.fontBold, letterSpacing: 0.5, marginBottom: 3 },
+  examName: { fontSize: 12, fontWeight: "700", fontFamily: D.fontBold, color: D.onSurface, letterSpacing: -0.2 },
+  examBatch: { fontSize: 10.5, fontFamily: D.font, color: D.outline, marginTop: 2 },
+  daysLeft: { fontSize: 11, fontWeight: "700", fontFamily: D.fontBold, flexShrink: 0 },
 });

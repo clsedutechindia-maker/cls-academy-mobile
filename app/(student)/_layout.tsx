@@ -101,6 +101,7 @@ export default function StudentLayout() {
             "/circulars", "/schedules", "/materials", "/complaints", "/doubts",
             "/circular-detail", "/material-detail", "/complaint-detail", "/new-complaint",
             "/doubt-detail", "/submit-doubt", "/test-schedule-detail", "/announcements",
+            "/teaching-plan", "/teaching-plan-detail",
           ]),
         }}
       />
@@ -114,6 +115,8 @@ export default function StudentLayout() {
       <Tabs.Screen name="announcements" options={{ href: null }} />
       <Tabs.Screen name="circulars" options={{ href: null }} />
       <Tabs.Screen name="schedules" options={{ href: null }} />
+      <Tabs.Screen name="teaching-plan" options={{ href: null }} />
+      <Tabs.Screen name="teaching-plan-detail" options={{ href: null }} />
       <Tabs.Screen name="materials" options={{ href: null }} />
       <Tabs.Screen name="complaints" options={{ href: null }} />
       <Tabs.Screen name="doubts" options={{ href: null }} />

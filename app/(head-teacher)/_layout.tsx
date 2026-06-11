@@ -112,9 +112,11 @@ export default function HeadTeacherLayout() {
         options={{
           title: "Other",
           tabBarIcon: ActiveTabIcon("grid-outline", "grid", [
-            "/schedule", "/circulars", "/post-circular", "/circular-detail",
+            "/schedule", "/timetable-editor", "/exam-editor",
+            "/circulars", "/post-circular", "/circular-detail",
             "/leave", "/new-leave", "/materials", "/post-material", "/material-detail",
             "/doubts", "/doubt-detail",
+            "/teaching-plans", "/teaching-plan-detail", "/teaching-plan-editor",
           ]),
         }}
       />
@@ -132,6 +134,11 @@ export default function HeadTeacherLayout() {
       <Tabs.Screen name="upload-result" options={{ href: null }} />
       <Tabs.Screen name="result-detail" options={{ href: null }} />
       <Tabs.Screen name="schedule" options={{ href: null }} />
+      <Tabs.Screen name="timetable-editor" options={{ href: null }} />
+      <Tabs.Screen name="exam-editor" options={{ href: null }} />
+      <Tabs.Screen name="teaching-plans" options={{ href: null }} />
+      <Tabs.Screen name="teaching-plan-detail" options={{ href: null }} />
+      <Tabs.Screen name="teaching-plan-editor" options={{ href: null }} />
       <Tabs.Screen name="circulars" options={{ href: null }} />
       <Tabs.Screen name="post-circular" options={{ href: null }} />
       <Tabs.Screen name="circular-detail" options={{ href: null }} />

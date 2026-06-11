@@ -1,4 +1,4 @@
-import { Redirect, Tabs } from "expo-router";
+import { Redirect, Tabs, usePathname } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import type { ColorValue } from "react-native";
 import { View } from "react-native";
@@ -41,6 +41,35 @@ function TabIcon(name: IoniconsName, activeName: IoniconsName) {
   };
 }
 
+function ActiveTabIcon(name: IoniconsName, activeName: IoniconsName, subPaths: string[]) {
+  return function IconComponent({ color, focused }: { color: ColorValue; focused: boolean }) {
+    const pathname = usePathname();
+    const isActive = focused || subPaths.some((p) => pathname.includes(p));
+    const progress = useSharedValue(isActive ? 1 : 0);
+
+    useEffect(() => {
+      progress.value = withSpring(isActive ? 1 : 0, { damping: 15, stiffness: 150 });
+    }, [isActive]);
+
+    const pillStyle = useAnimatedStyle(() => ({
+      transform: [{ scale: 0.8 + 0.2 * progress.value }],
+      opacity: progress.value,
+    }));
+
+    return (
+      <View style={{ paddingHorizontal: 12, paddingVertical: 4, alignItems: "center", marginBottom: 4, justifyContent: "center" }}>
+        <Animated.View
+          style={[
+            { position: "absolute", top: 0, left: 0, right: 0, bottom: 0, backgroundColor: D.primaryFixed, borderRadius: 10 },
+            pillStyle,
+          ]}
+        />
+        <Ionicons name={isActive ? activeName : name} size={20} color={isActive ? D.primary : (color as string)} style={{ zIndex: 1 }} />
+      </View>
+    );
+  };
+}
+
 export default function AdminLayout() {
   const { role, isReady } = useSession();
   if (isReady && role !== "admin") return <Redirect href="/" />;
@@ -78,7 +107,17 @@ export default function AdminLayout() {
       <Tabs.Screen name="overview" options={{ title: "Overview", tabBarIcon: TabIcon("grid-outline", "grid") }} />
       <Tabs.Screen name="students" options={{ title: "Students", tabBarIcon: TabIcon("people-outline", "people") }} />
       <Tabs.Screen name="staff" options={{ title: "Staff", tabBarIcon: TabIcon("briefcase-outline", "briefcase") }} />
-      <Tabs.Screen name="operations" options={{ title: "Operations", tabBarIcon: TabIcon("clipboard-outline", "clipboard") }} />
+      <Tabs.Screen
+        name="operations"
+        options={{
+          title: "Operations",
+          tabBarIcon: ActiveTabIcon("clipboard-outline", "clipboard", [
+            "/complaints", "/schedule", "/timetable-editor", "/exam-editor",
+            "/results", "/result-detail", "/leave",
+            "/teaching-plans", "/teaching-plan-detail", "/teaching-plan-editor",
+          ]),
+        }}
+      />
       <Tabs.Screen name="account" options={{ title: "Account", tabBarIcon: TabIcon("person-outline", "person") }} />
       <Tabs.Screen name="attendance" options={{ href: null }} />
       <Tabs.Screen name="lookups" options={{ href: null }} />
@@ -88,6 +127,13 @@ export default function AdminLayout() {
       <Tabs.Screen name="leave" options={{ href: null }} />
       <Tabs.Screen name="circulars" options={{ href: null }} />
       <Tabs.Screen name="schedule" options={{ href: null }} />
+      <Tabs.Screen name="timetable-editor" options={{ href: null }} />
+      <Tabs.Screen name="exam-editor" options={{ href: null }} />
+      <Tabs.Screen name="teaching-plans" options={{ href: null }} />
+      <Tabs.Screen name="teaching-plan-detail" options={{ href: null }} />
+      <Tabs.Screen name="teaching-plan-editor" options={{ href: null }} />
+      <Tabs.Screen name="results" options={{ href: null }} />
+      <Tabs.Screen name="result-detail" options={{ href: null }} />
     </Tabs>
   );
 }

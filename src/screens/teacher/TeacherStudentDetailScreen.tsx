@@ -124,5 +124,5 @@ const s = StyleSheet.create({
   divider: { height: 1, backgroundColor: D.outlineVariant },
   infoRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", padding: 14 },
   infoLabel: { fontSize: 12, fontWeight: "600", fontFamily: D.fontSemiBold, color: D.onSurfaceVariant },
-  infoValue: { fontSize: 12.5, fontWeight: "600", fontFamily: D.fontSemiBold, color: D.onSurface, textAlign: "right", flex: 1, marginLeft: 12 },
+  infoValue: { fontSize: 12.5, fontWeight: "600", fontFamily: D.fontSemiBold, color: D.onSurface, textAlign: "right", flex: 1, minWidth: 0, flexShrink: 1, marginLeft: 12 },
 });

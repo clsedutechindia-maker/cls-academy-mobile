@@ -36,7 +36,9 @@
         {
           "color": "#3525CD"
         }
-      ]
+      ],
+      "@react-native-community/datetimepicker",
+      "expo-sharing"
     ],
     "extra": {
       "router": {},

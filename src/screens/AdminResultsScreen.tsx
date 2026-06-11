@@ -29,6 +29,9 @@ export function AdminResultsScreen() {
   const { adminRecord } = useSession();
   const [selectedBatch, setSelectedBatch] = useState("All batches");
   const [pickerOpen, setPickerOpen] = useState(false);
+  const [selectedSubject, setSelectedSubject] = useState("All subjects");
+  const [sortMode, setSortMode] = useState<"recent" | "high" | "low">("recent");
+  const [sortPickerOpen, setSortPickerOpen] = useState(false);
   const [search, setSearch] = useState("");
   const [searchVisible, setSearchVisible] = useState(false);
 
@@ -43,9 +46,18 @@ export function AdminResultsScreen() {
   const all = results ?? [];
   const classNames = Array.from(new Set(all.map((r) => r.className).filter(Boolean)));
   const batches = ["All batches", ...classNames];
+  const subjectNames = Array.from(new Set(all.map((r) => r.subjectName).filter(Boolean)));
+  const subjects = ["All subjects", ...subjectNames];
+
+  const SORT_LABELS: Record<typeof sortMode, string> = {
+    recent: "Most recent",
+    high: "Highest %",
+    low: "Lowest %",
+  };
 
   const filtered = all.filter((r) => {
     if (selectedBatch !== "All batches" && r.className !== selectedBatch) return false;
+    if (selectedSubject !== "All subjects" && r.subjectName !== selectedSubject) return false;
     if (search.trim()) {
       const term = search.trim().toLowerCase();
       return (r.assessmentTitle ?? "").toLowerCase().includes(term) ||
@@ -54,6 +66,13 @@ export function AdminResultsScreen() {
         (r.subjectName ?? "").toLowerCase().includes(term);
     }
     return true;
+  });
+
+  const sorted = [...filtered].sort((a, b) => {
+    if (sortMode === "recent") return b.publishedAtIso.localeCompare(a.publishedAtIso);
+    const pctA = a.maxScore > 0 ? a.score / a.maxScore : 0;
+    const pctB = b.maxScore > 0 ? b.score / b.maxScore : 0;
+    return sortMode === "high" ? pctB - pctA : pctA - pctB;
   });
 
   const avgPct = filtered.length > 0
@@ -98,6 +117,24 @@ export function AdminResultsScreen() {
       </View>
 
       <ScrollView contentContainerStyle={{ paddingHorizontal: 18, paddingBottom: MOBILE_BOTTOM_SPACING }} showsVerticalScrollIndicator={false}>
+        <View style={s.filterRow}>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.chipsRow}>
+            {subjects.map((subj) => (
+              <Pressable
+                key={subj}
+                style={[s.chip, subj === selectedSubject && s.chipActive]}
+                onPress={() => setSelectedSubject(subj)}
+              >
+                <Text style={[s.chipText, subj === selectedSubject && s.chipTextActive]} numberOfLines={1}>{subj}</Text>
+              </Pressable>
+            ))}
+          </ScrollView>
+          <AnimatedPressable style={s.sortDropdown} onPress={() => setSortPickerOpen(true)}>
+            <Ionicons name="swap-vertical" size={13} color={D.primary} />
+            <Text style={s.sortDropdownText} numberOfLines={1}>{SORT_LABELS[sortMode]}</Text>
+          </AnimatedPressable>
+        </View>
+
         <View style={s.grid2}>
           <View style={s.featureCard}>
             <View style={[s.fcIcon, { backgroundColor: D.surfaceLow }]}>
@@ -137,13 +174,28 @@ export function AdminResultsScreen() {
           </View>
         )}
 
-        {!loading && !error && filtered.length > 0 && (
+        {!loading && !error && sorted.length > 0 && (
           <View style={[s.card, { marginTop: 16 }]}>
-            {filtered.map((r, i) => {
+            {sorted.map((r, i) => {
               const sc = getSubjectColor(r.subjectName || "");
               const pct = r.maxScore > 0 ? Math.round((r.score / r.maxScore) * 100) : 0;
               return (
-                <View key={r.id} style={[s.resultRow, i < filtered.length - 1 && s.divider]}>
+                <AnimatedPressable
+                  key={r.id}
+                  style={[s.resultRow, i < sorted.length - 1 && s.divider]}
+                  onPress={() =>
+                    router.push({
+                      pathname: "/(admin)/result-detail",
+                      params: {
+                        assessmentTitle: r.assessmentTitle,
+                        classId: r.classId,
+                        className: r.className,
+                        subjectName: r.subjectName,
+                        subjectId: r.subjectId,
+                      },
+                    })
+                  }
+                >
                   <View style={[s.subjectIcon, { backgroundColor: sc.bg }]}>
                     <Text style={{ fontSize: 9, fontFamily: D.fontExtraBold, color: sc.text }}>
                       {(r.subjectName || "?").slice(0, 3).toUpperCase()}
@@ -155,8 +207,11 @@ export function AdminResultsScreen() {
                       {r.className} · {r.studentName}
                     </Text>
                   </View>
-                  <Text style={[s.avgText, { color: pct >= 80 ? "#15803D" : pct >= 65 ? "#B45309" : "#B91C1C" }]}>{pct}%</Text>
-                </View>
+                  <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+                    <Text style={[s.avgText, { color: pct >= 80 ? "#15803D" : pct >= 65 ? "#B45309" : "#B91C1C" }]}>{pct}%</Text>
+                    <Ionicons name="chevron-forward" size={13} color={D.outline} />
+                  </View>
+                </AnimatedPressable>
               );
             })}
           </View>
@@ -180,6 +235,24 @@ export function AdminResultsScreen() {
           </View>
         </Pressable>
       </Modal>
+
+      <Modal visible={sortPickerOpen} transparent animationType="fade" onRequestClose={() => setSortPickerOpen(false)}>
+        <Pressable style={s.modalOverlay} onPress={() => setSortPickerOpen(false)}>
+          <View style={s.modalSheet}>
+            <Text style={s.modalTitle}>Sort By</Text>
+            {(Object.keys(SORT_LABELS) as Array<keyof typeof SORT_LABELS>).map((mode) => (
+              <Pressable
+                key={mode}
+                style={[s.modalOption, mode === sortMode && s.modalOptionActive]}
+                onPress={() => { setSortMode(mode); setSortPickerOpen(false); }}
+              >
+                <Text style={[s.modalOptionText, mode === sortMode && { color: D.primary, fontFamily: D.fontBold }]}>{SORT_LABELS[mode]}</Text>
+                {mode === sortMode && <Ionicons name="checkmark" size={16} color={D.primary} />}
+              </Pressable>
+            ))}
+          </View>
+        </Pressable>
+      </Modal>
     </View>
   );
 }
@@ -198,6 +271,14 @@ const s = StyleSheet.create({
   searchIconBtn: { width: 34, height: 34, borderRadius: 10, alignItems: "center", justifyContent: "center", backgroundColor: D.surface, borderWidth: 1, borderColor: D.outlineVariant },
   searchBar: { flexDirection: "row", alignItems: "center", gap: 8, marginTop: 12, paddingHorizontal: 12, paddingVertical: 8, borderRadius: 10, backgroundColor: D.surface, borderWidth: 1, borderColor: D.outlineVariant },
   searchInput: { flex: 1, fontSize: 13, fontFamily: D.font, color: D.onSurface },
+  filterRow: { flexDirection: "row", alignItems: "center", gap: 8, marginBottom: 14 },
+  chipsRow: { flexDirection: "row", gap: 8, paddingRight: 8 },
+  chip: { paddingHorizontal: 12, paddingVertical: 7, borderRadius: 10, backgroundColor: D.surface, borderWidth: 1, borderColor: D.outlineVariant },
+  chipActive: { backgroundColor: D.surfaceLow, borderColor: D.primary },
+  chipText: { fontSize: 11.5, fontFamily: D.fontMedium, color: D.onSurfaceVariant },
+  chipTextActive: { color: D.primary, fontFamily: D.fontBold },
+  sortDropdown: { flexDirection: "row", alignItems: "center", gap: 5, paddingHorizontal: 10, paddingVertical: 7, borderRadius: 10, backgroundColor: D.surfaceLow, borderWidth: 1, borderColor: D.surfaceHigh, maxWidth: 110, flexShrink: 0 },
+  sortDropdownText: { fontSize: 10.5, fontFamily: D.fontBold, color: D.primary, flexShrink: 1 },
   grid2: { flexDirection: "row", gap: 12, marginBottom: 4 },
   featureCard: { flex: 1, backgroundColor: D.surface, borderRadius: 14, padding: 14, borderWidth: 1, borderColor: D.outlineVariant, shadowColor: D.primary, shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.025, shadowRadius: 4, elevation: 1 },
   fcIcon: { width: 24, height: 24, borderRadius: 6, alignItems: "center", justifyContent: "center" },

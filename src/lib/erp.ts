@@ -1,4 +1,4 @@
-import { addDoc, collection, doc, getDoc, getDocs, query, setDoc, updateDoc, where } from "firebase/firestore";
+import { addDoc, collection, deleteDoc, doc, getDoc, getDocs, query, serverTimestamp, setDoc, updateDoc, where } from "firebase/firestore";
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { firestoreDb, firebaseStorage } from "./firebase";
 import { formatDateTimeLabel, getTodayDateValue } from "./date";
@@ -33,8 +33,10 @@ import {
 } from "./demoData";
 import {
   adminCollectionName,
+  buildClassTimetableId,
   buildStudentAttendanceId,
   buildStudentResultId,
+  buildTestScheduleId,
   classSubjectsCollectionName,
   classTimetablesCollectionName,
   classesCollectionName,
@@ -50,16 +52,24 @@ import {
   studentAttendanceCollectionName,
   studentComplaintsCollectionName,
   studentResultsCollectionName,
+  teachingPlansCollectionName,
   testSchedulesCollectionName,
   userProfilesCollectionName,
+  buildTeachingPlanId,
+  normalizeTeachingPlanRecord,
   type AdminRecord,
   type AttendanceStatus,
+  type ClassRecord,
   type ClassSubjectRecord,
   type ClassTimetableRecord,
   type ResultAssessmentCategory,
+  type ScheduleDayKey,
   type StudentAnnouncementRecord,
   type StudentAttendanceRecord,
   type StudentResultRecord,
+  type TeachingPlanRecord,
+  type TeachingPlanRow,
+  type TeachingPlanStatus,
   type TestScheduleRecord,
   type UserProfileRecord,
 } from "../shared";
@@ -702,6 +712,313 @@ export async function listClassSubjectsForStudent(profile: UserProfileRecord): P
     .map((item) => normalizeClassSubjectRecord(item.id, item.data()))
     .filter((item) => item.active)
     .sort((left, right) => left.subjectName.localeCompare(right.subjectName));
+}
+
+// --- Schedule editing (admins + head teachers) ---
+
+export type ScheduleActor = { userId: string; name: string };
+
+export async function listClassSubjectsForClass(classId: string): Promise<ClassSubjectRecord[]> {
+  if (isDemoMode()) return getDemoClassSubjects();
+  if (!classId) return [];
+  const snapshot = await getDocs(
+    query(collection(firestoreDb, classSubjectsCollectionName), where("classId", "==", classId)),
+  );
+
+  return snapshot.docs
+    .map((item) => normalizeClassSubjectRecord(item.id, item.data()))
+    .filter((item) => item.active)
+    .sort((left, right) => left.subjectName.localeCompare(right.subjectName));
+}
+
+export async function listAdminScopedClasses(admin: AdminRecord): Promise<ClassRecord[]> {
+  return listScopedClasses(admin);
+}
+
+export async function getClassById(classId: string): Promise<ClassRecord | null> {
+  if (!classId || isDemoMode()) return null;
+  const snapshot = await getDoc(doc(firestoreDb, classesCollectionName, classId));
+  return snapshot.exists() ? normalizeClassRecord(snapshot.id, snapshot.data() ?? {}) : null;
+}
+
+export async function getClassTimetableEntryById(id: string): Promise<ClassTimetableRecord | null> {
+  if (!id || isDemoMode()) return null;
+  const snapshot = await getDoc(doc(firestoreDb, classTimetablesCollectionName, id));
+  return snapshot.exists() ? normalizeClassTimetableRecord(snapshot.id, snapshot.data() ?? {}) : null;
+}
+
+export async function getTestScheduleById(id: string): Promise<TestScheduleRecord | null> {
+  if (!id || isDemoMode()) return null;
+  const snapshot = await getDoc(doc(firestoreDb, testSchedulesCollectionName, id));
+  return snapshot.exists() ? normalizeTestScheduleRecord(snapshot.id, snapshot.data() ?? {}) : null;
+}
+
+export async function listHeadTeacherClasses(profile: UserProfileRecord): Promise<ClassRecord[]> {
+  if (isDemoMode()) return [];
+  const classIds = Array.from(new Set(profile.teacherClassIds ?? [])).filter(Boolean);
+  if (classIds.length === 0) return [];
+  const snapshots = await Promise.all(
+    classIds.map((classId) => getDoc(doc(firestoreDb, classesCollectionName, classId))),
+  );
+
+  return snapshots
+    .filter((snapshot) => snapshot.exists())
+    .map((snapshot) => normalizeClassRecord(snapshot.id, snapshot.data() ?? {}))
+    .sort((left, right) => left.name.localeCompare(right.name));
+}
+
+export async function saveClassTimetableEntry(input: {
+  classRecord: ClassRecord;
+  dayKey: ScheduleDayKey;
+  slotLabel: string;
+  startTime: string;
+  endTime: string;
+  mapping: ClassSubjectRecord;
+  notes: string;
+  actor: ScheduleActor;
+}): Promise<string> {
+  const id = buildClassTimetableId(input.classRecord.id, input.dayKey, input.slotLabel);
+  if (isDemoMode()) return id;
+  await setDoc(
+    doc(firestoreDb, classTimetablesCollectionName, id),
+    {
+      classId: input.classRecord.id,
+      className: input.classRecord.name,
+      centreId: input.classRecord.centreId,
+      centreName: input.classRecord.centreName,
+      regionId: input.classRecord.regionId,
+      regionName: input.classRecord.regionName,
+      dayKey: input.dayKey,
+      slotKey: id.split("__")[2] ?? "",
+      slotLabel: input.slotLabel.trim(),
+      startTime: input.startTime,
+      endTime: input.endTime,
+      subjectId: input.mapping.subjectId,
+      subjectName: input.mapping.subjectName,
+      teacherUserId: input.mapping.teacherUserId,
+      teacherName: input.mapping.teacherName,
+      notes: input.notes.trim(),
+      updatedByUserId: input.actor.userId,
+      updatedByName: input.actor.name,
+      createdAt: serverTimestamp(),
+      updatedAt: serverTimestamp(),
+    },
+    { merge: true },
+  );
+  return id;
+}
+
+export async function deleteClassTimetableEntry(id: string) {
+  if (isDemoMode()) return;
+  await deleteDoc(doc(firestoreDb, classTimetablesCollectionName, id));
+}
+
+export async function saveTestSchedule(input: {
+  classRecord: ClassRecord;
+  mapping: ClassSubjectRecord;
+  assessmentCategory: ResultAssessmentCategory;
+  assessmentTitle: string;
+  scheduleDate: string;
+  startTime: string;
+  endTime: string;
+  notes: string;
+  actor: ScheduleActor;
+}): Promise<string> {
+  const id = buildTestScheduleId(input.mapping.id, input.assessmentCategory, input.scheduleDate, input.assessmentTitle);
+  if (isDemoMode()) return id;
+  await setDoc(
+    doc(firestoreDb, testSchedulesCollectionName, id),
+    {
+      classId: input.classRecord.id,
+      className: input.classRecord.name,
+      classSubjectId: input.mapping.id,
+      subjectId: input.mapping.subjectId,
+      subjectName: input.mapping.subjectName,
+      teacherUserId: input.mapping.teacherUserId,
+      teacherName: input.mapping.teacherName,
+      centreId: input.classRecord.centreId,
+      centreName: input.classRecord.centreName,
+      regionId: input.classRecord.regionId,
+      regionName: input.classRecord.regionName,
+      assessmentCategory: input.assessmentCategory,
+      assessmentTitle: input.assessmentTitle.trim(),
+      scheduleDate: input.scheduleDate,
+      startTime: input.startTime,
+      endTime: input.endTime,
+      notes: input.notes.trim(),
+      updatedByUserId: input.actor.userId,
+      updatedByName: input.actor.name,
+      createdAt: serverTimestamp(),
+      updatedAt: serverTimestamp(),
+    },
+    { merge: true },
+  );
+  return id;
+}
+
+export async function deleteTestSchedule(id: string) {
+  if (isDemoMode()) return;
+  await deleteDoc(doc(firestoreDb, testSchedulesCollectionName, id));
+}
+
+// --- Teaching plans (weekly, subject-teacher authored, admin approved) ---
+
+export type TeachingPlanInput = {
+  classId: string;
+  className: string;
+  classSubjectId: string;
+  subjectId: string;
+  subjectName: string;
+  teacherUserId: string;
+  teacherName: string;
+  centreId: string;
+  centreName: string;
+  regionId: string;
+  regionName: string;
+  weekStartDate: string;
+  weekEndDate: string;
+  monthKey: string;
+  unitName: string;
+  classTime: string;
+  rows: TeachingPlanRow[];
+  status: TeachingPlanStatus;
+  reviewNote?: string;
+  submittedAtIso?: string;
+  approvedByUserId?: string;
+  approvedByName?: string;
+  approvedAtIso?: string;
+  createdAtIso?: string;
+};
+
+export async function saveTeachingPlan(input: TeachingPlanInput, actor: ScheduleActor): Promise<string> {
+  const id = buildTeachingPlanId(input.classSubjectId, input.weekStartDate);
+  if (isDemoMode()) return id;
+  const nowIso = new Date().toISOString();
+  await setDoc(
+    doc(firestoreDb, teachingPlansCollectionName, id),
+    {
+      classId: input.classId,
+      className: input.className,
+      classSubjectId: input.classSubjectId,
+      subjectId: input.subjectId,
+      subjectName: input.subjectName,
+      teacherUserId: input.teacherUserId,
+      teacherName: input.teacherName,
+      centreId: input.centreId,
+      centreName: input.centreName,
+      regionId: input.regionId,
+      regionName: input.regionName,
+      weekStartDate: input.weekStartDate,
+      weekEndDate: input.weekEndDate,
+      monthKey: input.monthKey,
+      unitName: input.unitName.trim(),
+      classTime: input.classTime.trim(),
+      rows: input.rows.map((row) => ({ date: row.date, day: row.day, topics: row.topics.trim() })),
+      status: input.status,
+      reviewNote: input.reviewNote ?? "",
+      submittedAtIso: input.submittedAtIso ?? "",
+      approvedByUserId: input.approvedByUserId ?? "",
+      approvedByName: input.approvedByName ?? "",
+      approvedAtIso: input.approvedAtIso ?? "",
+      createdAtIso: input.createdAtIso || nowIso,
+      updatedAtIso: nowIso,
+      updatedByUserId: actor.userId,
+      updatedByName: actor.name,
+      createdAt: serverTimestamp(),
+      updatedAt: serverTimestamp(),
+    },
+    { merge: true },
+  );
+  return id;
+}
+
+export async function submitTeachingPlan(id: string, actor: ScheduleActor) {
+  if (isDemoMode()) return;
+  const nowIso = new Date().toISOString();
+  await updateDoc(doc(firestoreDb, teachingPlansCollectionName, id), {
+    status: "submitted",
+    submittedAtIso: nowIso,
+    reviewNote: "",
+    updatedAtIso: nowIso,
+    updatedByUserId: actor.userId,
+    updatedByName: actor.name,
+  });
+}
+
+export async function approveTeachingPlan(id: string, actor: ScheduleActor) {
+  if (isDemoMode()) return;
+  const nowIso = new Date().toISOString();
+  await updateDoc(doc(firestoreDb, teachingPlansCollectionName, id), {
+    status: "approved",
+    approvedByUserId: actor.userId,
+    approvedByName: actor.name,
+    approvedAtIso: nowIso,
+    updatedAtIso: nowIso,
+    updatedByUserId: actor.userId,
+    updatedByName: actor.name,
+  });
+}
+
+export async function rejectTeachingPlan(id: string, actor: ScheduleActor, note: string) {
+  if (isDemoMode()) return;
+  const nowIso = new Date().toISOString();
+  await updateDoc(doc(firestoreDb, teachingPlansCollectionName, id), {
+    status: "draft",
+    reviewNote: note.trim(),
+    submittedAtIso: "",
+    updatedAtIso: nowIso,
+    updatedByUserId: actor.userId,
+    updatedByName: actor.name,
+  });
+}
+
+export async function deleteTeachingPlan(id: string) {
+  if (isDemoMode()) return;
+  await deleteDoc(doc(firestoreDb, teachingPlansCollectionName, id));
+}
+
+export async function getTeachingPlanById(id: string): Promise<TeachingPlanRecord | null> {
+  if (!id || isDemoMode()) return null;
+  const snapshot = await getDoc(doc(firestoreDb, teachingPlansCollectionName, id));
+  return snapshot.exists() ? normalizeTeachingPlanRecord(snapshot.id, snapshot.data() ?? {}) : null;
+}
+
+export async function listTeachingPlansForTeacher(profile: UserProfileRecord): Promise<TeachingPlanRecord[]> {
+  if (isDemoMode()) return [];
+  const snapshot = await getDocs(
+    query(collection(firestoreDb, teachingPlansCollectionName), where("teacherUserId", "==", profile.userId)),
+  );
+  return snapshot.docs
+    .map((item) => normalizeTeachingPlanRecord(item.id, item.data()))
+    .sort((left, right) => right.weekStartDate.localeCompare(left.weekStartDate));
+}
+
+export async function listTeachingPlansForAdmin(admin: AdminRecord): Promise<TeachingPlanRecord[]> {
+  if (isDemoMode()) return [];
+  const col = collection(firestoreDb, teachingPlansCollectionName);
+  const snapshot =
+    admin.role === "admin"
+      ? await getDocs(col)
+      : admin.role === "centre_incharge"
+        ? await getDocs(query(col, where("centreId", "==", admin.centreId)))
+        : await getDocs(query(col, where("regionId", "==", admin.regionId)));
+  return snapshot.docs
+    .map((item) => normalizeTeachingPlanRecord(item.id, item.data()))
+    .sort((left, right) => right.weekStartDate.localeCompare(left.weekStartDate));
+}
+
+export async function listTeachingPlansForStudent(profile: UserProfileRecord): Promise<TeachingPlanRecord[]> {
+  if (isDemoMode() || !profile.classId) return [];
+  const snapshot = await getDocs(
+    query(
+      collection(firestoreDb, teachingPlansCollectionName),
+      where("classId", "==", profile.classId),
+      where("status", "==", "approved"),
+    ),
+  );
+  return snapshot.docs
+    .map((item) => normalizeTeachingPlanRecord(item.id, item.data()))
+    .sort((left, right) => right.weekStartDate.localeCompare(left.weekStartDate));
 }
 
 export async function listStudentDoubts(profile: UserProfileRecord): Promise<StudentDoubtRecord[]> {
