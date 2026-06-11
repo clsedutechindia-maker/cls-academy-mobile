@@ -9,7 +9,7 @@ import type {
   StudentNotificationItem,
   LeaveRequestRecord,
 } from "./erp";
-import type { ClassSubjectRecord, StudentResultRecord, StudentAttendanceRecord } from "../shared";
+import type { ClassSubjectRecord, SessionSlotRecord, StudentResultRecord, StudentAttendanceRecord } from "../shared";
 import type { DemoRole } from "./demoMode";
 
 // ─── Shared constants ────────────────────────────────────────────────────────
@@ -718,6 +718,9 @@ export function getDemoComplaints() {
 let _pendingDemoDoubts: StudentDoubtRecord[] = [];
 let _pendingDemoLeaves: StudentLeaveRequestRecord[] = [];
 let _pendingDemoComplaints: StudentComplaintRecord[] = [];
+let _demoSessionSlots: SessionSlotRecord[] = [];
+let _demoAttendance: Record<string, StudentAttendanceRecord> = {};
+let _demoAttendanceLocks: string[] = [];
 const _studentLeaveOverrides = new Map<string, "approved" | "rejected">();
 const _staffLeaveOverrides = new Map<string, "approved" | "rejected">();
 
@@ -726,22 +729,31 @@ const KEY_LEAVES = "cls:demo-pending-leaves";
 const KEY_COMPLAINTS = "cls:demo-pending-complaints";
 const KEY_STUDENT_OVERRIDES = "cls:demo-leave-overrides";
 const KEY_STAFF_OVERRIDES = "cls:demo-staff-overrides";
+const KEY_SESSIONS = "cls:demo-session-slots";
+const KEY_ATTENDANCE = "cls:demo-attendance";
+const KEY_ATT_LOCKS = "cls:demo-attendance-locks";
 let _hydrated = false;
 
 export async function hydrateDemoState(): Promise<void> {
   if (_hydrated) return;
   _hydrated = true;
   try {
-    const [doubtsRaw, leavesRaw, complaintsRaw, studentOvRaw, staffOvRaw] = await Promise.all([
+    const [doubtsRaw, leavesRaw, complaintsRaw, studentOvRaw, staffOvRaw, sessionsRaw, attendanceRaw, locksRaw] = await Promise.all([
       AsyncStorage.getItem(KEY_DOUBTS),
       AsyncStorage.getItem(KEY_LEAVES),
       AsyncStorage.getItem(KEY_COMPLAINTS),
       AsyncStorage.getItem(KEY_STUDENT_OVERRIDES),
       AsyncStorage.getItem(KEY_STAFF_OVERRIDES),
+      AsyncStorage.getItem(KEY_SESSIONS),
+      AsyncStorage.getItem(KEY_ATTENDANCE),
+      AsyncStorage.getItem(KEY_ATT_LOCKS),
     ]);
     if (doubtsRaw) _pendingDemoDoubts = JSON.parse(doubtsRaw) as StudentDoubtRecord[];
     if (leavesRaw) _pendingDemoLeaves = JSON.parse(leavesRaw) as StudentLeaveRequestRecord[];
     if (complaintsRaw) _pendingDemoComplaints = JSON.parse(complaintsRaw) as StudentComplaintRecord[];
+    if (sessionsRaw) _demoSessionSlots = JSON.parse(sessionsRaw) as SessionSlotRecord[];
+    if (attendanceRaw) _demoAttendance = JSON.parse(attendanceRaw) as Record<string, StudentAttendanceRecord>;
+    if (locksRaw) _demoAttendanceLocks = JSON.parse(locksRaw) as string[];
     if (studentOvRaw) {
       const entries = JSON.parse(studentOvRaw) as Array<[string, "approved" | "rejected"]>;
       for (const [k, v] of entries) _studentLeaveOverrides.set(k, v);
@@ -776,6 +788,52 @@ export function setDemoStudentLeaveStatus(id: string, status: "approved" | "reje
 export function setDemoStaffLeaveStatus(id: string, status: "approved" | "rejected") {
   _staffLeaveOverrides.set(id, status);
   void AsyncStorage.setItem(KEY_STAFF_OVERRIDES, JSON.stringify(Array.from(_staffLeaveOverrides.entries())));
+}
+
+// ─── Demo session slots ─────────────────────────────────────────────────────
+function persistDemoSessions() {
+  void AsyncStorage.setItem(KEY_SESSIONS, JSON.stringify(_demoSessionSlots));
+}
+
+export function getDemoSessionSlots(): SessionSlotRecord[] {
+  return _demoSessionSlots;
+}
+
+export function addDemoSessionSlot(slot: SessionSlotRecord) {
+  _demoSessionSlots.unshift(slot);
+  persistDemoSessions();
+}
+
+export function updateDemoSessionSlot(id: string, patch: Partial<SessionSlotRecord>) {
+  _demoSessionSlots = _demoSessionSlots.map((s) => (s.id === id ? { ...s, ...patch } : s));
+  persistDemoSessions();
+}
+
+export function deleteDemoSessionSlot(id: string) {
+  _demoSessionSlots = _demoSessionSlots.filter((s) => s.id !== id);
+  persistDemoSessions();
+}
+
+// ─── Demo attendance + locks ────────────────────────────────────────────────
+export function getDemoAttendanceForClass(classId: string, date: string): StudentAttendanceRecord[] {
+  return Object.values(_demoAttendance).filter((r) => r.classId === classId && r.attendanceDate === date);
+}
+
+export function setDemoAttendance(record: StudentAttendanceRecord) {
+  _demoAttendance[`${record.studentUserId}__${record.attendanceDate}`] = record;
+  void AsyncStorage.setItem(KEY_ATTENDANCE, JSON.stringify(_demoAttendance));
+}
+
+export function isDemoAttendanceLocked(classId: string, date: string): boolean {
+  return _demoAttendanceLocks.includes(`${classId}__${date}`);
+}
+
+export function lockDemoAttendance(classId: string, date: string) {
+  const key = `${classId}__${date}`;
+  if (!_demoAttendanceLocks.includes(key)) {
+    _demoAttendanceLocks.push(key);
+    void AsyncStorage.setItem(KEY_ATT_LOCKS, JSON.stringify(_demoAttendanceLocks));
+  }
 }
 
 export function getDemoDoubts() {

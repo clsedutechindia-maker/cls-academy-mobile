@@ -1,9 +1,9 @@
 import { useState } from "react";
-import { Modal, Platform, Pressable, StyleSheet, Text, TextInput, View } from "react-native";
+import { Modal, Pressable, StyleSheet, Text, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import DateTimePicker from "@react-native-community/datetimepicker";
 import { D } from "../../components/theme";
 import { AnimatedPressable } from "../../components/motion";
+import { DayCalendarPicker } from "../../components/DayCalendarPicker";
 import { formatScheduleDateLabel } from "../../shared";
 
 // --- value <-> Date helpers ---
@@ -123,24 +123,18 @@ export function OptionSheet({
   );
 }
 
-// --- Date picker field (native on device, text fallback on web) ---
+// --- Date picker field (in-app month calendar, web + native) ---
 
-export function DateField({ value, onChange }: { value: string; onChange: (value: string) => void }) {
+export function DateField({
+  value,
+  onChange,
+  minDate,
+}: {
+  value: string;
+  onChange: (value: string) => void;
+  minDate?: string;
+}) {
   const [show, setShow] = useState(false);
-
-  if (Platform.OS === "web") {
-    return (
-      <TextInput
-        style={kit.dropdownBtn}
-        value={value}
-        onChangeText={onChange}
-        placeholder="YYYY-MM-DD"
-        placeholderTextColor={D.outline}
-        autoCapitalize="none"
-      />
-    );
-  }
-
   return (
     <>
       <AnimatedPressable style={kit.dropdownBtn} onPress={() => setShow(true)}>
@@ -149,54 +143,48 @@ export function DateField({ value, onChange }: { value: string; onChange: (value
         </Text>
         <Ionicons name="calendar-outline" size={16} color={D.outline} />
       </AnimatedPressable>
-      {show && (
-        <DateTimePicker
-          value={dateValueToDate(value)}
-          mode="date"
-          onChange={(event, selected) => {
-            setShow(false);
-            if (event.type === "set" && selected) onChange(dateToValue(selected));
-          }}
-        />
-      )}
+      <DayCalendarPicker
+        visible={show}
+        value={value}
+        minDate={minDate}
+        onSelect={onChange}
+        onClose={() => setShow(false)}
+      />
     </>
   );
 }
 
-// --- Time picker field (native on device, text fallback on web) ---
+// --- Time picker field (in-app option sheet, web + native) ---
+
+const TIME_OPTIONS: SheetOption[] = (() => {
+  const out: SheetOption[] = [];
+  for (let h = 6; h <= 21; h += 1) {
+    for (const m of [0, 30]) {
+      const key = `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
+      out.push({ key, label: formatTimeLabel(key) });
+    }
+  }
+  return out;
+})();
 
 export function TimeField({ value, onChange }: { value: string; onChange: (value: string) => void }) {
   const [show, setShow] = useState(false);
-
-  if (Platform.OS === "web") {
-    return (
-      <TextInput
-        style={kit.dropdownBtn}
-        value={value}
-        onChangeText={onChange}
-        placeholder="HH:MM"
-        placeholderTextColor={D.outline}
-        autoCapitalize="none"
-      />
-    );
-  }
-
   return (
     <>
       <AnimatedPressable style={kit.dropdownBtn} onPress={() => setShow(true)}>
-        <Text style={[kit.dropdownText, { color: value ? D.onSurface : D.outline }]}>{formatTimeLabel(value)}</Text>
+        <Text style={[kit.dropdownText, { color: /^\d{2}:\d{2}$/.test(value) ? D.onSurface : D.outline }]}>
+          {formatTimeLabel(value)}
+        </Text>
         <Ionicons name="time-outline" size={16} color={D.outline} />
       </AnimatedPressable>
-      {show && (
-        <DateTimePicker
-          value={timeValueToDate(value)}
-          mode="time"
-          onChange={(event, selected) => {
-            setShow(false);
-            if (event.type === "set" && selected) onChange(timeToValue(selected));
-          }}
-        />
-      )}
+      <OptionSheet
+        visible={show}
+        title="Select Time"
+        options={TIME_OPTIONS}
+        selectedKey={value}
+        onSelect={onChange}
+        onClose={() => setShow(false)}
+      />
     </>
   );
 }

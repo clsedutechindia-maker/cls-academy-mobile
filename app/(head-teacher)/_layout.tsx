@@ -117,6 +117,7 @@ export default function HeadTeacherLayout() {
             "/leave", "/new-leave", "/materials", "/post-material", "/material-detail",
             "/doubts", "/doubt-detail",
             "/teaching-plans", "/teaching-plan-detail", "/teaching-plan-editor",
+            "/sessions",
           ]),
         }}
       />
@@ -139,6 +140,7 @@ export default function HeadTeacherLayout() {
       <Tabs.Screen name="teaching-plans" options={{ href: null }} />
       <Tabs.Screen name="teaching-plan-detail" options={{ href: null }} />
       <Tabs.Screen name="teaching-plan-editor" options={{ href: null }} />
+      <Tabs.Screen name="sessions" options={{ href: null }} />
       <Tabs.Screen name="circulars" options={{ href: null }} />
       <Tabs.Screen name="post-circular" options={{ href: null }} />
       <Tabs.Screen name="circular-detail" options={{ href: null }} />

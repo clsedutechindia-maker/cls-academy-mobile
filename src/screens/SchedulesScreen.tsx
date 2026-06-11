@@ -65,16 +65,17 @@ export function SchedulesScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const today = new Date().toISOString().slice(0, 10);
 
-  useFocusEffect(useCallback(() => { void resource.reload(); }, [resource]));
+  const reloadResource = resource.reload;
+  useFocusEffect(useCallback(() => { void reloadResource(); }, [reloadResource]));
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
     try {
-      await resource.reload();
+      await reloadResource();
     } finally {
       setRefreshing(false);
     }
-  }, [resource]);
+  }, [reloadResource]);
 
   const dayEntries = (resource.data?.timetableEntries ?? []).filter((entry) => entry.dayKey === day);
   const upcoming = (resource.data?.tests ?? []).filter((test) => !test.scheduleDate || test.scheduleDate >= today).sort((a, b) => a.scheduleDate.localeCompare(b.scheduleDate));

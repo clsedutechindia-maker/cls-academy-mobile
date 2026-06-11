@@ -38,6 +38,15 @@ const SECTIONS = [
     badgeKey: null as null | "doubts" | "circulars",
   },
   {
+    title: "Book a Session",
+    subtitle: "Doubt / remedial class",
+    icon: "time-outline" as const,
+    href: "/(student)/book-session" as const,
+    color: "#0D9488",
+    bg: "#CCFBF1",
+    badgeKey: null as null | "doubts" | "circulars",
+  },
+  {
     title: "Circulars",
     subtitle: "Notices & announcements",
     icon: "megaphone-outline" as const,

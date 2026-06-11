@@ -7,6 +7,7 @@ export const studentAttendanceCollectionName = "studentAttendance";
 export const classTimetablesCollectionName = "classTimetables";
 export const testSchedulesCollectionName = "testSchedules";
 export const teachingPlansCollectionName = "teachingPlans";
+export const sessionSlotsCollectionName = "sessionSlots";
 export const studentAnnouncementsCollectionName = "studentAnnouncements";
 export const studentComplaintsCollectionName = "studentComplaints";
 export const studentResultsCollectionName = "studentResults";

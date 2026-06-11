@@ -26,6 +26,14 @@ import {
   addDemoPendingLeave,
   addDemoPendingDoubt,
   addDemoPendingComplaint,
+  getDemoSessionSlots,
+  addDemoSessionSlot,
+  updateDemoSessionSlot,
+  deleteDemoSessionSlot,
+  getDemoAttendanceForClass,
+  setDemoAttendance,
+  isDemoAttendanceLocked,
+  lockDemoAttendance,
   setDemoStudentLeaveStatus,
   setDemoStaffLeaveStatus,
   getDemoAdminLeaveRequestsWithOverrides,
@@ -51,11 +59,13 @@ import {
   studentAnnouncementsCollectionName,
   studentAttendanceCollectionName,
   studentComplaintsCollectionName,
+  sessionSlotsCollectionName,
   studentResultsCollectionName,
   teachingPlansCollectionName,
   testSchedulesCollectionName,
   userProfilesCollectionName,
   buildTeachingPlanId,
+  normalizeSessionSlotRecord,
   normalizeTeachingPlanRecord,
   type AdminRecord,
   type AttendanceStatus,
@@ -66,6 +76,8 @@ import {
   type ScheduleDayKey,
   type StudentAnnouncementRecord,
   type StudentAttendanceRecord,
+  type SessionSlotRecord,
+  type SessionType,
   type StudentResultRecord,
   type TeachingPlanRecord,
   type TeachingPlanRow,
@@ -78,6 +90,7 @@ const learningResourcesCollectionName = "learningResources";
 const studentDoubtsCollectionName = "studentDoubts";
 const studentLeaveRequestsCollectionName = "studentLeaveRequests";
 const dashboardNotificationStatesCollectionName = "dashboardNotificationStates";
+const attendanceLocksCollectionName = "attendanceLocks";
 
 export type AttachmentMeta = {
   label: string;
@@ -1021,6 +1034,229 @@ export async function listTeachingPlansForStudent(profile: UserProfileRecord): P
     .sort((left, right) => right.weekStartDate.localeCompare(left.weekStartDate));
 }
 
+// --- Doubt / Remedial session slots ---
+
+export type SessionTeacherOption = {
+  teacherUserId: string;
+  teacherName: string;
+  subjectId: string;
+  subjectName: string;
+  centreId: string;
+  centreName: string;
+  regionId: string;
+  regionName: string;
+};
+
+// Unique subject teachers for a student, from their class_subjects mappings.
+export async function listSessionTeachersForStudent(profile: UserProfileRecord): Promise<SessionTeacherOption[]> {
+  const mappings = await listClassSubjectsForStudent(profile);
+  const seen = new Set<string>();
+  const out: SessionTeacherOption[] = [];
+  for (const m of mappings) {
+    if (!m.teacherUserId) continue;
+    const key = `${m.teacherUserId}__${m.subjectId}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    out.push({
+      teacherUserId: m.teacherUserId,
+      teacherName: m.teacherName,
+      subjectId: m.subjectId,
+      subjectName: m.subjectName,
+      centreId: m.centreId,
+      centreName: m.centreName,
+      regionId: m.regionId,
+      regionName: m.regionName,
+    });
+  }
+  return out;
+}
+
+export async function createSessionSlot(input: {
+  teacherUserId: string;
+  teacherName: string;
+  subjectId: string;
+  subjectName: string;
+  centreId: string;
+  centreName: string;
+  regionId: string;
+  regionName: string;
+  date: string;
+  startTime: string;
+  endTime: string;
+  locationNote: string;
+  actor: ScheduleActor;
+}): Promise<void> {
+  const nowIso = new Date().toISOString();
+  const fields = {
+    teacherUserId: input.teacherUserId,
+    teacherName: input.teacherName,
+    subjectId: input.subjectId,
+    subjectName: input.subjectName,
+    centreId: input.centreId,
+    centreName: input.centreName,
+    regionId: input.regionId,
+    regionName: input.regionName,
+    date: input.date,
+    startTime: input.startTime,
+    endTime: input.endTime,
+    locationNote: input.locationNote.trim(),
+    status: "open" as const,
+    sessionType: "" as const,
+    topic: "",
+    bookedByUserId: "",
+    bookedByName: "",
+    bookedClassId: "",
+    bookedClassName: "",
+    declineNote: "",
+    createdAtIso: nowIso,
+    updatedAtIso: nowIso,
+    updatedByUserId: input.actor.userId,
+    updatedByName: input.actor.name,
+  };
+  if (isDemoMode()) {
+    await hydrateDemoState();
+    addDemoSessionSlot({ id: `demo-slot-${Date.now()}`, ...fields });
+    return;
+  }
+  await addDoc(collection(firestoreDb, sessionSlotsCollectionName), fields);
+}
+
+export async function deleteSessionSlot(id: string) {
+  if (isDemoMode()) { deleteDemoSessionSlot(id); return; }
+  await deleteDoc(doc(firestoreDb, sessionSlotsCollectionName, id));
+}
+
+export async function listTeacherSessionSlots(profile: UserProfileRecord): Promise<SessionSlotRecord[]> {
+  if (isDemoMode()) {
+    await hydrateDemoState();
+    return getDemoSessionSlots()
+      .filter((slot) => slot.teacherUserId === profile.userId)
+      .sort((a, b) => `${b.date}-${b.startTime}`.localeCompare(`${a.date}-${a.startTime}`));
+  }
+  const snapshot = await getDocs(
+    query(collection(firestoreDb, sessionSlotsCollectionName), where("teacherUserId", "==", profile.userId)),
+  );
+  return snapshot.docs
+    .map((item) => normalizeSessionSlotRecord(item.id, item.data()))
+    .sort((a, b) => `${b.date}-${b.startTime}`.localeCompare(`${a.date}-${a.startTime}`));
+}
+
+export async function listOpenSlotsForTeacher(teacherUserId: string): Promise<SessionSlotRecord[]> {
+  if (!teacherUserId) return [];
+  const today = getTodayDateValue();
+  if (isDemoMode()) {
+    await hydrateDemoState();
+    return getDemoSessionSlots()
+      .filter((slot) => slot.teacherUserId === teacherUserId && slot.status === "open" && slot.date >= today)
+      .sort((a, b) => `${a.date}-${a.startTime}`.localeCompare(`${b.date}-${b.startTime}`));
+  }
+  const snapshot = await getDocs(
+    query(
+      collection(firestoreDb, sessionSlotsCollectionName),
+      where("teacherUserId", "==", teacherUserId),
+      where("status", "==", "open"),
+    ),
+  );
+  return snapshot.docs
+    .map((item) => normalizeSessionSlotRecord(item.id, item.data()))
+    .filter((slot) => slot.date >= today)
+    .sort((a, b) => `${a.date}-${a.startTime}`.localeCompare(`${b.date}-${b.startTime}`));
+}
+
+export async function bookSessionSlot(input: {
+  slot: SessionSlotRecord;
+  sessionType: SessionType;
+  topic: string;
+  student: UserProfileRecord;
+}): Promise<void> {
+  const nowIso = new Date().toISOString();
+  const patch = {
+    status: "requested" as const,
+    sessionType: input.sessionType,
+    topic: input.topic.trim(),
+    bookedByUserId: input.student.userId,
+    bookedByName: input.student.name || input.student.fullName || "Student",
+    bookedClassId: input.student.classId,
+    bookedClassName: input.student.className,
+    declineNote: "",
+    updatedAtIso: nowIso,
+    updatedByUserId: input.student.userId,
+    updatedByName: input.student.name || "Student",
+  };
+  if (isDemoMode()) { await hydrateDemoState(); updateDemoSessionSlot(input.slot.id, patch); return; }
+  await updateDoc(doc(firestoreDb, sessionSlotsCollectionName, input.slot.id), patch);
+}
+
+const SESSION_RESET = {
+  status: "open" as const,
+  sessionType: "" as const,
+  topic: "",
+  bookedByUserId: "",
+  bookedByName: "",
+  bookedClassId: "",
+  bookedClassName: "",
+};
+
+export async function cancelSessionBooking(id: string, actor: ScheduleActor) {
+  const nowIso = new Date().toISOString();
+  const patch = { ...SESSION_RESET, declineNote: "", updatedAtIso: nowIso, updatedByUserId: actor.userId, updatedByName: actor.name };
+  if (isDemoMode()) { updateDemoSessionSlot(id, patch); return; }
+  await updateDoc(doc(firestoreDb, sessionSlotsCollectionName, id), patch);
+}
+
+export async function confirmSessionRequest(id: string, actor: ScheduleActor) {
+  const nowIso = new Date().toISOString();
+  const patch = { status: "confirmed" as const, updatedAtIso: nowIso, updatedByUserId: actor.userId, updatedByName: actor.name };
+  if (isDemoMode()) { updateDemoSessionSlot(id, patch); return; }
+  await updateDoc(doc(firestoreDb, sessionSlotsCollectionName, id), patch);
+}
+
+export async function declineSessionRequest(id: string, actor: ScheduleActor, note: string) {
+  const nowIso = new Date().toISOString();
+  const patch = { ...SESSION_RESET, declineNote: note.trim(), updatedAtIso: nowIso, updatedByUserId: actor.userId, updatedByName: actor.name };
+  if (isDemoMode()) { updateDemoSessionSlot(id, patch); return; }
+  await updateDoc(doc(firestoreDb, sessionSlotsCollectionName, id), patch);
+}
+
+export async function completeSession(id: string, actor: ScheduleActor) {
+  const nowIso = new Date().toISOString();
+  const patch = { status: "completed" as const, updatedAtIso: nowIso, updatedByUserId: actor.userId, updatedByName: actor.name };
+  if (isDemoMode()) { updateDemoSessionSlot(id, patch); return; }
+  await updateDoc(doc(firestoreDb, sessionSlotsCollectionName, id), patch);
+}
+
+export async function listStudentSessions(profile: UserProfileRecord): Promise<SessionSlotRecord[]> {
+  if (isDemoMode()) {
+    await hydrateDemoState();
+    return getDemoSessionSlots()
+      .filter((slot) => slot.bookedByUserId === profile.userId)
+      .sort((a, b) => `${b.date}-${b.startTime}`.localeCompare(`${a.date}-${a.startTime}`));
+  }
+  const snapshot = await getDocs(
+    query(collection(firestoreDb, sessionSlotsCollectionName), where("bookedByUserId", "==", profile.userId)),
+  );
+  return snapshot.docs
+    .map((item) => normalizeSessionSlotRecord(item.id, item.data()))
+    .sort((a, b) => `${b.date}-${b.startTime}`.localeCompare(`${a.date}-${a.startTime}`));
+}
+
+export async function listAdminSessions(admin: AdminRecord): Promise<SessionSlotRecord[]> {
+  if (isDemoMode()) {
+    await hydrateDemoState();
+    return [...getDemoSessionSlots()].sort((a, b) => `${b.date}-${b.startTime}`.localeCompare(`${a.date}-${a.startTime}`));
+  }
+  const col = collection(firestoreDb, sessionSlotsCollectionName);
+  const snapshot =
+    admin.role === "admin"
+      ? await getDocs(col)
+      : admin.role === "centre_incharge"
+        ? await getDocs(query(col, where("centreId", "==", admin.centreId)))
+        : await getDocs(query(col, where("regionId", "==", admin.regionId)));
+  return snapshot.docs
+    .map((item) => normalizeSessionSlotRecord(item.id, item.data()))
+    .sort((a, b) => `${b.date}-${b.startTime}`.localeCompare(`${a.date}-${a.startTime}`));
+}
+
 export async function listStudentDoubts(profile: UserProfileRecord): Promise<StudentDoubtRecord[]> {
   if (isDemoMode()) { await hydrateDemoState(); return getDemoDoubts(); }
   const snapshot = await getDocs(
@@ -1394,7 +1630,7 @@ export async function listTeacherResults(profile: UserProfileRecord) {
 }
 
 export async function listTeacherAttendanceForClass(classId: string, date = getTodayDateValue()) {
-  if (isDemoMode()) return [];
+  if (isDemoMode()) { await hydrateDemoState(); return getDemoAttendanceForClass(classId, date); }
   const snapshot = await getDocs(
     query(
       collection(firestoreDb, studentAttendanceCollectionName),
@@ -1404,6 +1640,80 @@ export async function listTeacherAttendanceForClass(classId: string, date = getT
   );
 
   return snapshot.docs.map((item) => normalizeStudentAttendanceRecord(item.id, item.data()));
+}
+
+// Approved student leaves covering a class on a given date (auto-mark as leave).
+export async function listApprovedLeavesForClass(classId: string, date: string): Promise<StudentLeaveRequestRecord[]> {
+  if (!classId) return [];
+  if (isDemoMode()) {
+    await hydrateDemoState();
+    return getDemoLeaveRequests().filter(
+      (r) => r.status === "approved" && r.classId === classId && r.startDate <= date && r.endDate >= date,
+    );
+  }
+  const snapshot = await getDocs(
+    query(
+      collection(firestoreDb, studentLeaveRequestsCollectionName),
+      where("classId", "==", classId),
+      where("status", "==", "approved"),
+    ),
+  );
+  return snapshot.docs
+    .map((item) => normalizeStudentLeaveRequestRecord(item.id, item.data() as Record<string, unknown>))
+    .filter((r) => r.startDate <= date && r.endDate >= date);
+}
+
+export async function isAttendanceLocked(classId: string, date: string): Promise<boolean> {
+  if (!classId) return false;
+  if (isDemoMode()) { await hydrateDemoState(); return isDemoAttendanceLocked(classId, date); }
+  const snapshot = await getDoc(doc(firestoreDb, attendanceLocksCollectionName, `${classId}__${date}`));
+  return snapshot.exists();
+}
+
+export async function lockAttendanceForDay(classId: string, date: string, actor: ScheduleActor) {
+  if (isDemoMode()) { lockDemoAttendance(classId, date); return; }
+  await setDoc(doc(firestoreDb, attendanceLocksCollectionName, `${classId}__${date}`), {
+    classId,
+    attendanceDate: date,
+    lockedByUserId: actor.userId,
+    lockedByName: actor.name,
+    lockedAtIso: new Date().toISOString(),
+  });
+}
+
+// Persist many statuses at once (used by Submit).
+export async function saveAttendanceBatch({
+  teacherProfile,
+  entries,
+  attendanceDate,
+}: {
+  teacherProfile: UserProfileRecord;
+  entries: { student: UserProfileRecord; status: AttendanceStatus }[];
+  attendanceDate: string;
+}) {
+  const build = (student: UserProfileRecord, status: AttendanceStatus) => ({
+    studentUserId: student.userId,
+    teacherUserId: teacherProfile.userId,
+    teacherName: teacherProfile.name,
+    studentName: student.name,
+    studentBranch: student.centreName,
+    classId: student.classId,
+    className: student.className,
+    attendanceDate,
+    status,
+  });
+  if (isDemoMode()) {
+    await hydrateDemoState();
+    for (const { student, status } of entries) {
+      setDemoAttendance({ id: buildStudentAttendanceId(student.userId, attendanceDate), ...build(student, status) });
+    }
+    return;
+  }
+  await Promise.all(
+    entries.map(({ student, status }) =>
+      setDoc(doc(firestoreDb, studentAttendanceCollectionName, buildStudentAttendanceId(student.userId, attendanceDate)), build(student, status)),
+    ),
+  );
 }
 
 export async function saveTeacherAttendance({
@@ -1417,10 +1727,8 @@ export async function saveTeacherAttendance({
   status: AttendanceStatus;
   attendanceDate: string;
 }) {
-  if (isDemoMode()) return;
   const recordId = buildStudentAttendanceId(studentProfile.userId, attendanceDate);
-
-  await setDoc(doc(firestoreDb, studentAttendanceCollectionName, recordId), {
+  const fields = {
     studentUserId: studentProfile.userId,
     teacherUserId: teacherProfile.userId,
     teacherName: teacherProfile.name,
@@ -1430,7 +1738,9 @@ export async function saveTeacherAttendance({
     className: studentProfile.className,
     attendanceDate,
     status,
-  });
+  };
+  if (isDemoMode()) { await hydrateDemoState(); setDemoAttendance({ id: recordId, ...fields }); return; }
+  await setDoc(doc(firestoreDb, studentAttendanceCollectionName, recordId), fields);
 }
 
 function calculateGrade(score: number, maxScore: number) {

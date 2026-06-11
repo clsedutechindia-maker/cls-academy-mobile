@@ -295,3 +295,79 @@ export function normalizeTestScheduleRecord(
     updatedByName: normalizeString(data?.updatedByName),
   };
 }
+
+// --- Session slots (teacher-published; student books doubt/remedial) ---
+
+export type SessionSlotStatus = "open" | "requested" | "confirmed" | "completed";
+export type SessionType = "" | "doubt" | "remedial";
+
+export type SessionSlotRecord = {
+  id: string;
+  teacherUserId: string;
+  teacherName: string;
+  subjectId: string;
+  subjectName: string;
+  centreId: string;
+  centreName: string;
+  regionId: string;
+  regionName: string;
+  date: string; // YYYY-MM-DD
+  startTime: string; // HH:MM
+  endTime: string; // HH:MM
+  locationNote: string;
+  status: SessionSlotStatus;
+  sessionType: SessionType;
+  topic: string;
+  bookedByUserId: string;
+  bookedByName: string;
+  bookedClassId: string;
+  bookedClassName: string;
+  declineNote: string;
+  createdAtIso: string;
+  updatedAtIso: string;
+  updatedByUserId: string;
+  updatedByName: string;
+};
+
+function normalizeSessionSlotStatus(value: unknown): SessionSlotStatus {
+  if (value === "requested" || value === "confirmed" || value === "completed") return value;
+  return "open";
+}
+
+function normalizeSessionType(value: unknown): SessionType {
+  if (value === "doubt" || value === "remedial") return value;
+  return "";
+}
+
+export function normalizeSessionSlotRecord(
+  id: string,
+  data: Partial<Omit<SessionSlotRecord, "id">> | undefined,
+): SessionSlotRecord {
+  return {
+    id,
+    teacherUserId: normalizeString(data?.teacherUserId),
+    teacherName: normalizeString(data?.teacherName),
+    subjectId: normalizeString(data?.subjectId),
+    subjectName: normalizeString(data?.subjectName),
+    centreId: normalizeString(data?.centreId),
+    centreName: normalizeString(data?.centreName),
+    regionId: normalizeString(data?.regionId),
+    regionName: normalizeString(data?.regionName),
+    date: normalizeScheduleDate(data?.date),
+    startTime: normalizeTimeValue(data?.startTime),
+    endTime: normalizeTimeValue(data?.endTime),
+    locationNote: normalizeString(data?.locationNote),
+    status: normalizeSessionSlotStatus(data?.status),
+    sessionType: normalizeSessionType(data?.sessionType),
+    topic: normalizeString(data?.topic),
+    bookedByUserId: normalizeString(data?.bookedByUserId),
+    bookedByName: normalizeString(data?.bookedByName),
+    bookedClassId: normalizeString(data?.bookedClassId),
+    bookedClassName: normalizeString(data?.bookedClassName),
+    declineNote: normalizeString(data?.declineNote),
+    createdAtIso: normalizeString(data?.createdAtIso),
+    updatedAtIso: normalizeString(data?.updatedAtIso),
+    updatedByUserId: normalizeString(data?.updatedByUserId),
+    updatedByName: normalizeString(data?.updatedByName),
+  };
+}

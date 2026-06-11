@@ -115,6 +115,7 @@ export default function AdminLayout() {
             "/complaints", "/schedule", "/timetable-editor", "/exam-editor",
             "/results", "/result-detail", "/leave",
             "/teaching-plans", "/teaching-plan-detail", "/teaching-plan-editor",
+            "/sessions",
           ]),
         }}
       />
@@ -132,6 +133,7 @@ export default function AdminLayout() {
       <Tabs.Screen name="teaching-plans" options={{ href: null }} />
       <Tabs.Screen name="teaching-plan-detail" options={{ href: null }} />
       <Tabs.Screen name="teaching-plan-editor" options={{ href: null }} />
+      <Tabs.Screen name="sessions" options={{ href: null }} />
       <Tabs.Screen name="results" options={{ href: null }} />
       <Tabs.Screen name="result-detail" options={{ href: null }} />
     </Tabs>

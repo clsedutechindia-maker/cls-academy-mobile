@@ -88,7 +88,7 @@ export default function TeacherLayout() {
         name="other"
         options={{
           title: "Other",
-          tabBarIcon: ActiveTabIcon("grid-outline", "grid", ["/schedules", "/announcements", "/attendance", "/doubts", "/doubt-detail", "/materials", "/material-detail", "/post-material", "/teaching-plans", "/teaching-plan-detail", "/teaching-plan-editor"]),
+          tabBarIcon: ActiveTabIcon("grid-outline", "grid", ["/schedules", "/announcements", "/attendance", "/doubts", "/doubt-detail", "/materials", "/material-detail", "/post-material", "/teaching-plans", "/teaching-plan-detail", "/teaching-plan-editor", "/sessions"]),
         }}
       />
       <Tabs.Screen name="account" options={{ title: "Account", tabBarIcon: ActiveTabIcon("person-outline", "person", []) }} />
@@ -108,6 +108,7 @@ export default function TeacherLayout() {
       <Tabs.Screen name="notifications" options={{ href: null }} />
       <Tabs.Screen name="attendance" options={{ href: null }} />
       <Tabs.Screen name="student-detail" options={{ href: null }} />
+      <Tabs.Screen name="sessions" options={{ href: null }} />
     </Tabs>
   );
 }
