@@ -418,7 +418,7 @@ export function HTLeaveScreen() {
 const s = StyleSheet.create({
   headerSection: { paddingHorizontal: 18, paddingBottom: 16, backgroundColor: D.bg },
   titleRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 16 },
-  pageTitle: { fontSize: 28, fontWeight: "800", fontFamily: D.fontExtraBold, color: D.onSurface, letterSpacing: -0.7 },
+  pageTitle: { fontSize: 28, fontWeight: "700", fontFamily: D.fontBold, color: D.onSurface, letterSpacing: -0.7 },
   segControl: { flexDirection: "row", padding: 3, borderRadius: 10, backgroundColor: D.surfaceLow },
   segBtn: { flex: 1, paddingVertical: 8, borderRadius: 8, alignItems: "center" },
   segBtnActive: { backgroundColor: D.surface, shadowColor: "#000", shadowOpacity: 0.06, shadowRadius: 3, shadowOffset: { width: 0, height: 1 } },

@@ -58,7 +58,7 @@ const styles = StyleSheet.create({
     flexDirection: "row", alignItems: "center",
     paddingTop: 14, paddingBottom: 4,
   },
-  pageTitle: { flex: 1, fontSize: 24, fontFamily: D.fontExtraBold, color: D.onSurface, letterSpacing: -0.5 },
+  pageTitle: { flex: 1, fontSize: 24, fontFamily: D.fontBold, color: D.onSurface, letterSpacing: -0.5 },
   iconBtn: {
     width: 34, height: 34, borderRadius: 11,
     backgroundColor: D.surface, borderWidth: 1, borderColor: D.outlineVariant,

@@ -298,7 +298,7 @@ const styles = StyleSheet.create({
   topHeader: { flexDirection: "row", alignItems: "center", gap: 12, marginBottom: 18 },
   detailTopHeader: { flexDirection: "row", alignItems: "center", gap: 12, marginBottom: 18 },
   iconBtn: { width: 38, height: 38, borderRadius: 12, backgroundColor: "#fff", borderWidth: 1, borderColor: D.outlineVariant, alignItems: "center", justifyContent: "center", flexShrink: 0 },
-  topTitle: { fontSize: 22, fontWeight: "800", fontFamily: D.fontExtraBold, color: D.onSurface, letterSpacing: -0.5 },
+  topTitle: { fontSize: 22, fontWeight: "700", fontFamily: D.fontBold, color: D.onSurface, letterSpacing: -0.5 },
   detailTopTitle: { flex: 1, fontSize: 17, fontWeight: "800", fontFamily: D.fontExtraBold, color: D.onSurface, letterSpacing: -0.3, lineHeight: 22 },
   segmentContainer: {
     padding: 3,

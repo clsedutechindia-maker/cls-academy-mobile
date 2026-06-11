@@ -89,7 +89,7 @@ const s = StyleSheet.create({
   header: { paddingHorizontal: 18, paddingBottom: 14 },
   titleRow: { flexDirection: "row", alignItems: "center", gap: 12, marginBottom: 14 },
   backBtn: { width: 34, height: 34, borderRadius: 10, backgroundColor: D.surface, borderWidth: 1, borderColor: D.outlineVariant, alignItems: "center", justifyContent: "center" },
-  title: { fontSize: 24, fontFamily: D.fontExtraBold, color: D.onSurface, letterSpacing: -0.5 },
+  title: { fontSize: 24, fontFamily: D.fontBold, color: D.onSurface, letterSpacing: -0.5 },
   chip: { paddingHorizontal: 13, paddingVertical: 8, borderRadius: 20, borderWidth: 1 },
   chipText: { fontSize: 12, fontFamily: D.fontBold },
   empty: { padding: 32, alignItems: "center", gap: 10 },

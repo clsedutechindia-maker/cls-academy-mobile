@@ -177,7 +177,7 @@ export function HTMaterialsScreen() {
 const s = StyleSheet.create({
   headerSection: { paddingHorizontal: 18, paddingBottom: 16, backgroundColor: D.bg },
   titleRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 16 },
-  pageTitle: { fontSize: 28, fontWeight: "800", fontFamily: D.fontExtraBold, color: D.onSurface, letterSpacing: -0.7 },
+  pageTitle: { fontSize: 28, fontWeight: "700", fontFamily: D.fontBold, color: D.onSurface, letterSpacing: -0.7 },
   searchIconBtn: { width: 40, height: 40, borderRadius: 10, alignItems: "center", justifyContent: "center", backgroundColor: D.surface, borderWidth: 1, borderColor: D.outlineVariant },
   chipsScroll: { paddingRight: 18, gap: 8 },
   chip: { paddingHorizontal: 14, paddingVertical: 8, borderRadius: 10 },

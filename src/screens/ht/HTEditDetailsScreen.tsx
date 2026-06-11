@@ -126,7 +126,7 @@ export function HTEditDetailsScreen() {
 const s = StyleSheet.create({
   avatarWrap: { position: "relative" },
   avatar: { width: 80, height: 80, borderRadius: 40, backgroundColor: D.primary, alignItems: "center", justifyContent: "center" },
-  avatarText: { fontSize: 24, fontWeight: "800", fontFamily: D.fontExtraBold, color: "#fff" },
+  avatarText: { fontSize: 24, fontWeight: "700", fontFamily: D.fontBold, color: "#fff" },
   fieldLabel: { fontSize: 12.5, fontWeight: "600", fontFamily: D.fontSemiBold, color: D.onSurfaceVariant, marginBottom: 7 },
   fieldBox: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", padding: 14, borderRadius: 14, borderWidth: 1, borderColor: D.outlineVariant, backgroundColor: D.surface },
   fieldReadOnly: { backgroundColor: D.surfaceLow },

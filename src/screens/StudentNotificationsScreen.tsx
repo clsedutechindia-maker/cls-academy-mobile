@@ -97,7 +97,7 @@ const styles = StyleSheet.create({
   pageContent: { paddingHorizontal: 16, paddingBottom: MOBILE_BOTTOM_SPACING },
   topHeader: { flexDirection: "row", alignItems: "center", gap: 12, marginBottom: 18 },
   iconBtn: { width: 38, height: 38, borderRadius: 12, backgroundColor: "#fff", borderWidth: 1, borderColor: D.outlineVariant, alignItems: "center", justifyContent: "center" },
-  topTitle: { flex: 1, fontSize: 22, fontWeight: "800", fontFamily: D.fontExtraBold, color: D.onSurface, letterSpacing: -0.5 },
+  topTitle: { flex: 1, fontSize: 22, fontWeight: "700", fontFamily: D.fontBold, color: D.onSurface, letterSpacing: -0.5 },
   headerSpacer: { width: 38, height: 38 },
   listCard: { backgroundColor: "#fff", borderRadius: 18, borderWidth: 1, borderColor: D.outlineVariant, overflow: "hidden", marginBottom: 14 },
   rowBorder: { borderBottomWidth: 1, borderBottomColor: D.outlineVariant },

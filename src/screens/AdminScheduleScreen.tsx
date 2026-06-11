@@ -288,7 +288,7 @@ const s = StyleSheet.create({
     backgroundColor: D.surface, borderWidth: 1, borderColor: D.outlineVariant,
     alignItems: "center", justifyContent: "center",
   },
-  pageTitle: { fontSize: 24, fontFamily: D.fontExtraBold, color: D.onSurface, letterSpacing: -0.5 },
+  pageTitle: { fontSize: 24, fontFamily: D.fontBold, color: D.onSurface, letterSpacing: -0.5 },
   toolbar: { flexDirection: "row", alignItems: "center", gap: 8, marginBottom: 14 },
   classPick: { flex: 1, flexDirection: "row", alignItems: "center", gap: 7, paddingHorizontal: 12, paddingVertical: 10, borderRadius: 12, backgroundColor: D.surface, borderWidth: 1, borderColor: D.outlineVariant },
   classPickText: { flex: 1, fontSize: 13, fontFamily: D.fontSemiBold, color: D.onSurface, letterSpacing: -0.1 },

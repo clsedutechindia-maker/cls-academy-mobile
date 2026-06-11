@@ -402,7 +402,7 @@ const s = StyleSheet.create({
     backgroundColor: D.surface, borderWidth: 1, borderColor: D.outlineVariant,
     alignItems: "center", justifyContent: "center",
   },
-  pageTitle: { fontSize: 24, fontFamily: D.fontExtraBold, color: D.onSurface, letterSpacing: -0.5 },
+  pageTitle: { fontSize: 24, fontFamily: D.fontBold, color: D.onSurface, letterSpacing: -0.5 },
   segControl: { flexDirection: "row", padding: 3, borderRadius: 10, backgroundColor: D.surfaceLow },
   segBtn: { flex: 1, paddingVertical: 8, borderRadius: 8, alignItems: "center" },
   segBtnActive: { backgroundColor: D.surface, shadowColor: "#000", shadowOpacity: 0.06, shadowRadius: 3, shadowOffset: { width: 0, height: 1 } },

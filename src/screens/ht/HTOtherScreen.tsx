@@ -85,7 +85,7 @@ export function HTOtherScreen() {
 
 const s = StyleSheet.create({
   titleRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 20 },
-  pageTitle: { fontSize: 28, fontWeight: "800", color: D.onSurface, letterSpacing: -0.7, fontFamily: D.fontExtraBold },
+  pageTitle: { fontSize: 26, fontWeight: "700", color: D.onSurface, letterSpacing: -0.5, fontFamily: D.fontBold },
   searchIconBtn: { width: 40, height: 40, borderRadius: 10, alignItems: "center", justifyContent: "center", backgroundColor: D.surface, borderWidth: 1, borderColor: D.outlineVariant },
   grid: { flexDirection: "row", flexWrap: "wrap", gap: 12, marginBottom: 12 },
   gridCard: {
@@ -103,7 +103,7 @@ const s = StyleSheet.create({
     elevation: 2,
   },
   cardIcon: { width: 36, height: 36, borderRadius: 8, alignItems: "center", justifyContent: "center", marginBottom: 12 },
-  cardTitle: { fontSize: 13.5, fontWeight: "800", color: D.onSurface, letterSpacing: -0.2, fontFamily: D.fontExtraBold },
+  cardTitle: { fontSize: 13.5, fontWeight: "600", color: D.onSurface, letterSpacing: -0.2, fontFamily: D.fontSemiBold },
   cardSub: { fontSize: 11, color: D.outline, marginTop: 3, fontFamily: D.font },
   arrowContainer: { marginTop: 14, flexDirection: "row", justifyContent: "flex-end" },
   arrowWrap: { width: 24, height: 24, borderRadius: 7, alignItems: "center", justifyContent: "center" },

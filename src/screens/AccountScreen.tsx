@@ -125,7 +125,7 @@ const s = StyleSheet.create({
     paddingHorizontal: 18, paddingVertical: 14,
     backgroundColor: D.bg, borderBottomWidth: 1, borderBottomColor: D.outlineVariant,
   },
-  pageTitle: { flex: 1, fontSize: 24, fontFamily: D.fontExtraBold, color: D.onSurface, letterSpacing: -0.5 },
+  pageTitle: { flex: 1, fontSize: 24, fontFamily: D.fontBold, color: D.onSurface, letterSpacing: -0.5 },
   iconBtn: {
     width: 34, height: 34, borderRadius: 10,
     backgroundColor: D.surface, borderWidth: 1, borderColor: D.outlineVariant,

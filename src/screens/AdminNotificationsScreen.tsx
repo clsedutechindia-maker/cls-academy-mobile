@@ -124,7 +124,7 @@ const s = StyleSheet.create({
     backgroundColor: D.surface, borderWidth: 1, borderColor: D.outlineVariant,
     alignItems: "center", justifyContent: "center",
   },
-  headerTitle: { flex: 1, fontSize: 22, fontFamily: D.fontExtraBold, color: D.onSurface, letterSpacing: -0.4 },
+  headerTitle: { flex: 1, fontSize: 22, fontFamily: D.fontBold, color: D.onSurface, letterSpacing: -0.4 },
   content: { paddingHorizontal: 18, gap: 0, paddingBottom: MOBILE_BOTTOM_SPACING },
   centreRow: { alignItems: "center", paddingTop: 48 },
   muted: { color: D.onSurfaceVariant, fontSize: 14, fontFamily: D.font },

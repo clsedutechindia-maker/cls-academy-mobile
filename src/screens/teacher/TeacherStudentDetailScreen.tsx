@@ -114,7 +114,7 @@ const s = StyleSheet.create({
   navTitle: { flex: 1, fontSize: 16, fontWeight: "700", fontFamily: D.fontBold, color: D.onSurface, textAlign: "center", letterSpacing: -0.3 },
   hero: { alignItems: "center", paddingVertical: 24, marginBottom: 20 },
   avatarCircle: { width: 72, height: 72, borderRadius: 36, backgroundColor: D.primary, alignItems: "center", justifyContent: "center", marginBottom: 12 },
-  avatarText: { fontSize: 24, fontWeight: "800", color: "#fff", fontFamily: D.fontExtraBold },
+  avatarText: { fontSize: 24, fontWeight: "700", color: "#fff", fontFamily: D.fontBold },
   heroName: { fontSize: 18, fontWeight: "800", fontFamily: D.fontExtraBold, color: D.onSurface, letterSpacing: -0.4, marginBottom: 6 },
   activeBadge: { flexDirection: "row", alignItems: "center", gap: 5, paddingHorizontal: 10, paddingVertical: 4, borderRadius: 20, backgroundColor: D.surfaceLow, borderWidth: 1, borderColor: D.surfaceHigh },
   activeDot: { width: 6, height: 6, borderRadius: 3 },

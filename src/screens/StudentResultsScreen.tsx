@@ -105,7 +105,7 @@ export function StudentResultsScreen() {
     <View style={{ flex: 1, backgroundColor: D.bg }}>
       <ScrollView contentContainerStyle={[uiStyles.screenContent, { paddingTop: Math.max(insets.top + 18, 46), paddingBottom: MOBILE_BOTTOM_SPACING, gap: 8 }]}>
         <View style={styles.resultsHeader}>
-          <Text style={{ fontSize: 24, fontWeight: "800", fontFamily: D.fontExtraBold, color: D.onSurface, letterSpacing: -0.45 }}>Results</Text>
+          <Text style={{ fontSize: 24, fontWeight: "700", fontFamily: D.fontBold, color: D.onSurface, letterSpacing: -0.45 }}>Results</Text>
           <AnimatedPressable onPress={hasActiveSearch ? closeSearch : () => setSearchOpen(true)} style={styles.searchBtn}>
             <Ionicons name={hasActiveSearch ? "close" : "search"} size={18} color={D.onSurface} />
           </AnimatedPressable>
@@ -337,7 +337,7 @@ const styles = StyleSheet.create({
   subjectColorStripe: { position: "absolute", top: 0, left: 0, right: 0, height: 4 },
   subjectName: { fontSize: 13.5, fontWeight: "800", fontFamily: D.fontExtraBold, color: D.onSurface, letterSpacing: -0.2 },
   subjectTests: { fontSize: 10, color: D.outline, marginTop: 3 },
-  subjectAvg: { marginTop: 14, fontSize: 24, fontWeight: "800", fontFamily: D.fontExtraBold, letterSpacing: -0.8, lineHeight: 26 },
+  subjectAvg: { marginTop: 14, fontSize: 24, fontWeight: "700", fontFamily: D.fontBold, letterSpacing: -0.8, lineHeight: 26 },
   subjectAvgSub: { fontSize: 9.5, color: D.outline, marginTop: 3 },
   mostRecentBox: { marginTop: 14, padding: 12, borderRadius: 12 },
   mrLabel: { fontSize: 8.8, fontWeight: "700", fontFamily: D.fontBold, letterSpacing: 0.45 },
@@ -391,7 +391,7 @@ export function StudentSubjectResultsScreen() {
             <AnimatedPressable onPress={() => navigateBack(router)} style={styles.backBtn}>
               <Ionicons name="chevron-back" size={20} color={D.onSurface} />
             </AnimatedPressable>
-            <Text style={{ fontSize: 24, fontWeight: "800", fontFamily: D.fontExtraBold, color: D.onSurface, letterSpacing: -0.5 }}>{subject || "Subject"}</Text>
+            <Text style={{ fontSize: 24, fontWeight: "700", fontFamily: D.fontBold, color: D.onSurface, letterSpacing: -0.5 }}>{subject || "Subject"}</Text>
             <SubjectChip subject={subject} color={color} bgColor={bgColor} />
           </View>
         </View>
@@ -524,7 +524,7 @@ export function StudentResultDetailScreen() {
                   <Ionicons name="trophy-outline" size={14} color={color} />
                 </View>
                 <Text style={{ marginTop: 10, fontSize: 9.5, fontWeight: "700", fontFamily: D.fontBold, color: D.outline, letterSpacing: 0.5 }}>MARKS ACHIEVED</Text>
-                <Text style={{ marginTop: 4, fontSize: 22, fontWeight: "800", fontFamily: D.fontExtraBold, color: D.onSurface, letterSpacing: -0.5, lineHeight: 28 }}>
+                <Text style={{ marginTop: 4, fontSize: 22, fontWeight: "700", fontFamily: D.fontBold, color: D.onSurface, letterSpacing: -0.5, lineHeight: 28 }}>
                   {result.score}<Text style={{ fontSize: 13, color: D.outline, fontWeight: "600", fontFamily: D.fontSemiBold }}>/{result.maxScore}</Text>
                 </Text>
                 <View style={{ marginTop: 8, height: 4, borderRadius: 999, backgroundColor: D.outlineVariant, overflow: "hidden" }}>
@@ -539,7 +539,7 @@ export function StudentResultDetailScreen() {
                   <Ionicons name={delta === null ? "remove-outline" : (Number(delta) >= 0 ? "trending-up-outline" : "trending-down-outline")} size={14} color={delta === null ? D.outline : (Number(delta) >= 0 ? D.success : D.error)} />
                 </View>
                 <Text style={{ marginTop: 10, fontSize: 9.5, fontWeight: "700", fontFamily: D.fontBold, color: D.outline, letterSpacing: 0.5 }}>DELTA %</Text>
-                <Text style={{ marginTop: 4, fontSize: 22, fontWeight: "800", fontFamily: D.fontExtraBold, color: delta === null ? D.outline : (Number(delta) >= 0 ? D.success : D.error), letterSpacing: -0.5, lineHeight: 28 }}>
+                <Text style={{ marginTop: 4, fontSize: 22, fontWeight: "700", fontFamily: D.fontBold, color: delta === null ? D.outline : (Number(delta) >= 0 ? D.success : D.error), letterSpacing: -0.5, lineHeight: 28 }}>
                   {formatDeltaValue(delta)}
                 </Text>
                 <Text style={{ marginTop: 9, fontSize: 9.5, fontFamily: D.font, color: D.onSurfaceVariant, lineHeight: 14 }}>vs previous test</Text>

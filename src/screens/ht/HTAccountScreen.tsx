@@ -100,7 +100,7 @@ export function HTAccountScreen() {
 
 const s = StyleSheet.create({
   titleRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 20 },
-  pageTitle: { fontSize: 28, fontWeight: "800", color: D.onSurface, letterSpacing: -0.7, fontFamily: D.fontExtraBold },
+  pageTitle: { fontSize: 28, fontWeight: "700", color: D.onSurface, letterSpacing: -0.7, fontFamily: D.fontBold },
   profileBlock: { flexDirection: "row", alignItems: "flex-start", gap: 16, marginBottom: 20 },
   avatarWrap: { position: "relative" },
   avatarCircle: { width: 64, height: 64, borderRadius: 32, alignItems: "center", justifyContent: "center" },

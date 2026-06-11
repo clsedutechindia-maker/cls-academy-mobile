@@ -250,7 +250,7 @@ const styles = StyleSheet.create({
   content: { paddingTop: 56, paddingHorizontal: 16, paddingBottom: MOBILE_BOTTOM_SPACING },
   header: { flexDirection: "row", alignItems: "center", gap: 12, marginBottom: 16 },
   iconBtn: { width: 38, height: 38, borderRadius: 12, backgroundColor: "#fff", borderWidth: 1, borderColor: D.outlineVariant, alignItems: "center", justifyContent: "center" },
-  headerTitle: { flex: 1, fontSize: 22, fontWeight: "800", fontFamily: D.fontExtraBold, color: D.onSurface, letterSpacing: -0.5 },
+  headerTitle: { flex: 1, fontSize: 22, fontWeight: "700", fontFamily: D.fontBold, color: D.onSurface, letterSpacing: -0.5 },
   
   filterRow: { flexDirection: "row", gap: 8, paddingBottom: 16, alignItems: "center" },
   filterChip: { paddingVertical: 7, paddingHorizontal: 14, borderRadius: 999, backgroundColor: "#fff", borderWidth: 1, borderColor: D.outlineVariant },

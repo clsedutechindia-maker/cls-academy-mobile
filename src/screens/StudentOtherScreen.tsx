@@ -165,11 +165,11 @@ const styles = StyleSheet.create({
     paddingBottom: MOBILE_BOTTOM_SPACING,
   },
   headerTitle: {
-    fontSize: 28,
-    fontWeight: "800",
-    fontFamily: D.fontExtraBold,
+    fontSize: 26,
+    fontWeight: "700",
+    fontFamily: D.fontBold,
     color: D.onSurface,
-    letterSpacing: -0.7,
+    letterSpacing: -0.5,
     marginBottom: 4,
   },
   headerSubtitle: {
@@ -231,9 +231,9 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   title: {
-    fontSize: 15,
-    fontWeight: "800",
-    fontFamily: D.fontExtraBold,
+    fontSize: 14.5,
+    fontWeight: "600",
+    fontFamily: D.fontSemiBold,
     color: D.onSurface,
     letterSpacing: -0.2,
   },

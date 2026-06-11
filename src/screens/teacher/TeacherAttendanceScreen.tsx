@@ -302,7 +302,7 @@ export function TeacherAttendanceScreen() {
 
 const s = StyleSheet.create({
   headerSection: { paddingHorizontal: 18, paddingBottom: 16, backgroundColor: D.bg },
-  pageTitle: { fontSize: 26, fontWeight: "800", fontFamily: D.fontExtraBold, color: D.onSurface, letterSpacing: -0.6, marginBottom: 14 },
+  pageTitle: { fontSize: 26, fontWeight: "700", fontFamily: D.fontBold, color: D.onSurface, letterSpacing: -0.6, marginBottom: 14 },
   toolbar: { flexDirection: "row", alignItems: "center", gap: 8 },
   batchDropdown: { flex: 1, flexDirection: "row", alignItems: "center", gap: 7, paddingHorizontal: 12, paddingVertical: 10, borderRadius: 12, backgroundColor: D.surface, borderWidth: 1, borderColor: D.outlineVariant },
   batchDropdownText: { flex: 1, fontSize: 13, fontWeight: "700", fontFamily: D.fontBold, color: D.onSurface, letterSpacing: -0.1 },

@@ -116,7 +116,7 @@ const s = StyleSheet.create({
     backgroundColor: D.surface, borderWidth: 1, borderColor: D.outlineVariant,
     alignItems: "center", justifyContent: "center", flexShrink: 0, marginTop: 2,
   },
-  title: { fontSize: 22, fontFamily: D.fontExtraBold, color: D.onSurface, letterSpacing: -0.4 },
+  title: { fontSize: 22, fontFamily: D.fontBold, color: D.onSurface, letterSpacing: -0.4 },
   subtitle: { fontSize: 12, color: D.onSurfaceVariant, lineHeight: 17, fontFamily: D.font },
 
   content: { paddingHorizontal: 18, gap: 14, paddingBottom: MOBILE_BOTTOM_SPACING },

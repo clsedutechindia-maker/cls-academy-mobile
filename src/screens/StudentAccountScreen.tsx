@@ -278,7 +278,7 @@ const styles = StyleSheet.create({
   content: { paddingTop: 56, paddingHorizontal: 16, paddingBottom: MOBILE_BOTTOM_SPACING },
   contentEdit: { paddingTop: 56, paddingHorizontal: 16, paddingBottom: MOBILE_BOTTOM_SPACING },
   headerTitle: {
-    fontSize: 28, fontWeight: "800", fontFamily: D.fontExtraBold, color: D.onSurface, letterSpacing: -0.7, marginBottom: 20,
+    fontSize: 28, fontWeight: "700", fontFamily: D.fontBold, color: D.onSurface, letterSpacing: -0.7, marginBottom: 20,
   },
   profileBlock: {
     paddingVertical: 20, paddingHorizontal: 16, backgroundColor: "#fff", borderRadius: 20,
@@ -291,7 +291,7 @@ const styles = StyleSheet.create({
     width: 64, height: 64, borderRadius: 32, alignItems: "center", justifyContent: "center",
   },
   avatarText: {
-    fontSize: 22, fontWeight: "800", fontFamily: D.fontExtraBold, color: "#fff", letterSpacing: -0.5,
+    fontSize: 22, fontWeight: "700", fontFamily: D.fontBold, color: "#fff", letterSpacing: -0.5,
   },
   avatarBadge: {
     position: "absolute", bottom: 0, right: 0, width: 22, height: 22, borderRadius: 11,
@@ -336,7 +336,7 @@ const styles = StyleSheet.create({
 
   editHeader: { flexDirection: "row", alignItems: "center", gap: 12, marginBottom: 22 },
   backBtn: { width: 38, height: 38, borderRadius: 12, backgroundColor: "#fff", borderWidth: 1, borderColor: D.outlineVariant, alignItems: "center", justifyContent: "center" },
-  editTitle: { flex: 1, fontSize: 22, fontWeight: "800", fontFamily: D.fontExtraBold, color: D.onSurface, letterSpacing: -0.5 },
+  editTitle: { flex: 1, fontSize: 22, fontWeight: "700", fontFamily: D.fontBold, color: D.onSurface, letterSpacing: -0.5 },
   saveBtnTop: { paddingVertical: 7, paddingHorizontal: 14, borderRadius: 10, backgroundColor: D.primaryBtn },
   saveBtnTopText: { color: "#fff", fontSize: 13.5, fontWeight: "700", fontFamily: D.fontBold, letterSpacing: -0.1 },
 

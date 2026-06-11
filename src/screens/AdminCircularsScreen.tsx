@@ -135,7 +135,7 @@ const s = StyleSheet.create({
     backgroundColor: D.surface, borderWidth: 1, borderColor: D.outlineVariant,
     alignItems: "center", justifyContent: "center",
   },
-  pageTitle: { fontSize: 24, fontFamily: D.fontExtraBold, color: D.onSurface, letterSpacing: -0.5 },
+  pageTitle: { fontSize: 24, fontFamily: D.fontBold, color: D.onSurface, letterSpacing: -0.5 },
   tagRow: { flexDirection: "row", flexWrap: "wrap", gap: 7, marginBottom: 4 },
   tagChip: { paddingHorizontal: 13, paddingVertical: 7, borderRadius: 20, backgroundColor: D.surface, borderWidth: 1, borderColor: D.outlineVariant },
   tagChipActive: { backgroundColor: D.surfaceLow, borderColor: D.primary },
