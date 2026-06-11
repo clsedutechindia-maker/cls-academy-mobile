@@ -1,272 +1,232 @@
 import { useMemo, useState } from "react";
-import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
+import { Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useResource } from "../hooks/useResource";
-import {
-  listStaffAttendanceForAdmin,
-  listVisibleProfilesForAdmin,
-} from "../lib/erp";
+import { listVisibleProfilesForAdmin } from "../lib/erp";
 import { useSession } from "../providers/session";
-import { AvatarCircle, D, ErrorCard, LoadingCard, MOBILE_BOTTOM_SPACING } from "../components/ui";
-import { AnimatedPressable, CountUp, enter } from "../components/motion";
-import { getTodayDateValue } from "../lib/date";
-
-function StaffStatusPill({ status }: { status: string | undefined }) {
-  type TC = { bg: string; fg: string; dot: string; border: string };
-  const map: Record<string, TC> = {
-    present: { bg: D.successBg, fg: D.successFg, dot: D.success, border: D.success + "33" },
-    absent: { bg: D.errorBg, fg: D.errorFg, dot: D.error, border: D.error + "33" },
-    leave: { bg: D.leaveBg, fg: D.leave, dot: "#F97316", border: "#F9731633" },
-  };
-  const c = map[status ?? ""] ?? { bg: D.surfaceLow, fg: D.outline, dot: D.outline, border: D.outlineVariant + "33" };
-  const label = status ? status.charAt(0).toUpperCase() + status.slice(1) : "Unmarked";
-  return (
-    <View style={[p.wrap, { backgroundColor: c.bg, borderColor: c.border }]}>
-      <View style={[p.dot, { backgroundColor: c.dot }]} />
-      <Text style={[p.text, { color: c.fg }]}>{label}</Text>
-    </View>
-  );
-}
-const p = StyleSheet.create({
-  wrap: { flexDirection: "row", alignItems: "center", gap: 5, borderRadius: 99, paddingHorizontal: 10, paddingVertical: 4, borderWidth: 1 },
-  dot: { width: 6, height: 6, borderRadius: 3 },
-  text: { fontSize: 11, fontFamily: D.fontSemiBold },
-});
+import { AnimatedPressable } from "../components/motion";
+import { AvatarCircle, D } from "../components/ui";
 
 export function AdminStaffScreen() {
-  const { adminRecord } = useSession();
   const insets = useSafeAreaInsets();
+  const { adminRecord } = useSession();
+  const [selectedBatch, setSelectedBatch] = useState("All");
+  const [pickerOpen, setPickerOpen] = useState(false);
   const [search, setSearch] = useState("");
+  const [searchVisible, setSearchVisible] = useState(false);
+  const [pendingOnly, setPendingOnly] = useState(false);
 
-  const resource = useResource(
+  const { data: staff, loading, error } = useResource(
     async () => {
-      if (!adminRecord) return { staff: [], attendance: [] };
-      const [profiles, attendance] = await Promise.all([
-        listVisibleProfilesForAdmin(adminRecord),
-        listStaffAttendanceForAdmin(adminRecord),
-      ]);
-      return { staff: profiles.filter((pr) => pr.role === "teacher"), attendance };
+      if (!adminRecord) return [];
+      const profiles = await listVisibleProfilesForAdmin(adminRecord);
+      return profiles.filter((p) => p.role === "teacher");
     },
     [adminRecord?.role, adminRecord?.centreId, adminRecord?.regionId],
   );
 
-  const today = getTodayDateValue();
+  const classNames = useMemo(() => {
+    const seen = new Set<string>();
+    const result: string[] = [];
+    for (const st of staff ?? []) {
+      if (st.className && !seen.has(st.className)) {
+        seen.add(st.className);
+        result.push(st.className);
+      }
+    }
+    return result.sort((a, b) => a.localeCompare(b));
+  }, [staff]);
 
-  const todayAttByStaff = useMemo(
-    () =>
-      new Map(
-        (resource.data?.attendance ?? [])
-          .filter((r) => r.attendanceDate === today)
-          .map((r) => [r.staffUserId, r.status] as const),
-      ),
-    [resource.data, today],
-  );
+  const batches = ["All", ...classNames];
 
-  const filtered = useMemo(() => {
-    const term = search.trim().toLowerCase();
-    const list = resource.data?.staff ?? [];
-    if (!term) return list;
-    return list.filter((st) =>
-      [st.name, st.teacherId, st.className, st.centreName].join(" ").toLowerCase().includes(term),
-    );
-  }, [resource.data, search]);
+  const pendingCount = useMemo(() => (staff ?? []).filter((st) => !st.active).length, [staff]);
 
-  const stats = useMemo(() => {
-    const att = resource.data?.attendance.filter((a) => a.attendanceDate === today) ?? [];
-    return {
-      total: resource.data?.staff.length ?? 0,
-      present: att.filter((a) => a.status === "present").length,
-      absent: att.filter((a) => a.status === "absent").length,
-      leave: att.filter((a) => a.status === "leave").length,
-    };
-  }, [resource.data, today]);
+  const filtered = (staff ?? []).filter((st) => {
+    if (pendingOnly && st.active) return false;
+    if (selectedBatch !== "All" && st.className !== selectedBatch) return false;
+    if (search.trim()) {
+      const term = search.trim().toLowerCase();
+      return [st.name, st.teacherId, st.className, st.centreName].join(" ").toLowerCase().includes(term);
+    }
+    return true;
+  });
 
   return (
-    <View style={s.safe}>
-      <ScrollView
-        contentContainerStyle={[s.scroll, { paddingTop: Math.max(insets.top + 18, 46) }]}
-        showsVerticalScrollIndicator={false}
-      >
-        {/* Non-home page header — scrolls with content, matches student/HT base */}
-        <View style={s.header}>
-          <View style={{ flex: 1, gap: 3 }}>
+    <View style={{ flex: 1, backgroundColor: D.bg }}>
+      <ScrollView contentContainerStyle={{ paddingBottom: 140 }} showsVerticalScrollIndicator={false}>
+
+        {/* Heading Section */}
+        <View style={[s.headerSection, { paddingTop: insets.top + 20 }]}>
+          <View style={s.titleRow}>
             <Text style={s.pageTitle}>Staff</Text>
-            <Text style={s.pageSub}>Monitor teaching staff attendance.</Text>
-          </View>
-          <View style={s.headerIcons}>
-            <AnimatedPressable style={s.iconBtn} onPress={() => router.push("/(admin)/notifications")}>
-              <Ionicons name="notifications-outline" size={20} color={D.onSurface} />
-            </AnimatedPressable>
-            <AnimatedPressable style={s.iconBtn} onPress={() => router.push("/(admin)/lookups")}>
-              <Ionicons name="search" size={20} color={D.onSurface} />
-            </AnimatedPressable>
+            <View style={{ flexDirection: "row", gap: 8, alignItems: "center" }}>
+              <AnimatedPressable style={s.batchDropdown} onPress={() => setPickerOpen(true)}>
+                <Text style={s.batchDropdownText} numberOfLines={1}>{selectedBatch}</Text>
+                <Ionicons name="chevron-down" size={13} color={D.primary} />
+              </AnimatedPressable>
+              <AnimatedPressable style={s.searchIconBtn} onPress={() => { setSearchVisible((v) => !v); if (searchVisible) setSearch(""); }}>
+                <Ionicons name={searchVisible ? "close" : "search"} size={20} color={D.onSurface} />
+              </AnimatedPressable>
+            </View>
           </View>
         </View>
 
-        {resource.loading ? (
-          <LoadingCard label="Loading staff…" />
-        ) : resource.error ? (
-          <ErrorCard message={resource.error} onRetry={() => void resource.reload()} />
-        ) : (
-          <>
-            {/* 2×2 stats */}
-            <View style={{ gap: 8 }}>
-              <View style={{ flexDirection: "row", gap: 8 }}>
-                <View style={s.statCard}>
-                  <Text style={s.statLabel}>Total</Text>
-                  <CountUp value={stats.total} style={s.statValue} />
-                </View>
-                <View style={s.statCard}>
-                  <Text style={s.statLabel}>Present</Text>
-                  <CountUp value={stats.present} style={[s.statValue, { color: D.success }]} />
-                </View>
-              </View>
-              <View style={{ flexDirection: "row", gap: 8 }}>
-                <View style={s.statCard}>
-                  <Text style={s.statLabel}>Absent</Text>
-                  <CountUp value={stats.absent} style={[s.statValue, { color: D.error }]} />
-                </View>
-                <View style={s.statCard}>
-                  <Text style={s.statLabel}>Leave</Text>
-                  <CountUp value={stats.leave} style={[s.statValue, { color: "#EAB308" }]} />
-                </View>
-              </View>
-            </View>
-
-            {/* Search */}
-            <View style={s.searchBox}>
-              <Ionicons name="search-outline" size={18} color={D.onSurfaceVariant} />
+        {searchVisible && (
+          <View style={{ paddingHorizontal: 18, paddingBottom: 10, backgroundColor: D.bg }}>
+            <View style={{ flexDirection: "row", alignItems: "center", gap: 10, padding: 12, borderRadius: 12, backgroundColor: D.surface, borderWidth: 1, borderColor: D.outlineVariant }}>
+              <Ionicons name="search-outline" size={17} color={D.outline} />
               <TextInput
-                style={s.searchInput}
-                placeholder="Search by name or ID…"
+                style={{ flex: 1, fontSize: 13, fontFamily: D.fontMedium, color: D.onSurface }}
+                placeholder="Search by name or staff ID…"
                 placeholderTextColor={D.outline}
                 value={search}
                 onChangeText={setSearch}
+                autoFocus
                 autoCapitalize="none"
               />
               {search.length > 0 && (
                 <Pressable onPress={() => setSearch("")}>
-                  <Ionicons name="close-circle" size={18} color={D.outline} />
+                  <Ionicons name="close-circle" size={17} color={D.outline} />
                 </Pressable>
               )}
             </View>
+          </View>
+        )}
 
-            {/* Status legend */}
-            <View style={s.legend}>
-              {[
-                { color: D.success, label: "Present" },
-                { color: D.error, label: "Absent" },
-                { color: "#EAB308", label: "Leave" },
-                { color: D.outlineVariant, label: "Unmarked" },
-              ].map((item) => (
-                <View key={item.label} style={s.legendItem}>
-                  <View style={[s.legendDot, { backgroundColor: item.color }]} />
-                  <Text style={s.legendLabel}>{item.label}</Text>
+        <View style={s.contentArea}>
+          {/* Summary stats — 2 per row */}
+          <View style={s.grid2}>
+            {/* Non-interactive stat */}
+            <View style={s.featureCard}>
+              <View style={s.fcTopRow}>
+                <View style={[s.fcIcon, { backgroundColor: D.surfaceLow }]}>
+                  <Ionicons name="briefcase-outline" size={14} color={D.primary} />
                 </View>
+              </View>
+              <Text style={s.fcLabel}>STAFF</Text>
+              <Text style={s.fcValue}>{String(staff?.length ?? "—")}</Text>
+              <Text style={s.fcSub}>{classNames.length} class{classNames.length !== 1 ? "es" : ""}</Text>
+            </View>
+            {/* Tappable pending card */}
+            <AnimatedPressable style={s.featureCard} onPress={() => setPendingOnly((v) => !v)}>
+              <View style={s.fcTopRow}>
+                <View style={[s.fcIcon, { backgroundColor: "#FEF3C7" }]}>
+                  <Ionicons name="time-outline" size={14} color="#B45309" />
+                </View>
+                {pendingOnly && <Ionicons name="checkmark-circle" size={14} color="#B45309" />}
+              </View>
+              <Text style={s.fcLabel}>PENDING</Text>
+              <Text style={s.fcValue}>{pendingCount > 0 ? String(pendingCount) : "—"}</Text>
+              <Text style={s.fcSub}>Approvals</Text>
+            </AnimatedPressable>
+          </View>
+
+          <View style={s.sectionHeader}>
+            <Text style={s.sectionTitle}>All staff</Text>
+          </View>
+
+          {loading && (
+            <View style={[s.card, { padding: 20, alignItems: "center" }]}>
+              <Text style={{ fontSize: 13, fontFamily: D.font, color: D.outline }}>Loading staff…</Text>
+            </View>
+          )}
+
+          {error && (
+            <View style={[s.card, { padding: 16 }]}>
+              <Text style={{ fontSize: 13, fontFamily: D.font, color: "#B91C1C" }}>{error}</Text>
+            </View>
+          )}
+
+          {!loading && !error && filtered.length === 0 && (
+            <View style={[s.card, { padding: 20, alignItems: "center" }]}>
+              <Text style={{ fontSize: 13, fontFamily: D.font, color: D.outline }}>No staff members found.</Text>
+            </View>
+          )}
+
+          {!loading && !error && filtered.length > 0 && (
+            <View style={s.card}>
+              {filtered.map((st, i) => (
+                <AnimatedPressable
+                  key={st.userId}
+                  style={[s.studentRow, i < filtered.length - 1 && s.divider]}
+                  onPress={() =>
+                    router.push({
+                      pathname: "/(admin)/staff/[userId]",
+                      params: {
+                        userId: st.userId,
+                        name: st.name,
+                        teacherId: st.teacherId ?? "",
+                        className: st.className ?? "",
+                        centreName: st.centreName ?? "",
+                      },
+                    })
+                  }
+                >
+                  <AvatarCircle name={st.name} size={32} />
+                  <View style={{ flex: 1 }}>
+                    <Text style={s.studentName}>{st.name}</Text>
+                    <Text style={s.studentMeta}>
+                      {st.teacherId ? `Staff ID ${st.teacherId} · ` : ""}{st.className || "Unassigned"}
+                    </Text>
+                  </View>
+                  <Ionicons name="chevron-forward" size={13} color={D.outline} />
+                </AnimatedPressable>
               ))}
             </View>
-
-            {/* Staff list */}
-            {filtered.length === 0 ? (
-              <View style={s.empty}>
-                <Ionicons name="briefcase-outline" size={36} color={D.outline} />
-                <Text style={s.emptyText}>No staff members found.</Text>
-              </View>
-            ) : (
-              <View style={s.listCard}>
-                {filtered.map((teacher, idx) => {
-                  const attStatus = todayAttByStaff.get(teacher.userId);
-                  const isLast = idx === filtered.length - 1;
-                  const dotColor =
-                    attStatus === "present" ? D.success :
-                    attStatus === "absent" ? D.error :
-                    attStatus === "leave" ? "#EAB308" :
-                    D.outlineVariant;
-                  return (
-                    <AnimatedPressable
-                      key={teacher.userId}
-                      entering={enter(idx)}
-                      style={[s.staffRow, !isLast && s.staffRowBorder]}
-                      onPress={() =>
-                        router.push({
-                          pathname: "/(admin)/staff/[userId]",
-                          params: {
-                            userId: teacher.userId,
-                            name: teacher.name,
-                            teacherId: teacher.teacherId ?? "",
-                            className: teacher.className ?? "",
-                            centreName: teacher.centreName ?? "",
-                          },
-                        })
-                      }
-                    >
-                      <AvatarCircle name={teacher.name} size={40} />
-                      <View style={{ flex: 1 }}>
-                        <Text style={s.staffName}>{teacher.name}</Text>
-                        <Text style={s.staffClass}>{teacher.className || "Unassigned"}</Text>
-                      </View>
-                      <View style={[s.statusDot, { backgroundColor: dotColor }]} />
-                      <Ionicons name="chevron-forward" size={15} color={D.outlineVariant} style={{ marginLeft: 8 }} />
-                    </AnimatedPressable>
-                  );
-                })}
-              </View>
-            )}
-          </>
-        )}
+          )}
+        </View>
       </ScrollView>
+
+      {/* Batch picker modal */}
+      <Modal visible={pickerOpen} transparent animationType="fade" onRequestClose={() => setPickerOpen(false)}>
+        <Pressable style={s.modalOverlay} onPress={() => setPickerOpen(false)}>
+          <View style={s.modalSheet}>
+            <Text style={s.modalTitle}>Select Class</Text>
+            {batches.map((b) => (
+              <Pressable
+                key={b}
+                style={[s.modalOption, b === selectedBatch && s.modalOptionActive]}
+                onPress={() => { setSelectedBatch(b); setPickerOpen(false); }}
+              >
+                <Text style={[s.modalOptionText, b === selectedBatch && { color: D.primary, fontFamily: D.fontBold }]}>{b}</Text>
+                {b === selectedBatch && <Ionicons name="checkmark" size={16} color={D.primary} />}
+              </Pressable>
+            ))}
+          </View>
+        </Pressable>
+      </Modal>
     </View>
   );
 }
 
 const s = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: D.bg },
-
-  // Non-home header (scrolls with content — no fixed app-bar / divider)
-  header: {
-    flexDirection: "row", alignItems: "flex-start", gap: 12,
-  },
-  pageTitle: { fontSize: 24, fontFamily: D.fontExtraBold, color: D.onSurface, letterSpacing: -0.5 },
-  headerIcons: { flexDirection: "row", gap: 6, paddingTop: 2 },
-  iconBtn: {
-    width: 34, height: 34, borderRadius: 11,
-    backgroundColor: D.surface, borderWidth: 1, borderColor: D.outlineVariant,
-    alignItems: "center", justifyContent: "center",
-  },
-
-  scroll: { paddingHorizontal: 18, gap: 14, paddingBottom: MOBILE_BOTTOM_SPACING },
-  pageSub: { fontSize: 13, color: D.onSurfaceVariant, lineHeight: 18, fontFamily: D.font },
-
-  statCard: {
-    flex: 1, backgroundColor: D.surface, borderRadius: 16, padding: 14,
-    borderWidth: 1, borderColor: D.outlineVariant, gap: 3,
-    shadowColor: D.primary, shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.025, shadowRadius: 4, elevation: 1,
-  },
-  statLabel: { fontSize: 11, fontFamily: D.fontMedium, color: D.onSurfaceVariant },
-  statValue: { fontSize: 24, fontFamily: D.fontBold, color: D.onSurface, lineHeight: 30 },
-
-  searchBox: {
-    flexDirection: "row", alignItems: "center", gap: 10,
-    backgroundColor: D.surface, borderRadius: 16,
-    borderWidth: 1, borderColor: D.outlineVariant,
-    paddingHorizontal: 14,
-  },
-  searchInput: { flex: 1, paddingVertical: 12, fontSize: 14, color: D.onSurface, fontFamily: D.font },
-
-  legend: { flexDirection: "row", flexWrap: "wrap", gap: 12, paddingVertical: 2 },
-  legendItem: { flexDirection: "row", alignItems: "center", gap: 5 },
-  legendDot: { width: 8, height: 8, borderRadius: 4 },
-  legendLabel: { fontSize: 11, color: D.onSurfaceVariant, fontFamily: D.fontMedium },
-
-  listCard: { backgroundColor: D.surface, borderRadius: 18, borderWidth: 1, borderColor: D.outlineVariant, overflow: "hidden" },
-  staffRow: { flexDirection: "row", alignItems: "center", gap: 12, paddingHorizontal: 14, paddingVertical: 12 },
-  staffRowBorder: { borderBottomWidth: 1, borderBottomColor: D.outlineVariant },
-  staffName: { fontSize: 14, fontFamily: D.fontSemiBold, color: D.onSurface },
-  staffClass: { fontSize: 12, color: D.onSurfaceVariant, marginTop: 1, fontFamily: D.font },
-  statusDot: { width: 12, height: 12, borderRadius: 6 },
-
-  empty: { alignItems: "center", gap: 10, paddingVertical: 40 },
-  emptyText: { fontSize: 13, color: D.onSurfaceVariant, fontFamily: D.font },
+  headerSection: { paddingHorizontal: 18, paddingBottom: 16, backgroundColor: D.bg },
+  titleRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
+  pageTitle: { fontSize: 24, fontWeight: "800", fontFamily: D.fontExtraBold, color: D.onSurface, letterSpacing: -0.5 },
+  batchDropdown: { flexDirection: "row", alignItems: "center", gap: 6, paddingHorizontal: 12, paddingVertical: 7, borderRadius: 10, backgroundColor: D.surfaceLow, borderWidth: 1, borderColor: D.surfaceHigh, maxWidth: 130 },
+  batchDropdownText: { fontSize: 11, fontWeight: "700", fontFamily: D.fontBold, color: D.primary, flex: 1 },
+  searchIconBtn: { width: 36, height: 36, borderRadius: 8, alignItems: "center", justifyContent: "center", backgroundColor: D.surface, borderWidth: 1, borderColor: D.outlineVariant },
+  modalOverlay: { flex: 1, backgroundColor: "rgba(0,0,0,0.4)", justifyContent: "flex-end" },
+  modalSheet: { backgroundColor: "#fff", borderTopLeftRadius: 24, borderTopRightRadius: 24, paddingTop: 20, paddingHorizontal: 18, paddingBottom: 40 },
+  modalTitle: { fontSize: 15, fontWeight: "700", fontFamily: D.fontBold, color: D.onSurface, marginBottom: 16, letterSpacing: -0.2 },
+  modalOption: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: D.outlineVariant },
+  modalOptionActive: { backgroundColor: D.surfaceLow, marginHorizontal: -18, paddingHorizontal: 18, borderRadius: 0 },
+  modalOptionText: { fontSize: 13, fontFamily: D.fontMedium, color: D.onSurface },
+  contentArea: { paddingHorizontal: 18 },
+  grid2: { flexDirection: "row", gap: 16 },
+  featureCard: { flex: 1, backgroundColor: "#fff", borderRadius: 12, padding: 14, borderWidth: 1, borderColor: D.outlineVariant, shadowColor: D.primary, shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.025, shadowRadius: 4, elevation: 1 },
+  fcTopRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
+  fcIcon: { width: 24, height: 24, borderRadius: 6, alignItems: "center", justifyContent: "center" },
+  fcLabel: { marginTop: 10, fontSize: 9, fontWeight: "700", fontFamily: D.fontBold, color: D.outline, letterSpacing: 0.5 },
+  fcValue: { marginTop: 4, fontSize: 16, fontWeight: "800", fontFamily: D.fontExtraBold, color: D.onSurface, letterSpacing: -0.35 },
+  fcSub: { marginTop: 3, fontSize: 9.5, color: D.onSurfaceVariant, letterSpacing: -0.05, fontFamily: D.font },
+  sectionHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginTop: 24, marginBottom: 12, paddingHorizontal: 2 },
+  sectionTitle: { fontSize: 12, fontWeight: "700", fontFamily: D.fontBold, color: D.onSurface, letterSpacing: -0.1 },
+  card: { backgroundColor: D.surface, borderRadius: 12, borderWidth: 1, borderColor: D.outlineVariant, overflow: "hidden", shadowColor: D.primary, shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.03, shadowRadius: 5, elevation: 1 },
+  divider: { borderBottomWidth: 1, borderBottomColor: D.outlineVariant },
+  studentRow: { flexDirection: "row", alignItems: "center", gap: 12, padding: 14 },
+  studentName: { fontSize: 12, fontWeight: "700", color: D.onSurface, letterSpacing: -0.1, fontFamily: D.fontBold },
+  studentMeta: { fontSize: 10.5, color: D.outline, marginTop: 2, fontFamily: D.font },
 });

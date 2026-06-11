@@ -1495,6 +1495,29 @@ export async function listAdminSchedule(admin: AdminRecord): Promise<{ timetable
   return { timetableEntries, tests };
 }
 
+export async function listRecentResultsForAdmin(admin: AdminRecord, take = 6): Promise<StudentResultRecord[]> {
+  if (isDemoMode()) return [];
+  const classes = await listScopedClasses(admin);
+  if (classes.length === 0) return [];
+
+  const classIds = classes.map((c) => c.id);
+  const chunks: string[][] = [];
+  for (let i = 0; i < classIds.length; i += 30) {
+    chunks.push(classIds.slice(i, i + 30));
+  }
+
+  const snapshots = await Promise.all(
+    chunks.map((chunk) => getDocs(query(collection(firestoreDb, studentResultsCollectionName), where("classId", "in", chunk)))),
+  );
+
+  return snapshots
+    .flatMap((s) => s.docs)
+    .map((item) => normalizeStudentResultRecord(item.id, item.data()))
+    .filter((r) => r.publishedAtIso)
+    .sort((a, b) => b.publishedAtIso.localeCompare(a.publishedAtIso))
+    .slice(0, take);
+}
+
 export type MobileNotificationItem = {
   id: string;
   type: "announcement" | "complaint" | "leave_request" | "diary";

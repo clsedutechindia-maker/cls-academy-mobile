@@ -1,22 +1,16 @@
 import { ActivityIndicator, Alert, ScrollView, StyleSheet, Text, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { router, useLocalSearchParams } from "expo-router";
-import { navigateBack } from "../../lib/navigation";
+import { navigateBack } from "../lib/navigation";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useState } from "react";
-import { D } from "../../components/theme";
-import { AnimatedPressable } from "../../components/motion";
-import { useResource } from "../../hooks/useResource";
-import { approveStudentEnrollment, getStudentProfile, listStudentAttendanceByIdWithDemo, listStudentResultsByIdWithDemo, rejectStudentEnrollment } from "../../lib/erp";
-import type { UserProfileRecord, StudentAttendanceRecord, StudentResultRecord } from "../../shared";
+import { D } from "../components/ui";
+import { AnimatedPressable } from "../components/motion";
+import { useResource } from "../hooks/useResource";
+import { getStudentProfile, listStudentAttendanceByIdWithDemo, listStudentResultsByIdWithDemo, removeStudentFromCentre } from "../lib/erp";
+import type { UserProfileRecord, StudentAttendanceRecord, StudentResultRecord } from "../shared";
 
 const tabs = ["Basic Info", "Results", "Attendance", "Fee"];
-
-const statusStyle = {
-  paid: { bg: "#DCFCE7", color: "#15803D", dot: "#22C55E", label: "Paid" },
-  due: { bg: "#FEF3C7", color: "#B45309", dot: "#F59E0B", label: "Due" },
-  overdue: { bg: "#FEE2E2", color: "#B91C1C", dot: "#EF4444", label: "Overdue" },
-};
 
 function getInitials(name: string) {
   return name
@@ -31,12 +25,10 @@ function StudentHero({
   profile,
   activeTab,
   onTabChange,
-  approveMode,
 }: {
   profile: UserProfileRecord | null;
   activeTab: number;
   onTabChange: (i: number) => void;
-  approveMode: boolean;
 }) {
   const name = profile?.name || "Student";
   const initials = getInitials(name);
@@ -52,13 +44,6 @@ function StudentHero({
             {profile?.rollNumber ? `Roll ${profile.rollNumber} · ` : ""}
             {profile?.className || "—"}
           </Text>
-          {approveMode && (
-            <View style={{ flexDirection: "row", gap: 6, marginTop: 7 }}>
-              <View style={[s.badge, { backgroundColor: "#FEF3C7" }]}>
-                <Text style={[s.badgeText, { color: "#B45309" }]}>PENDING APPROVAL</Text>
-              </View>
-            </View>
-          )}
         </View>
       </View>
       <View style={s.tabStrip}>
@@ -72,8 +57,8 @@ function StudentHero({
   );
 }
 
-function BasicInfoTab({ profile, approveMode, userId }: { profile: UserProfileRecord | null; approveMode: boolean; userId: string }) {
-  const [approving, setApproving] = useState(false);
+function BasicInfoTab({ profile, userId }: { profile: UserProfileRecord | null; userId: string }) {
+  const [removing, setRemoving] = useState(false);
 
   const infoRows = [
     { l: "Full Name", v: profile?.name || "—" },
@@ -88,32 +73,20 @@ function BasicInfoTab({ profile, approveMode, userId }: { profile: UserProfileRe
     { l: "Address", v: profile?.address || "—" },
   ];
 
-  async function handleApprove() {
-    if (!userId) return;
-    setApproving(true);
-    try {
-      await approveStudentEnrollment(userId);
-      Alert.alert("Approved", "Student has been activated successfully.", [
-        { text: "OK", onPress: () => navigateBack(router) },
-      ]);
-    } catch {
-      Alert.alert("Error", "Failed to approve student. Please try again.");
-    } finally {
-      setApproving(false);
-    }
-  }
-
-  function handleReject() {
-    Alert.alert("Reject Enrollment", "Are you sure you want to reject this student?", [
+  function handleRemove() {
+    const name = profile?.name || "this student";
+    Alert.alert("Remove Student", `Remove ${name} and revoke their access?`, [
       { text: "Cancel", style: "cancel" },
       {
-        text: "Reject", style: "destructive", onPress: async () => {
+        text: "Remove", style: "destructive", onPress: async () => {
+          setRemoving(true);
           try {
-            await rejectStudentEnrollment(userId);
+            await removeStudentFromCentre(userId);
+            navigateBack(router);
           } catch {
-            // best-effort
+            Alert.alert("Error", "Could not remove student. Try again.");
+            setRemoving(false);
           }
-          navigateBack(router);
         },
       },
     ]);
@@ -130,38 +103,19 @@ function BasicInfoTab({ profile, approveMode, userId }: { profile: UserProfileRe
         ))}
       </View>
 
-      {approveMode ? (
-        <View style={{ flexDirection: "row", gap: 10, marginTop: 22 }}>
-          <AnimatedPressable
-            style={[s.removeBtn, { flex: 1 }]}
-            onPress={handleReject}
-          >
-            <Ionicons name="close-circle-outline" size={18} color="#B91C1C" />
-            <Text style={s.removeBtnText}>Reject</Text>
-          </AnimatedPressable>
-          <AnimatedPressable
-            style={[s.approveBtn, { flex: 2 }, approving && { opacity: 0.6 }]}
-            onPress={handleApprove}
-            disabled={approving}
-          >
-            {approving
-              ? <ActivityIndicator size="small" color="#fff" />
-              : <>
-                  <Ionicons name="checkmark-circle-outline" size={18} color="#fff" />
-                  <Text style={s.approveBtnText}>Approve & Activate</Text>
-                </>
-            }
-          </AnimatedPressable>
-        </View>
-      ) : (
-        <AnimatedPressable
-          style={s.removeBtn}
-          onPress={() => router.push({ pathname: "/(head-teacher)/remove-student", params: { userId, name: profile?.name ?? "" } })}
-        >
-          <Ionicons name="trash-outline" size={18} color="#B91C1C" />
-          <Text style={s.removeBtnText}>Remove Student</Text>
-        </AnimatedPressable>
-      )}
+      <AnimatedPressable
+        style={[s.removeBtn, removing && { opacity: 0.6 }]}
+        onPress={handleRemove}
+        disabled={removing}
+      >
+        {removing
+          ? <ActivityIndicator size="small" color="#B91C1C" />
+          : <>
+              <Ionicons name="trash-outline" size={18} color="#B91C1C" />
+              <Text style={s.removeBtnText}>Remove Student</Text>
+            </>
+        }
+      </AnimatedPressable>
     </>
   );
 }
@@ -364,16 +318,15 @@ function FeeTab() {
     <View style={[s.card, { marginTop: 16, padding: 20, alignItems: "center" }]}>
       <Ionicons name="card-outline" size={32} color={D.outline} style={{ marginBottom: 10 }} />
       <Text style={{ fontSize: 14, fontWeight: "700", fontFamily: D.fontBold, color: D.onSurface, marginBottom: 4 }}>Fee records managed by admin</Text>
-      <Text style={{ fontSize: 12, fontFamily: D.font, color: D.outline, textAlign: "center" }}>Fee information is maintained by the admin team. Contact admin for fee details.</Text>
+      <Text style={{ fontSize: 12, fontFamily: D.font, color: D.outline, textAlign: "center" }}>Fee information is maintained by the admin team.</Text>
     </View>
   );
 }
 
-export function HTStudentDetailScreen() {
+export function AdminStudentDetailScreen() {
   const insets = useSafeAreaInsets();
-  const params = useLocalSearchParams<{ userId: string; name: string; mode?: string }>();
+  const params = useLocalSearchParams<{ userId: string; name: string }>();
   const userId = params.userId ?? "";
-  const approveMode = params.mode === "approve";
   const [activeTab, setActiveTab] = useState(0);
 
   const { data: profile, loading: profileLoading, error: profileError } = useResource(
@@ -411,9 +364,9 @@ export function HTStudentDetailScreen() {
 
       {!profileLoading && (
         <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 140 }} showsVerticalScrollIndicator={false}>
-          <StudentHero profile={profile} activeTab={activeTab} onTabChange={setActiveTab} approveMode={approveMode} />
+          <StudentHero profile={profile} activeTab={activeTab} onTabChange={setActiveTab} />
 
-          {activeTab === 0 && <BasicInfoTab profile={profile} approveMode={approveMode} userId={userId} />}
+          {activeTab === 0 && <BasicInfoTab profile={profile} userId={userId} />}
           {activeTab === 1 && userId && <ResultsTab userId={userId} />}
           {activeTab === 2 && userId && <AttendanceTab userId={userId} />}
           {activeTab === 3 && <FeeTab />}
@@ -440,8 +393,6 @@ const s = StyleSheet.create({
   infoValue: { flex: 1, fontSize: 13, fontWeight: "500", fontFamily: D.fontMedium, color: D.onSurface, letterSpacing: -0.1 },
   removeBtn: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, marginTop: 22, height: 52, borderRadius: 16, backgroundColor: "#FEF2F2", borderWidth: 1.5, borderColor: "#FECACA" },
   removeBtnText: { fontSize: 14, fontWeight: "700", fontFamily: D.fontBold, color: "#B91C1C", letterSpacing: -0.2 },
-  approveBtn: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, marginTop: 22, height: 52, borderRadius: 16, backgroundColor: "#15803D", shadowColor: "#15803D", shadowOpacity: 0.28, shadowRadius: 14, shadowOffset: { width: 0, height: 6 } },
-  approveBtnText: { fontSize: 14, fontWeight: "700", fontFamily: D.fontBold, color: "#fff", letterSpacing: -0.2 },
   rankCard: { borderRadius: 20, padding: 20, flexDirection: "row", alignItems: "center", gap: 14, backgroundColor: D.primary, shadowColor: D.primary, shadowOpacity: 0.22, shadowRadius: 20, shadowOffset: { width: 0, height: 8 } },
   rankLabel: { fontSize: 10, fontWeight: "700", fontFamily: D.fontBold, color: "rgba(255,255,255,0.7)", letterSpacing: 0.5 },
   rankValue: { fontSize: 30, fontWeight: "800", fontFamily: D.fontExtraBold, color: "#fff", letterSpacing: -1, lineHeight: 34, marginTop: 4 },

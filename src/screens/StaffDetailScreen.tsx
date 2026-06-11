@@ -3,13 +3,11 @@ import { SafeAreaView, ScrollView, StyleSheet, Text, View } from "react-native";
 import { router } from "expo-router";
 import { navigateBack } from "../lib/navigation";
 import { useResource } from "../hooks/useResource";
-import { listStaffAttendanceForUser, listStaffDiaryForUser, listSalaryRecordsForUser } from "../lib/erp";
+import { listStaffAttendanceForUser } from "../lib/erp";
 import { D, EmptyCard, ErrorCard, LoadingCard, MOBILE_BOTTOM_SPACING } from "../components/ui";
-import { Animated, AnimatedPressable, CountUp, FadeIn, enter } from "../components/motion";
+import { Animated, AnimatedPressable, CountUp, FadeIn } from "../components/motion";
 import { Ionicons } from "@expo/vector-icons";
 import type { StaffAttendanceRecord } from "../lib/erp";
-
-type InnerTab = "diary" | "attendance" | "payroll";
 
 const MONTH_NAMES = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
 const DAY_SHORT = ["SUN","MON","TUE","WED","THU","FRI","SAT"];
@@ -128,14 +126,11 @@ type Props = {
 };
 
 export function StaffDetailScreen({ userId, name, teacherId, className, centreName }: Props) {
-  const [activeTab, setActiveTab] = useState<InnerTab>("diary");
   const now = new Date();
   const [calYear, setCalYear] = useState(now.getFullYear());
   const [calMonth, setCalMonth] = useState(now.getMonth());
 
-  const diaryResource = useResource(() => listStaffDiaryForUser(userId), [userId]);
   const attendanceResource = useResource(() => listStaffAttendanceForUser(userId), [userId]);
-  const payrollResource = useResource(() => listSalaryRecordsForUser(userId), [userId]);
 
   const prevCalMonth = () => {
     if (calMonth === 0) { setCalYear((y) => y - 1); setCalMonth(11); }
@@ -150,12 +145,6 @@ export function StaffDetailScreen({ userId, name, teacherId, className, centreNa
   const present = (attendanceResource.data ?? []).filter((r) => r.attendanceDate.startsWith(monthStr) && r.status === "present").length;
   const absent = (attendanceResource.data ?? []).filter((r) => r.attendanceDate.startsWith(monthStr) && r.status === "absent").length;
   const leave = (attendanceResource.data ?? []).filter((r) => r.attendanceDate.startsWith(monthStr) && r.status === "leave").length;
-
-  const TABS: { key: InnerTab; label: string }[] = [
-    { key: "diary", label: "Diary" },
-    { key: "attendance", label: "Attendance" },
-    { key: "payroll", label: "Payroll" },
-  ];
 
   return (
     <SafeAreaView style={styles.container}>
@@ -173,117 +162,40 @@ export function StaffDetailScreen({ userId, name, teacherId, className, centreNa
         </View>
       </Animated.View>
 
-      <View style={styles.tabBar}>
-        {TABS.map((tab) => (
-          <AnimatedPressable
-            key={tab.key}
-            onPress={() => setActiveTab(tab.key)}
-            style={[styles.tabBtn, activeTab === tab.key && styles.tabBtnActive]}
-          >
-            <Text style={[styles.tabLabel, activeTab === tab.key && styles.tabLabelActive]}>
-              {tab.label}
-            </Text>
-          </AnimatedPressable>
-        ))}
-      </View>
-
-      <Animated.View key={activeTab} entering={FadeIn.duration(240)} style={{ flex: 1 }}>
-        {activeTab === "diary" && (
-          <ScrollView contentContainerStyle={styles.content}>
-            {diaryResource.loading ? (
-              <LoadingCard label="Loading diary..." />
-            ) : diaryResource.error ? (
-              <ErrorCard message={diaryResource.error} onRetry={() => void diaryResource.reload()} />
-            ) : !diaryResource.data || diaryResource.data.length === 0 ? (
-              <EmptyCard title="No diary entries" message="No work updates submitted." />
-            ) : (
-              <View style={styles.listCard}>
-                <Text style={styles.listCardTitle}>Work Diary</Text>
-                {diaryResource.data.map((entry, idx) => (
-                  <Animated.View key={entry.id} entering={enter(idx)} style={[styles.diaryRow, idx < diaryResource.data!.length - 1 && styles.rowBorder]}>
-                    <View style={{ flex: 1, gap: 2 }}>
-                      <Text style={styles.diaryTitle}>{entry.title}</Text>
-                      <Text style={styles.diaryDate}>{entry.submittedForDate}</Text>
-                      {entry.summary ? <Text style={styles.diarySummary}>{entry.summary.slice(0, 100)}</Text> : null}
-                    </View>
-                    <View style={[styles.statusBadge, { backgroundColor: entry.status === "reviewed" ? D.successBg : D.primaryFixed }]}>
-                      <Text style={[styles.statusBadgeText, { color: entry.status === "reviewed" ? D.successFg : D.primary }]}>
-                        {entry.status}
-                      </Text>
-                    </View>
-                  </Animated.View>
-                ))}
-              </View>
-            )}
-          </ScrollView>
-        )}
-
-        {activeTab === "attendance" && (
-          <ScrollView contentContainerStyle={styles.content}>
-            {attendanceResource.loading ? (
-              <LoadingCard label="Loading attendance..." />
-            ) : attendanceResource.error ? (
-              <ErrorCard message={attendanceResource.error} onRetry={() => void attendanceResource.reload()} />
-            ) : !attendanceResource.data || attendanceResource.data.length === 0 ? (
-              <EmptyCard title="No attendance records" message="No attendance records for this staff member." />
-            ) : (
-              <>
-                <View style={styles.statRow}>
-                  <View style={[styles.statBox, { backgroundColor: "#f0fdf4" }]}>
-                    <CountUp value={present} style={[styles.statValue, { color: "#16a34a" }]} />
-                    <Text style={styles.statLabel}>Present</Text>
-                  </View>
-                  <View style={[styles.statBox, { backgroundColor: "#fef2f2" }]}>
-                    <CountUp value={absent} style={[styles.statValue, { color: "#dc2626" }]} />
-                    <Text style={styles.statLabel}>Absent</Text>
-                  </View>
-                  <View style={[styles.statBox, { backgroundColor: "#fffbeb" }]}>
-                    <CountUp value={leave} style={[styles.statValue, { color: "#d97706" }]} />
-                    <Text style={styles.statLabel}>Leave</Text>
-                  </View>
+      <Animated.View entering={FadeIn.duration(240)} style={{ flex: 1 }}>
+        <ScrollView contentContainerStyle={styles.content}>
+          {attendanceResource.loading ? (
+            <LoadingCard label="Loading attendance..." />
+          ) : attendanceResource.error ? (
+            <ErrorCard message={attendanceResource.error} onRetry={() => void attendanceResource.reload()} />
+          ) : !attendanceResource.data || attendanceResource.data.length === 0 ? (
+            <EmptyCard title="No attendance records" message="No attendance records for this staff member." />
+          ) : (
+            <>
+              <View style={styles.statRow}>
+                <View style={[styles.statBox, { backgroundColor: "#f0fdf4" }]}>
+                  <CountUp value={present} style={[styles.statValue, { color: "#16a34a" }]} />
+                  <Text style={styles.statLabel}>Present</Text>
                 </View>
-                <AttendanceCalendar
-                  records={attendanceResource.data}
-                  year={calYear}
-                  month={calMonth}
-                  onPrevMonth={prevCalMonth}
-                  onNextMonth={nextCalMonth}
-                />
-              </>
-            )}
-          </ScrollView>
-        )}
-
-        {activeTab === "payroll" && (
-          <ScrollView contentContainerStyle={styles.content}>
-            {payrollResource.loading ? (
-              <LoadingCard label="Loading payroll..." />
-            ) : payrollResource.error ? (
-              <ErrorCard message={payrollResource.error} onRetry={() => void payrollResource.reload()} />
-            ) : !payrollResource.data || payrollResource.data.length === 0 ? (
-              <EmptyCard title="No salary records" message="No payroll records found." />
-            ) : (
-              <View style={styles.listCard}>
-                <Text style={styles.listCardTitle}>Salary Records</Text>
-                {payrollResource.data.map((record, idx) => (
-                  <Animated.View key={record.id} entering={enter(idx)} style={[styles.payRow, idx < payrollResource.data!.length - 1 && styles.rowBorder]}>
-                    <View style={{ flex: 1, gap: 2 }}>
-                      <Text style={styles.payDate}>{record.monthKey}</Text>
-                      <Text style={styles.payAmount}>₹{record.netAmount.toLocaleString("en-IN")}</Text>
-                    </View>
-                    <View style={[styles.statusBadge, {
-                      backgroundColor: record.status === "paid" ? D.successBg : record.status === "published" ? D.primaryFixed : D.surfaceContainer
-                    }]}>
-                      <Text style={[styles.statusBadgeText, {
-                        color: record.status === "paid" ? D.successFg : D.primary
-                      }]}>{record.status}</Text>
-                    </View>
-                  </Animated.View>
-                ))}
+                <View style={[styles.statBox, { backgroundColor: "#fef2f2" }]}>
+                  <CountUp value={absent} style={[styles.statValue, { color: "#dc2626" }]} />
+                  <Text style={styles.statLabel}>Absent</Text>
+                </View>
+                <View style={[styles.statBox, { backgroundColor: "#fffbeb" }]}>
+                  <CountUp value={leave} style={[styles.statValue, { color: "#d97706" }]} />
+                  <Text style={styles.statLabel}>Leave</Text>
+                </View>
               </View>
-            )}
-          </ScrollView>
-        )}
+              <AttendanceCalendar
+                records={attendanceResource.data}
+                year={calYear}
+                month={calMonth}
+                onPrevMonth={prevCalMonth}
+                onNextMonth={nextCalMonth}
+              />
+            </>
+          )}
+        </ScrollView>
       </Animated.View>
     </SafeAreaView>
   );
@@ -329,30 +241,9 @@ const styles = StyleSheet.create({
   headerMetaItem: { fontSize: 11, color: D.onSurfaceVariant, fontFamily: D.font },
   headerMetaDot: { fontSize: 11, color: D.outline },
 
-  tabBar: { flexDirection: "row", paddingHorizontal: 16, gap: 8, paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: D.outlineVariant },
-  tabBtn: { flex: 1, paddingVertical: 10, borderRadius: 10, backgroundColor: D.surfaceContainer, alignItems: "center" },
-  tabBtnActive: { backgroundColor: D.primaryBtn },
-  tabLabel: { fontSize: 13, fontFamily: D.fontSemiBold, color: D.onSurfaceVariant },
-  tabLabelActive: { color: "#ffffff" },
-
   content: { padding: 16, gap: 14, paddingBottom: MOBILE_BOTTOM_SPACING },
   statRow: { flexDirection: "row", gap: 8 },
   statBox: { flex: 1, borderRadius: 10, padding: 12, alignItems: "center", gap: 4 },
   statValue: { fontSize: 22, fontFamily: D.fontBold },
   statLabel: { fontSize: 11, color: D.onSurfaceVariant, fontFamily: D.font },
-
-  listCard: { backgroundColor: D.surface, borderRadius: 18, padding: 16, borderWidth: 1, borderColor: D.outlineVariant, gap: 0 },
-  listCardTitle: { fontSize: 15, fontFamily: D.fontBold, color: D.onSurface, marginBottom: 10 },
-  rowBorder: { borderBottomWidth: 1, borderBottomColor: D.outlineVariant },
-
-  diaryRow: { flexDirection: "row", alignItems: "flex-start", gap: 10, paddingVertical: 10 },
-  diaryTitle: { fontSize: 14, fontFamily: D.fontSemiBold, color: D.onSurface },
-  diaryDate: { fontSize: 11, color: D.onSurfaceVariant, fontFamily: D.font },
-  diarySummary: { fontSize: 12, color: D.onSurfaceVariant, lineHeight: 17, marginTop: 2, fontFamily: D.font },
-  statusBadge: { borderRadius: 8, paddingHorizontal: 8, paddingVertical: 4, alignSelf: "flex-start" },
-  statusBadgeText: { fontSize: 11, fontFamily: D.fontSemiBold },
-
-  payRow: { flexDirection: "row", alignItems: "center", gap: 10, paddingVertical: 12 },
-  payDate: { fontSize: 14, fontFamily: D.fontBold, color: D.onSurface },
-  payAmount: { fontSize: 13, color: D.onSurfaceVariant, marginTop: 2, fontFamily: D.font },
 });

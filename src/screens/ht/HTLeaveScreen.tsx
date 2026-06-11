@@ -234,23 +234,22 @@ export function HTLeaveScreen() {
         </View>
 
         {isPending && (
-          <View style={s.actionFooter}>
+          <View style={s.actionRow}>
             <AnimatedPressable
-              style={[s.actionBtn, s.approveBtn, busy && { opacity: 0.5 }]}
-              onPress={() => void handleAction(lr.id, "approved")}
-              disabled={!!busy}
-            >
-              <Ionicons name="checkmark" size={14} color="#15803D" />
-              <Text style={[s.actionBtnText, { color: "#15803D" }]}>{busy ? "…" : "Approve"}</Text>
-            </AnimatedPressable>
-            <View style={s.actionDivider} />
-            <AnimatedPressable
-              style={[s.actionBtn, s.rejectBtn, busy && { opacity: 0.5 }]}
+              style={[s.pillBtn, s.rejectPill, busy && { opacity: 0.5 }]}
               onPress={() => void handleAction(lr.id, "rejected")}
               disabled={!!busy}
             >
               <Ionicons name="close" size={14} color="#B91C1C" />
-              <Text style={[s.actionBtnText, { color: "#B91C1C" }]}>{busy ? "…" : "Reject"}</Text>
+              <Text style={[s.pillText, { color: "#B91C1C" }]}>{busy ? "…" : "Reject"}</Text>
+            </AnimatedPressable>
+            <AnimatedPressable
+              style={[s.pillBtn, s.approvePill, busy && { opacity: 0.5 }]}
+              onPress={() => void handleAction(lr.id, "approved")}
+              disabled={!!busy}
+            >
+              <Ionicons name="checkmark" size={14} color="#fff" />
+              <Text style={[s.pillText, { color: "#fff" }]}>{busy ? "…" : "Approve"}</Text>
             </AnimatedPressable>
           </View>
         )}
@@ -370,23 +369,22 @@ export function HTLeaveScreen() {
                           </View>
                           <Ionicons name="chevron-forward" size={13} color={D.outlineVariant} />
                         </View>
-                        <View style={s.actionFooter}>
+                        <View style={s.actionRow}>
                           <AnimatedPressable
-                            style={[s.actionBtn, s.approveBtn, busy && { opacity: 0.5 }]}
-                            onPress={() => void handleStudentLeaveAction(req, "approve")}
-                            disabled={!!busy}
-                          >
-                            <Ionicons name="checkmark" size={14} color="#15803D" />
-                            <Text style={[s.actionBtnText, { color: "#15803D" }]}>{busy ? "…" : "Approve"}</Text>
-                          </AnimatedPressable>
-                          <View style={s.actionDivider} />
-                          <AnimatedPressable
-                            style={[s.actionBtn, s.rejectBtn, busy && { opacity: 0.5 }]}
+                            style={[s.pillBtn, s.rejectPill, busy && { opacity: 0.5 }]}
                             onPress={() => void handleStudentLeaveAction(req, "reject")}
                             disabled={!!busy}
                           >
                             <Ionicons name="close" size={14} color="#B91C1C" />
-                            <Text style={[s.actionBtnText, { color: "#B91C1C" }]}>{busy ? "…" : "Reject"}</Text>
+                            <Text style={[s.pillText, { color: "#B91C1C" }]}>{busy ? "…" : "Reject"}</Text>
+                          </AnimatedPressable>
+                          <AnimatedPressable
+                            style={[s.pillBtn, s.approvePill, busy && { opacity: 0.5 }]}
+                            onPress={() => void handleStudentLeaveAction(req, "approve")}
+                            disabled={!!busy}
+                          >
+                            <Ionicons name="checkmark" size={14} color="#fff" />
+                            <Text style={[s.pillText, { color: "#fff" }]}>{busy ? "…" : "Approve"}</Text>
                           </AnimatedPressable>
                         </View>
                       </AnimatedPressable>
@@ -445,12 +443,11 @@ const s = StyleSheet.create({
   leaveDates: { fontSize: 11, fontFamily: D.font, color: D.outline },
   statusBadge: { paddingHorizontal: 9, paddingVertical: 4, borderRadius: 6 },
   statusText: { fontSize: 11, fontWeight: "700", fontFamily: D.fontBold },
-  actionFooter: { flexDirection: "row", borderTopWidth: 1, borderTopColor: D.outlineVariant },
-  actionBtn: { flex: 1, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6, paddingVertical: 11 },
-  approveBtn: { backgroundColor: "#F0FDF4" },
-  rejectBtn: { backgroundColor: "#FFF5F5" },
-  actionDivider: { width: 1, backgroundColor: D.outlineVariant },
-  actionBtnText: { fontSize: 12, fontWeight: "700", fontFamily: D.fontBold },
+  actionRow: { flexDirection: "row", justifyContent: "flex-end", gap: 8, paddingHorizontal: 14, paddingBottom: 12, paddingTop: 2 },
+  pillBtn: { flexDirection: "row", alignItems: "center", gap: 5, paddingVertical: 7, paddingHorizontal: 14, borderRadius: 99 },
+  approvePill: { backgroundColor: D.success },
+  rejectPill: { backgroundColor: "#FEE2E2" },
+  pillText: { fontSize: 12, fontWeight: "700", fontFamily: D.fontBold },
   newLeaveBtn: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, padding: 15, borderRadius: 14, backgroundColor: D.surfaceLow, borderWidth: 1, borderColor: D.surfaceHigh, marginBottom: 16 },
   newLeaveText: { fontSize: 13, fontWeight: "700", fontFamily: D.fontBold, color: D.primary },
   muted: { fontSize: 13, color: D.onSurfaceVariant, textAlign: "center", marginTop: 24 },
