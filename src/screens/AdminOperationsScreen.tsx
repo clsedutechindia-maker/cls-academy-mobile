@@ -10,6 +10,7 @@ const NAV_CARDS: { label: string; sub: string; icon: IoniconsName; color: string
   { label: "Circulars", sub: "Announcements", icon: "megaphone-outline", color: "#0369A1", bg: "#E0F2FE", route: "/(admin)/circulars" },
   { label: "Complaints", sub: "Student reports", icon: "alert-circle-outline", color: "#B91C1C", bg: "#FEE2E2", route: "/(admin)/complaints" },
   { label: "Schedule", sub: "Timetable & exams", icon: "calendar-outline", color: D.primary, bg: D.surfaceLow, route: "/(admin)/schedule" },
+  { label: "Results", sub: "Test results", icon: "trophy-outline", color: D.success, bg: "#dcfce7", route: "/(admin)/results" },
   { label: "Leave", sub: "Manage requests", icon: "document-text-outline", color: "#B45309", bg: "#FEF3C7", route: "/(admin)/leave" },
 ];
 

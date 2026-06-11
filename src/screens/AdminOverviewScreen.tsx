@@ -14,7 +14,7 @@ import {
   listAdminSchedule,
   listRecentResultsForAdmin,
 } from "../lib/erp";
-import { getTodayDateValue, formatDateLabel } from "../lib/date";
+import { getTodayDateValue } from "../lib/date";
 import { useSession } from "../providers/session";
 import { D, EmptyCard, ErrorCard, LoadingCard, MOBILE_BOTTOM_SPACING } from "../components/ui";
 import { Animated, AnimatedPressable, CountUp, enter } from "../components/motion";
@@ -33,6 +33,32 @@ function getSubjectColor(subjectName: string) {
     if (subjectName.includes(key)) return subjectColor[key]!;
   }
   return { text: D.outline, bg: D.surfaceLow };
+}
+
+function formatTime(t: string) {
+  if (!t) return "—";
+  const [h, m] = t.split(":").map(Number);
+  if (h === undefined || m === undefined) return t;
+  const ampm = h! >= 12 ? "PM" : "AM";
+  const hour = h! % 12 || 12;
+  return `${hour}:${String(m!).padStart(2, "0")} ${ampm}`;
+}
+
+function daysUntil(dateStr: string): number {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const target = new Date(dateStr);
+  target.setHours(0, 0, 0, 0);
+  return Math.round((target.getTime() - today.getTime()) / 86400000);
+}
+
+function formatExamDate(dateStr: string) {
+  if (!dateStr) return { mon: "—", day: "—" };
+  const d = new Date(dateStr);
+  return {
+    mon: d.toLocaleString("en-US", { month: "short" }).toUpperCase(),
+    day: String(d.getDate()),
+  };
 }
 
 export function AdminOverviewScreen() {
@@ -60,7 +86,7 @@ export function AdminOverviewScreen() {
         listPendingLeaveRequests(adminRecord),
         listAdminComplaints(adminRecord),
         listStudentLeaveRequestsForAdmin(adminRecord),
-        listRecentResultsForAdmin(adminRecord),
+        listRecentResultsForAdmin(adminRecord, 2),
         listAdminSchedule(adminRecord),
       ]);
 
@@ -201,15 +227,23 @@ export function AdminOverviewScreen() {
                     <Text style={s.sectionEmptyText}>No classes scheduled today.</Text>
                   </View>
                 ) : (
-                  resource.data.todaySchedule.slice(0, 5).map((entry, i, arr) => (
-                    <View key={entry.id} style={[s.listRow, i === arr.length - 1 && { borderBottomWidth: 0 }]}>
-                      <View style={{ flex: 1 }}>
-                        <Text style={s.listRowTitle} numberOfLines={1}>{entry.subjectName}</Text>
-                        <Text style={s.listRowSub} numberOfLines={1}>{entry.className} · {entry.teacherName}</Text>
+                  resource.data.todaySchedule.map((entry, i, arr) => {
+                    const sc = getSubjectColor(entry.subjectName || "");
+                    return (
+                      <View key={entry.id} style={[s.slotRow, i < arr.length - 1 && s.listDivider]}>
+                        <View style={s.slotTimeBlock}>
+                          <Text style={s.slotTime}>{formatTime(entry.startTime)}</Text>
+                          {entry.endTime ? <Text style={s.slotHall}>{formatTime(entry.endTime)}</Text> : null}
+                        </View>
+                        <View style={[s.accentLine, { backgroundColor: sc.text }]} />
+                        <View style={{ flex: 1 }}>
+                          <Text style={[s.slotSubjectTag, { color: sc.text }]}>{(entry.subjectName || "").toUpperCase()}</Text>
+                          <Text style={s.slotSubject} numberOfLines={1}>{entry.className}</Text>
+                          {entry.notes ? <Text style={s.slotMeta} numberOfLines={1}>{entry.notes}</Text> : null}
+                        </View>
                       </View>
-                      <Text style={s.listRowMeta}>{entry.startTime}–{entry.endTime}</Text>
-                    </View>
-                  ))
+                    );
+                  })
                 )}
               </Animated.View>
 
@@ -224,46 +258,45 @@ export function AdminOverviewScreen() {
                     <Text style={s.sectionEmptyText}>No upcoming exams scheduled.</Text>
                   </View>
                 ) : (
-                  resource.data.upcomingExams.slice(0, 5).map((exam, i, arr) => (
-                    <View key={exam.id} style={[s.listRow, i === arr.length - 1 && { borderBottomWidth: 0 }]}>
-                      <View style={{ flex: 1 }}>
-                        <Text style={s.listRowTitle} numberOfLines={1}>{exam.assessmentTitle} · {exam.subjectName}</Text>
-                        <Text style={s.listRowSub} numberOfLines={1}>{exam.className} · {formatDateLabel(exam.scheduleDate)}</Text>
+                  resource.data.upcomingExams.slice(0, 2).map((exam, i, arr) => {
+                    const sc = getSubjectColor(exam.subjectName || "");
+                    const { mon, day } = formatExamDate(exam.scheduleDate);
+                    const dl = daysUntil(exam.scheduleDate);
+                    return (
+                      <View key={exam.id} style={[s.examRow, i < arr.length - 1 && s.listDivider]}>
+                        <View style={s.datePill}>
+                          <Text style={s.datePillMon}>{mon}</Text>
+                          <Text style={s.datePillDay}>{day}</Text>
+                        </View>
+                        <View style={[s.accentLine, { backgroundColor: sc.text }]} />
+                        <View style={{ flex: 1 }}>
+                          <Text style={[s.subjInline, { color: sc.text }]}>{(exam.subjectName || "").toUpperCase()}</Text>
+                          <Text style={s.examName} numberOfLines={1}>{exam.assessmentTitle}</Text>
+                          <Text style={s.examBatch} numberOfLines={1}>{exam.className}</Text>
+                        </View>
+                        <Text style={[s.daysLeft, { color: dl <= 3 ? "#B45309" : D.outline }]}>
+                          {dl === 0 ? "Today" : dl === 1 ? "Tomorrow" : `in ${dl}d`}
+                        </Text>
                       </View>
-                      <Text style={s.listRowMeta}>{exam.startTime}</Text>
-                    </View>
-                  ))
+                    );
+                  })
                 )}
               </Animated.View>
 
               {/* Leave requests / Open complaints */}
               <Animated.View entering={enter(4)} style={s.twoCol}>
-                <AnimatedPressable style={s.actionBox} onPress={() => router.push("/(admin)/leave")}>
-                  <View style={[s.actionIconBg, { backgroundColor: "#fff7ed" }]}>
-                    <Ionicons name="calendar-outline" size={18} color="#F97316" />
+                <AnimatedPressable style={s.qlBox} onPress={() => router.push("/(admin)/leave")}>
+                  <View style={[s.qlIcon, { backgroundColor: "#fff7ed" }]}>
+                    <Ionicons name="calendar-outline" size={20} color="#F97316" />
                   </View>
-                  <CountUp value={resource.data.pendingLeaveRequests} style={s.actionVal} />
-                  <Text style={s.actionLabel}>Leave Requests</Text>
+                  <Text style={s.qlLabel}>Leave Requests</Text>
                 </AnimatedPressable>
-                <AnimatedPressable style={s.actionBox} onPress={() => router.push("/(admin)/complaints")}>
-                  <View style={[s.actionIconBg, { backgroundColor: "#FEE2E2" }]}>
-                    <Ionicons name="warning-outline" size={18} color={D.error} />
+                <AnimatedPressable style={s.qlBox} onPress={() => router.push("/(admin)/complaints")}>
+                  <View style={[s.qlIcon, { backgroundColor: "#FEE2E2" }]}>
+                    <Ionicons name="warning-outline" size={20} color={D.error} />
                   </View>
-                  <CountUp value={resource.data.openComplaints} style={s.actionVal} />
-                  <Text style={s.actionLabel}>Open Complaints</Text>
+                  <Text style={s.qlLabel}>Open Complaints</Text>
                 </AnimatedPressable>
-              </Animated.View>
-
-              {/* Quick Access */}
-              <Animated.View entering={enter(5)} style={s.quickGrid}>
-                {QUICK_TILES.map((tile) => (
-                  <AnimatedPressable key={tile.label} style={s.quickTile} onPress={tile.onPress}>
-                    <View style={[s.quickIconBg, { backgroundColor: tile.bg }]}>
-                      <Ionicons name={tile.icon as never} size={18} color={tile.color} />
-                    </View>
-                    <Text style={s.quickLabel}>{tile.label}</Text>
-                  </AnimatedPressable>
-                ))}
               </Animated.View>
             </>
           )}
@@ -272,11 +305,6 @@ export function AdminOverviewScreen() {
     </View>
   );
 }
-
-const QUICK_TILES = [
-  { icon: "megaphone-outline", label: "Announcements", color: "#9d4300", bg: "#ffdbca", onPress: () => router.push("/(admin)/circulars") },
-  { icon: "clipboard-outline", label: "Operations", color: D.success, bg: "#dcfce7", onPress: () => router.push("/(admin)/operations") },
-];
 
 const s = StyleSheet.create({
   container: { flex: 1, backgroundColor: D.bg },
@@ -357,43 +385,50 @@ const s = StyleSheet.create({
   listRowMeta: { fontSize: 12, fontFamily: D.fontBold, color: D.primary },
   subjectIcon: { width: 36, height: 36, borderRadius: 11, alignItems: "center", justifyContent: "center", flexShrink: 0 },
   subjectIconText: { fontSize: 9.5, fontWeight: "800", fontFamily: D.fontExtraBold },
+  listDivider: { borderBottomWidth: 1, borderBottomColor: D.surfaceContainer },
 
-  // Leave requests / Open complaints
-  twoCol: { flexDirection: "row", gap: 12 },
-  actionBox: {
+  // Today's Schedule rows
+  slotRow: { flexDirection: "row", alignItems: "center", gap: 12, paddingVertical: 13 },
+  slotTimeBlock: { width: 68, flexShrink: 0 },
+  slotTime: { fontSize: 11, fontWeight: "800", fontFamily: D.fontExtraBold, color: D.onSurface, letterSpacing: -0.2 },
+  slotHall: { fontSize: 9.5, color: D.outline, marginTop: 3, fontFamily: D.font },
+  accentLine: { width: 3, height: 40, borderRadius: 2, flexShrink: 0 },
+  slotSubjectTag: { fontSize: 9, fontWeight: "700", fontFamily: D.fontBold, letterSpacing: 0.5, marginBottom: 2 },
+  slotSubject: { fontSize: 12, fontWeight: "700", fontFamily: D.fontBold, color: D.onSurface, letterSpacing: -0.1 },
+  slotMeta: { fontSize: 9.5, fontFamily: D.font, color: D.outline, marginTop: 3 },
+
+  // Upcoming Exams rows
+  examRow: { flexDirection: "row", alignItems: "center", gap: 12, paddingVertical: 13 },
+  datePill: { width: 40, alignItems: "center", flexShrink: 0 },
+  datePillMon: { fontSize: 9, fontWeight: "700", fontFamily: D.fontBold, letterSpacing: 0.4, textTransform: "uppercase", color: D.outline },
+  datePillDay: { fontSize: 16, fontWeight: "800", fontFamily: D.fontExtraBold, letterSpacing: -0.4, lineHeight: 20, color: D.onSurface },
+  subjInline: { fontSize: 9, fontWeight: "700", fontFamily: D.fontBold, letterSpacing: 0.5, marginBottom: 2 },
+  examName: { fontSize: 13, fontWeight: "700", fontFamily: D.fontBold, color: D.onSurface, letterSpacing: -0.2 },
+  examBatch: { fontSize: 11, fontFamily: D.font, color: D.outline, marginTop: 1 },
+  daysLeft: { fontSize: 12, fontWeight: "700", fontFamily: D.fontBold, flexShrink: 0 },
+
+  // Leave requests / Open complaints — quick links style
+  twoCol: { flexDirection: "row", gap: 10 },
+  qlBox: {
     flex: 1,
-    backgroundColor: D.surface,
-    borderRadius: 16,
-    padding: 16,
-    gap: 6,
-    borderWidth: 1,
-    borderColor: D.outlineVariant,
-    shadowColor: D.primary,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.025,
-    shadowRadius: 5,
-    elevation: 1,
-  },
-  actionIconBg: { width: 34, height: 34, borderRadius: 10, alignItems: "center", justifyContent: "center" },
-  actionVal: { fontSize: 22, fontFamily: D.fontBold, color: D.onSurface, marginTop: 4, letterSpacing: -0.5 },
-  actionLabel: { fontSize: 11, color: D.onSurfaceVariant, fontFamily: D.fontMedium },
-
-  // Quick access
-  quickGrid: { flexDirection: "row", flexWrap: "wrap", gap: 12, marginBottom: 8 },
-  quickTile: {
-    width: "47.5%",
+    minWidth: 0,
+    aspectRatio: 0.92,
     backgroundColor: D.surface,
     borderRadius: 14,
-    padding: 16,
-    gap: 12,
+    paddingVertical: 14,
+    paddingHorizontal: 6,
     borderWidth: 1,
     borderColor: D.outlineVariant,
-    shadowColor: D.primary,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.025,
-    shadowRadius: 4,
-    elevation: 1,
+    alignItems: "center",
+    justifyContent: "center",
   },
-  quickIconBg: { width: 38, height: 38, borderRadius: 11, alignItems: "center", justifyContent: "center" },
-  quickLabel: { fontSize: 12.5, fontFamily: D.fontSemiBold, color: D.onSurface },
+  qlIcon: { width: 38, height: 38, borderRadius: 11, alignItems: "center", justifyContent: "center", marginBottom: 10 },
+  qlLabel: {
+    fontSize: 12.5,
+    fontWeight: "700",
+    fontFamily: D.fontBold,
+    color: D.onSurface,
+    textAlign: "center",
+    letterSpacing: -0.1,
+  },
 });

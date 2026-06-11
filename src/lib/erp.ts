@@ -1495,7 +1495,7 @@ export async function listAdminSchedule(admin: AdminRecord): Promise<{ timetable
   return { timetableEntries, tests };
 }
 
-export async function listRecentResultsForAdmin(admin: AdminRecord, take = 6): Promise<StudentResultRecord[]> {
+export async function listResultsForAdmin(admin: AdminRecord): Promise<StudentResultRecord[]> {
   if (isDemoMode()) return [];
   const classes = await listScopedClasses(admin);
   if (classes.length === 0) return [];
@@ -1514,8 +1514,12 @@ export async function listRecentResultsForAdmin(admin: AdminRecord, take = 6): P
     .flatMap((s) => s.docs)
     .map((item) => normalizeStudentResultRecord(item.id, item.data()))
     .filter((r) => r.publishedAtIso)
-    .sort((a, b) => b.publishedAtIso.localeCompare(a.publishedAtIso))
-    .slice(0, take);
+    .sort((a, b) => b.publishedAtIso.localeCompare(a.publishedAtIso));
+}
+
+export async function listRecentResultsForAdmin(admin: AdminRecord, take = 6): Promise<StudentResultRecord[]> {
+  const all = await listResultsForAdmin(admin);
+  return all.slice(0, take);
 }
 
 export type MobileNotificationItem = {
