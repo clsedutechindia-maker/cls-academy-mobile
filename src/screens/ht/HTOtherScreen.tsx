@@ -11,13 +11,13 @@ import { listDoubtsForTeacher } from "../../lib/erp";
 type IoniconsName = React.ComponentProps<typeof Ionicons>["name"];
 
 const cards: { l: string; sub: string; icon: IoniconsName; color: string; bg: string; route: string }[] = [
-  { l: "Schedule", sub: "Timetable & exams", icon: "calendar-outline", color: D.primary, bg: D.surfaceLow, route: "/(head-teacher)/schedule" },
-  { l: "Circulars", sub: "Announcements", icon: "megaphone-outline", color: "#0369A1", bg: "#E0F2FE", route: "/(head-teacher)/circulars" },
-  { l: "Leave", sub: "Manage requests", icon: "document-text-outline", color: "#B45309", bg: "#FEF3C7", route: "/(head-teacher)/leave" },
-  { l: "Materials", sub: "Study resources", icon: "library-outline", color: "#15803D", bg: "#F0FDF4", route: "/(head-teacher)/materials" },
-  { l: "Teaching Plan", sub: "Weekly plans", icon: "reader-outline", color: "#7C3AED", bg: "#F3E8FF", route: "/(head-teacher)/teaching-plans" },
-  { l: "Sessions", sub: "Doubt & remedial requests", icon: "time-outline", color: "#0D9488", bg: "#CCFBF1", route: "/(head-teacher)/sessions" },
-  { l: "Inquiries", sub: "Walk-in & call leads", icon: "call-outline", color: "#BE185D", bg: "#FCE7F3", route: "/(head-teacher)/inquiries" },
+  { l: "Schedule", sub: "Timetable & exams", icon: "calendar-outline", color: D.primary, bg: D.surfaceLow, route: "/(team)/schedule" },
+  { l: "Circulars", sub: "Announcements", icon: "megaphone-outline", color: "#0369A1", bg: "#E0F2FE", route: "/(team)/circulars" },
+  { l: "Leave", sub: "Manage requests", icon: "document-text-outline", color: "#B45309", bg: "#FEF3C7", route: "/(team)/leave" },
+  { l: "Materials", sub: "Study resources", icon: "library-outline", color: "#15803D", bg: "#F0FDF4", route: "/(team)/materials" },
+  { l: "Teaching Plan", sub: "Weekly plans", icon: "reader-outline", color: "#7C3AED", bg: "#F3E8FF", route: "/(team)/teaching-plans" },
+  { l: "Sessions", sub: "Doubt & remedial requests", icon: "time-outline", color: "#0D9488", bg: "#CCFBF1", route: "/(team)/sessions" },
+  { l: "Inquiries", sub: "Walk-in & call leads", icon: "call-outline", color: "#BE185D", bg: "#FCE7F3", route: "/(team)/inquiries" },
 ];
 
 export function HTOtherScreen() {
@@ -62,7 +62,7 @@ export function HTOtherScreen() {
         </View>
 
         {/* Doubts — full width */}
-        <AnimatedPressable style={s.doubtsCard} onPress={() => router.push("/(head-teacher)/doubts")}>
+        <AnimatedPressable style={s.doubtsCard} onPress={() => router.push("/(team)/doubts")}>
           <View style={[s.cardIcon, { backgroundColor: D.surfaceLow }]}>
             <Ionicons name="help-circle-outline" size={20} color={D.primaryBtn} />
           </View>

@@ -1,4 +1,7 @@
-export type AccountRole = "student" | "teacher" | "employee";
+export type AccountRole = "student" | "teacher" | "team";
+// Legacy only: pre-refactor profiles may still carry teacherRole. New code routes
+// off AccountRole ("team" replaces the old head_teacher tier). Kept for back-compat
+// normalization until migration clears the field.
 export type TeacherRole = "head_teacher" | "class_teacher" | "subject_teacher";
 export type ResultAssessmentCategory = "class_test" | "quarterly_exam" | "midterm" | "final";
 export type AttendanceStatus = "present" | "absent" | "leave";
@@ -91,11 +94,11 @@ export function formatAccountRoleLabel(role: AccountRole) {
     return "Teacher";
   }
 
-  if (role === "employee") {
-    return "Employee";
+  if (role === "team") {
+    return "Team";
   }
 
-  return "Student";
+  return "Student / Parent";
 }
 
 export function formatTeacherRoleLabel(role: TeacherRole | "") {

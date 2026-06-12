@@ -2041,7 +2041,7 @@ export async function createAdminAnnouncement({
     tag: tag.toLowerCase(),
     title: title.trim(),
     message: message.trim(),
-    audienceScope: admin.role === "centre_incharge" ? "centre" : admin.role === "regional_incharge" ? "region" : "all",
+    audienceScope: "all",
     regionId: admin.regionId,
     regionName: admin.regionName,
     centreId: admin.centreId,
@@ -2097,18 +2097,14 @@ export async function listAdminAttendanceOverview(admin: AdminRecord) {
     .sort((left, right) => left.className.localeCompare(right.className) || left.studentName.localeCompare(right.studentName));
 }
 
-export async function listVisibleProfilesForAdmin(admin: AdminRecord) {
+export async function listVisibleProfilesForAdmin(_admin: AdminRecord) {
   if (isDemoMode()) return getDemoHTStudents();
-  const snapshot =
-    admin.role === "admin"
-      ? await getDocs(collection(firestoreDb, userProfilesCollectionName))
-      : admin.role === "centre_incharge"
-        ? await getDocs(query(collection(firestoreDb, userProfilesCollectionName), where("centreId", "==", admin.centreId)))
-        : await getDocs(query(collection(firestoreDb, userProfilesCollectionName), where("regionId", "==", admin.regionId)));
+  // Single admin tier (superadmin) sees every profile globally.
+  const snapshot = await getDocs(collection(firestoreDb, userProfilesCollectionName));
 
   return snapshot.docs
     .map((item) => normalizeUserProfileRecord(item.id, item.data()))
-    .filter((item) => item.role === "student" || item.role === "teacher" || item.role === "employee")
+    .filter((item) => item.role === "student" || item.role === "teacher" || item.role === "team")
     .sort((left, right) => left.name.localeCompare(right.name));
 }
 

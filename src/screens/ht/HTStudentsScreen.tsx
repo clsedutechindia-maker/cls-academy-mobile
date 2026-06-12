@@ -107,7 +107,7 @@ export function HTStudentsScreen() {
                 <Text style={s.fcSub}>{classNames.length} batch{classNames.length !== 1 ? "es" : ""}</Text>
               </View>
               {/* Tappable pending card */}
-              <AnimatedPressable style={s.featureCard} onPress={() => router.push("/(head-teacher)/approve-student")}>
+              <AnimatedPressable style={s.featureCard} onPress={() => router.push("/(team)/approve-student")}>
                 <View style={s.fcTopRow}>
                   <View style={[s.fcIcon, { backgroundColor: "#FEF3C7" }]}>
                     <Ionicons name="time-outline" size={14} color="#B45309" />
@@ -150,7 +150,7 @@ export function HTStudentsScreen() {
                   style={[s.studentRow, i < filtered.length - 1 && s.divider]}
                   onPress={() =>
                     router.push({
-                      pathname: "/(head-teacher)/student-detail",
+                      pathname: "/(team)/student-detail",
                       params: { userId: st.userId, name: st.name },
                     })
                   }

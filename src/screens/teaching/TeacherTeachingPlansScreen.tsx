@@ -16,7 +16,7 @@ import { formatMonthLabel } from "./teachingPlanShared";
 export function TeacherTeachingPlansScreen() {
   const insets = useSafeAreaInsets();
   const { profile } = useSession();
-  const group = profile?.teacherRole === "head_teacher" ? "(head-teacher)" : "(teacher)";
+  const group = profile?.role === "team" ? "(team)" : "(teacher)";
 
   const { data, loading, error, reload } = useResource(
     async () => (profile ? listTeachingPlansForTeacher(profile) : []),

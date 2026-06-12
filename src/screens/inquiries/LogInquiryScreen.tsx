@@ -72,13 +72,13 @@ export function LogInquiryScreen() {
     setBusy(false);
     // Navigate after a confirmed save — a routing error must not look like a save failure.
     navigateBack(router);
-    router.push({ pathname: "/(head-teacher)/inquiry-detail" as any, params: { inquiryId: id } });
+    router.push({ pathname: "/(team)/inquiry-detail" as any, params: { inquiryId: id } });
   }
 
   function openMatch() {
     if (!match) return;
     navigateBack(router);
-    router.push({ pathname: "/(head-teacher)/inquiry-detail" as any, params: { inquiryId: match.id, addFollowUp: "1" } });
+    router.push({ pathname: "/(team)/inquiry-detail" as any, params: { inquiryId: match.id, addFollowUp: "1" } });
   }
 
   const modeLabel = MODE_OPTIONS.find((m) => m.key === mode)?.label ?? "Select";

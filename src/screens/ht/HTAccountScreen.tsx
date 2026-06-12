@@ -10,7 +10,7 @@ import { AnimatedPressable } from "../../components/motion";
 type IoniconsName = React.ComponentProps<typeof Ionicons>["name"];
 
 const menuItems: { label: string; icon: IoniconsName; route?: string; destructive?: boolean }[] = [
-  { label: "Edit Profile", icon: "create-outline", route: "/(head-teacher)/edit-details" },
+  { label: "Edit Profile", icon: "create-outline", route: "/(team)/edit-details" },
   { label: "Privacy & Security", icon: "shield-outline" },
   { label: "Help & Support", icon: "help-circle-outline" },
   { label: "About CLS Academy", icon: "information-circle-outline" },
@@ -54,7 +54,7 @@ export function HTAccountScreen() {
             <Text style={s.profileSubjects}>{subjects}</Text>
             <Text style={s.profileClasses}>{classes}</Text>
           </View>
-          <AnimatedPressable style={s.editBtn} onPress={() => router.push("/(head-teacher)/edit-details")}>
+          <AnimatedPressable style={s.editBtn} onPress={() => router.push("/(team)/edit-details")}>
             <Ionicons name="create-outline" size={14} color={D.primary} />
           </AnimatedPressable>
         </View>

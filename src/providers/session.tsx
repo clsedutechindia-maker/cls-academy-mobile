@@ -21,7 +21,7 @@ import {
   type UserProfileRecord,
 } from "../shared";
 
-type SessionRole = "loading" | "guest" | "student" | "teacher" | "admin" | "employee" | "unsupported";
+type SessionRole = "loading" | "guest" | "student" | "teacher" | "team" | "admin" | "unsupported";
 
 type SessionContextValue = {
   authUser: User | null;
@@ -352,12 +352,12 @@ export function SessionProvider({ children }: PropsWithChildren) {
       return "student";
     }
 
-    if (profile?.role === "teacher") {
-      return "teacher";
+    if (profile?.role === "team") {
+      return "team";
     }
 
-    if (profile?.role === "employee") {
-      return "employee";
+    if (profile?.role === "teacher") {
+      return "teacher";
     }
 
     return "unsupported";
@@ -372,12 +372,12 @@ export function SessionProvider({ children }: PropsWithChildren) {
       return "Teacher";
     }
 
-    if (role === "student") {
-      return "Student";
+    if (role === "team") {
+      return "Team";
     }
 
-    if (role === "employee") {
-      return "Employee";
+    if (role === "student") {
+      return "Student / Parent";
     }
 
     return "Member";
@@ -436,9 +436,8 @@ import type { DemoRole } from "../lib/demoMode";
 
 const DEMO_ROLE_TO_SESSION: Record<DemoRole, SessionRole> = {
   student: "student",
-  subject_teacher: "teacher",
-  class_teacher: "teacher",
-  head_teacher: "teacher",
+  teacher: "teacher",
+  team: "team",
   admin: "admin",
 };
 
@@ -458,6 +457,6 @@ export function useDemoAwareSession() {
     role: sessionRole,
     isReady: true,
     error: null,
-    roleLabel: demoRole === "admin" ? "Centre Incharge" : demoRole === "head_teacher" ? "Head Teacher" : demoRole === "class_teacher" ? "Class Teacher" : demoRole === "student" ? "Student" : "Subject Teacher",
+    roleLabel: demoRole === "admin" ? "Admin" : demoRole === "team" ? "Team" : demoRole === "teacher" ? "Teacher" : "Student / Parent",
   };
 }

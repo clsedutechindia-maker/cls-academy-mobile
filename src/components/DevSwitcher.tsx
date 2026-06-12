@@ -18,11 +18,10 @@ const ROLES: {
   bg: string;
   route: string;
 }[] = [
-  { id: "student", email: "demo.student.neet@clsacademy.test", label: "Student", sub: "Demo NEET Student", icon: "school-outline", color: "#0EA5E9", bg: "#F0F9FF", route: "/(student)/home" },
-  { id: "subject_teacher", email: "demo.subject.teacher@clsacademy.test", label: "Subject Teacher", sub: "Demo Subject Teacher", icon: "book-outline", color: "#10B981", bg: "#F0FDF4", route: "/(teacher)/announcements" },
-  { id: "class_teacher", email: "demo.teacher@clsacademy.test", label: "Class Teacher", sub: "Demo Class Teacher", icon: "people-outline", color: "#F59E0B", bg: "#FEF3C7", route: "/(teacher)/announcements" },
-  { id: "head_teacher", email: "demo.teacher@clsacademy.test", label: "Head Teacher", sub: "Demo Head Teacher", icon: "ribbon-outline", color: "#6D28D9", bg: "#F5F3FF", route: "/(head-teacher)/home" },
-  { id: "admin", email: "demo.admin@clsacademy.test", label: "Centre Incharge", sub: "Demo Superadmin", icon: "shield-checkmark-outline", color: "#EF4444", bg: "#FEF2F2", route: "/(admin)/overview" },
+  { id: "student", email: "demo.student.neet@clsacademy.test", label: "Student / Parent", sub: "Demo NEET Student", icon: "school-outline", color: "#0EA5E9", bg: "#F0F9FF", route: "/(student)/home" },
+  { id: "teacher", email: "demo.subject.teacher@clsacademy.test", label: "Teacher", sub: "Demo Teacher", icon: "book-outline", color: "#10B981", bg: "#F0FDF4", route: "/(teacher)/announcements" },
+  { id: "team", email: "demo.teacher@clsacademy.test", label: "Team", sub: "Demo Team (ex Head Teacher)", icon: "ribbon-outline", color: "#6D28D9", bg: "#F5F3FF", route: "/(team)/home" },
+  { id: "admin", email: "demo.admin@clsacademy.test", label: "Admin", sub: "Demo Superadmin", icon: "shield-checkmark-outline", color: "#EF4444", bg: "#FEF2F2", route: "/(admin)/overview" },
 ];
 
 export function DevSwitcher() {

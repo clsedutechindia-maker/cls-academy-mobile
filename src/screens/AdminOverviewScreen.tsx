@@ -69,12 +69,7 @@ export function AdminOverviewScreen() {
   const initials = displayName.split(" ").map((n) => n[0]).join("").substring(0, 2).toUpperCase() || "AD";
   const greetingHour = new Date().getHours();
   const greeting = greetingHour < 12 ? "GOOD MORNING" : greetingHour < 17 ? "GOOD AFTERNOON" : "GOOD EVENING";
-  const scopeLabel =
-    adminRecord?.role === "centre_incharge"
-      ? adminRecord.centreName || "Centre"
-      : adminRecord?.role === "regional_incharge"
-        ? adminRecord.regionName || "Region"
-        : "All centres";
+  const scopeLabel = "All centres";
 
   const resource = useResource(
     async () => {
@@ -91,7 +86,7 @@ export function AdminOverviewScreen() {
       ]);
 
       const studentProfiles = profiles.filter((p) => p.role === "student");
-      const staffProfiles = profiles.filter((p) => p.role === "teacher" || p.role === "employee");
+      const staffProfiles = profiles.filter((p) => p.role === "teacher" || p.role === "team");
 
       const today = getTodayDateValue();
       const studentsPresent = attendance.filter((a) => a.status === "present").length;

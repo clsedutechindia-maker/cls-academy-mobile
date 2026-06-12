@@ -23,9 +23,7 @@ export function TeacherAccountScreen() {
   const initials = profile?.name?.split(" ").slice(0, 2).map((w: string) => w[0]).join("") || "T";
   const subjects = (profile as any)?.teacherSubjectNames?.join(" · ") || "";
   const classes = (profile as any)?.teacherClassNames?.join(", ") || "";
-  const roleLabel = (profile as any)?.teacherRole === "class_teacher" ? "Class Teacher"
-    : (profile as any)?.teacherRole === "subject_teacher" ? "Subject Teacher"
-    : "Teacher";
+  const roleLabel = "Teacher";
 
   return (
     <View style={{ flex: 1, backgroundColor: D.bg }}>

@@ -10,14 +10,13 @@ const TEST_EMAIL_ROLE_MAP: Record<string, { demoRole: import("../src/lib/demoMod
   "demo.student.neet@clsacademy.test": { demoRole: "student", route: "/(student)/home" },
   "demo.student.jee@clsacademy.test": { demoRole: "student", route: "/(student)/home" },
   "demo.student.practice@clsacademy.test": { demoRole: "student", route: "/(student)/home" },
-  "demo.teacher@clsacademy.test": { demoRole: "head_teacher", route: "/(head-teacher)/home" },
-  "demo.subject.teacher@clsacademy.test": { demoRole: "subject_teacher", route: "/(teacher)/announcements" },
+  "demo.teacher@clsacademy.test": { demoRole: "team", route: "/(team)/home" },
+  "demo.subject.teacher@clsacademy.test": { demoRole: "teacher", route: "/(teacher)/announcements" },
   "demo.admin@clsacademy.test": { demoRole: "admin", route: "/(admin)/overview" },
-  "demo.employee@clsacademy.test": { demoRole: "student", route: "/(student)/home" },
 };
 
 export default function IndexRoute() {
-  const { role, profile, authUser, isReady } = useSession();
+  const { role, authUser, isReady } = useSession();
 
   useEffect(() => {
     if (!__DEV__) return;
@@ -46,10 +45,11 @@ export default function IndexRoute() {
     return <Redirect href="/(student)/home" />;
   }
 
+  if (role === "team") {
+    return <Redirect href="/(team)/home" />;
+  }
+
   if (role === "teacher") {
-    if (profile?.teacherRole === "head_teacher") {
-      return <Redirect href="/(head-teacher)/home" />;
-    }
     return <Redirect href="/(teacher)/home" />;
   }
 

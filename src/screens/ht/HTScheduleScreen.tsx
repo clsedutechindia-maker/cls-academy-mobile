@@ -121,18 +121,18 @@ export function HTScheduleScreen() {
   function openCreate() {
     if (!selectedClassId) return;
     if (activeTab === 0) {
-      router.push({ pathname: "/(head-teacher)/timetable-editor", params: { classId: selectedClassId, mode: "create", day: selectedDay } });
+      router.push({ pathname: "/(team)/timetable-editor", params: { classId: selectedClassId, mode: "create", day: selectedDay } });
     } else {
-      router.push({ pathname: "/(head-teacher)/exam-editor", params: { classId: selectedClassId, mode: "create" } });
+      router.push({ pathname: "/(team)/exam-editor", params: { classId: selectedClassId, mode: "create" } });
     }
   }
 
   function openEditSlot(entry: ClassTimetableRecord) {
-    router.push({ pathname: "/(head-teacher)/timetable-editor", params: { classId: entry.classId, entryId: entry.id, mode: "edit", day: entry.dayKey } });
+    router.push({ pathname: "/(team)/timetable-editor", params: { classId: entry.classId, entryId: entry.id, mode: "edit", day: entry.dayKey } });
   }
 
   function openEditExam(entry: TestScheduleRecord) {
-    router.push({ pathname: "/(head-teacher)/exam-editor", params: { classId: entry.classId, entryId: entry.id, mode: "edit" } });
+    router.push({ pathname: "/(team)/exam-editor", params: { classId: entry.classId, entryId: entry.id, mode: "edit" } });
   }
 
   return (

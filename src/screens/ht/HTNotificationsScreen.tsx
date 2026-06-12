@@ -75,7 +75,7 @@ export function HTNotificationsScreen() {
                     <AnimatedPressable
                       key={l.id}
                       style={[s.notifRow, i < studentLeaves.length - 1 && s.divider]}
-                      onPress={() => router.push("/(head-teacher)/leave")}
+                      onPress={() => router.push("/(team)/leave")}
                     >
                       <View style={[s.notifIcon, { backgroundColor: "#FEF3C7" }]}>
                         <Ionicons name="calendar-outline" size={16} color="#D97706" />
@@ -103,7 +103,7 @@ export function HTNotificationsScreen() {
                       style={[s.notifRow, i < openDoubts.length - 1 && s.divider]}
                       onPress={() =>
                         router.push({
-                          pathname: "/(head-teacher)/doubt-detail",
+                          pathname: "/(team)/doubt-detail",
                           params: { doubtId: d.id },
                         })
                       }
@@ -134,7 +134,7 @@ export function HTNotificationsScreen() {
                       style={[s.notifRow, { opacity: 0.75 }, i < Math.min(repliedDoubts.length, 10) - 1 && s.divider]}
                       onPress={() =>
                         router.push({
-                          pathname: "/(head-teacher)/doubt-detail",
+                          pathname: "/(team)/doubt-detail",
                           params: { doubtId: d.id },
                         })
                       }

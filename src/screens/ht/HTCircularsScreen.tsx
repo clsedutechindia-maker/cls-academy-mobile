@@ -56,7 +56,7 @@ export function HTCircularsScreen() {
             <AnimatedPressable style={s.searchIconBtn} onPress={() => { setSearchVisible((v) => !v); if (searchVisible) setSearch(""); }}>
               <Ionicons name={searchVisible ? "close" : "search"} size={20} color={D.onSurface} />
             </AnimatedPressable>
-            <AnimatedPressable style={s.searchIconBtn} onPress={() => router.push("/(head-teacher)/post-circular")}>
+            <AnimatedPressable style={s.searchIconBtn} onPress={() => router.push("/(team)/post-circular")}>
               <Ionicons name="add" size={20} color={D.onSurface} />
             </AnimatedPressable>
           </View>
@@ -119,7 +119,7 @@ export function HTCircularsScreen() {
                   style={[s.circularRow, i < filtered.length - 1 && s.divider]}
                   onPress={() =>
                     router.push({
-                      pathname: "/(head-teacher)/circular-detail",
+                      pathname: "/(team)/circular-detail",
                       params: {
                         id: c.id,
                         title: c.title,

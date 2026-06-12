@@ -57,11 +57,7 @@ function normalizeAnnouncementKind(value: unknown): AnnouncementKind {
   return "announcement";
 }
 
-function normalizeAdminRole(value: unknown): AdminRole {
-  if (value === "centre_incharge" || value === "regional_incharge") {
-    return value;
-  }
-
+function normalizeAdminRole(_value: unknown): AdminRole {
   return "admin";
 }
 

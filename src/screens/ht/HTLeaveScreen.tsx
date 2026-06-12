@@ -396,7 +396,7 @@ export function HTLeaveScreen() {
           </>
         ) : (
           <>
-            <AnimatedPressable style={s.newLeaveBtn} onPress={() => router.push("/(head-teacher)/new-leave")}>
+            <AnimatedPressable style={s.newLeaveBtn} onPress={() => router.push("/(team)/new-leave")}>
               <Ionicons name="add-circle-outline" size={16} color={D.primary} />
               <Text style={s.newLeaveText}>Apply for Leave</Text>
             </AnimatedPressable>

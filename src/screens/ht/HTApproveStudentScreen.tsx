@@ -79,7 +79,7 @@ export function HTApproveStudentScreen() {
                   style={[s.studentRow, i < (pending ?? []).length - 1 && s.divider]}
                   onPress={() =>
                     router.push({
-                      pathname: "/(head-teacher)/student-detail",
+                      pathname: "/(team)/student-detail",
                       params: { userId: st.userId, name: st.name, mode: "approve" },
                     })
                   }

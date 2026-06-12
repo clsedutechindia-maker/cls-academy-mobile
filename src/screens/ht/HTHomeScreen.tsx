@@ -10,10 +10,10 @@ import { useResource } from "../../hooks/useResource";
 import { listDoubtsForTeacher, listPendingStudentsForTeacher, listTeacherTimetable } from "../../lib/erp";
 
 const quickActions = [
-  { label: "Upload\nResult", icon: "bar-chart-outline" as const, color: D.primary, route: "/(head-teacher)/upload-result" as const },
-  { label: "Post\nCircular", icon: "megaphone-outline" as const, color: "#0369A1", route: "/(head-teacher)/post-circular" as const },
-  { label: "Leave\nRequests", icon: "document-text-outline" as const, color: "#15803D", route: "/(head-teacher)/leave" as const },
-  { label: "Answer\nDoubts", icon: "help-circle-outline" as const, color: "#EC4899", route: "/(head-teacher)/doubts" as const },
+  { label: "Upload\nResult", icon: "bar-chart-outline" as const, color: D.primary, route: "/(team)/upload-result" as const },
+  { label: "Post\nCircular", icon: "megaphone-outline" as const, color: "#0369A1", route: "/(team)/post-circular" as const },
+  { label: "Leave\nRequests", icon: "document-text-outline" as const, color: "#15803D", route: "/(team)/leave" as const },
+  { label: "Answer\nDoubts", icon: "help-circle-outline" as const, color: "#EC4899", route: "/(team)/doubts" as const },
 ];
 
 const subjectColors: Record<string, string> = {
@@ -68,7 +68,7 @@ export function HTHomeScreen() {
       sub: "unanswered",
       icon: "help-circle-outline" as const,
       tone: { bg: "#FDF2F8", fg: "#EC4899" },
-      onPress: () => router.push("/(head-teacher)/doubts"),
+      onPress: () => router.push("/(team)/doubts"),
     },
     {
       label: "Pending Approvals",
@@ -76,7 +76,7 @@ export function HTHomeScreen() {
       sub: "new enrollments",
       icon: "time-outline" as const,
       tone: { bg: "#FEF3C7", fg: "#B45309" },
-      onPress: () => router.push("/(head-teacher)/approve-student"),
+      onPress: () => router.push("/(team)/approve-student"),
     },
   ];
 
@@ -144,7 +144,7 @@ export function HTHomeScreen() {
                   <Text style={s.nameText}>{profile?.name || "Teacher"}</Text>
                 </View>
               </View>
-              <AnimatedPressable style={s.bellBtn} onPress={() => router.push("/(head-teacher)/notifications")}>
+              <AnimatedPressable style={s.bellBtn} onPress={() => router.push("/(team)/notifications")}>
                 <Ionicons name="notifications-outline" size={20} color="#fff" />
                 <View style={s.bellDot} />
               </AnimatedPressable>
@@ -188,7 +188,7 @@ export function HTHomeScreen() {
           </View>
 
           {/* Today's classes */}
-          <SectionHeader title="Today's classes" action="Full schedule" onPress={() => router.push("/(head-teacher)/schedule")} />
+          <SectionHeader title="Today's classes" action="Full schedule" onPress={() => router.push("/(team)/schedule")} />
           <View style={s.card}>
             {todayClasses.length === 0 ? (
               <View style={{ padding: 16, alignItems: "center" }}>
@@ -215,7 +215,7 @@ export function HTHomeScreen() {
           </View>
 
           {/* Upcoming tests */}
-          <SectionHeader title="Upcoming tests" action="View all" onPress={() => router.push("/(head-teacher)/schedule")} />
+          <SectionHeader title="Upcoming tests" action="View all" onPress={() => router.push("/(team)/schedule")} />
           <View style={[s.card, { padding: 16, alignItems: "center" }]}>
             <Text style={{ fontSize: 13, fontFamily: D.font, color: D.outline }}>View schedule for upcoming test details.</Text>
           </View>

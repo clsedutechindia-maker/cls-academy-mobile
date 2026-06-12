@@ -27,7 +27,7 @@ export function TeachingPlanEditorScreen() {
   const insets = useSafeAreaInsets();
   const { authUser, profile, adminRecord } = useSession();
   const isAdmin = Boolean(adminRecord);
-  const group = isAdmin ? "(admin)" : profile?.teacherRole === "head_teacher" ? "(head-teacher)" : "(teacher)";
+  const group = isAdmin ? "(admin)" : profile?.role === "team" ? "(team)" : "(teacher)";
   const params = useLocalSearchParams<{ mode?: string; id?: string }>();
   const planId = typeof params.id === "string" ? params.id : "";
   const isEdit = params.mode === "edit" && Boolean(planId);

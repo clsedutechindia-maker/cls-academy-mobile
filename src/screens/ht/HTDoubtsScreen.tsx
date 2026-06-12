@@ -39,7 +39,7 @@ export function HTDoubtsScreen() {
   const insets = useSafeAreaInsets();
   const { profile } = useSession();
   const segments = useSegments();
-  const doubtDetailPath = (segments[0] as string) === "(teacher)" ? "/(teacher)/doubt-detail" : "/(head-teacher)/doubt-detail";
+  const doubtDetailPath = (segments[0] as string) === "(teacher)" ? "/(teacher)/doubt-detail" : "/(team)/doubt-detail";
   const [activeFilter, setActiveFilter] = useState<FilterOption>("All");
   const [search, setSearch] = useState("");
   const [searchVisible, setSearchVisible] = useState(false);

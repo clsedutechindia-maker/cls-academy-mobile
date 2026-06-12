@@ -70,9 +70,16 @@ export function getNotificationRoute(data: Record<string, unknown> | undefined):
     }
   }
 
-  if (role === "teacher" || role === "head_teacher") {
+  if (role === "team") {
     switch (type) {
-      case "leave": return "/(head-teacher)/leave";
+      case "leave": return "/(team)/leave";
+      case "complaint": return "/(team)/announcements";
+      default: return "/(team)/announcements";
+    }
+  }
+
+  if (role === "teacher") {
+    switch (type) {
       case "complaint": return "/(teacher)/announcements";
       default: return "/(teacher)/announcements";
     }

@@ -1,6 +1,8 @@
 export const adminCollectionName = "admins";
 
-export type AdminRole = "admin" | "centre_incharge" | "regional_incharge";
+// Single admin tier (superadmin). Centre/regional incharge tiers were retired;
+// such records are deactivated by migration and any stray value normalizes to "admin".
+export type AdminRole = "admin";
 
 export type AdminRecord = {
   email: string;
@@ -12,11 +14,7 @@ export type AdminRecord = {
   centreName: string;
 };
 
-function normalizeAdminRole(value: unknown): AdminRole {
-  if (value === "centre_incharge" || value === "regional_incharge") {
-    return value;
-  }
-
+function normalizeAdminRole(_value: unknown): AdminRole {
   return "admin";
 }
 
@@ -32,14 +30,6 @@ export function normalizeAdminRecord(data: Partial<AdminRecord> | undefined) {
   } satisfies AdminRecord;
 }
 
-export function formatAdminRoleLabel(role: AdminRole) {
-  if (role === "centre_incharge") {
-    return "Centre Incharge";
-  }
-
-  if (role === "regional_incharge") {
-    return "Regional Incharge";
-  }
-
-  return "Superadmin";
+export function formatAdminRoleLabel(_role: AdminRole) {
+  return "Admin";
 }

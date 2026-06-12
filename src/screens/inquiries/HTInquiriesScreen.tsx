@@ -49,7 +49,7 @@ export function HTInquiriesScreen() {
   }, [all, filter, search]);
 
   function openDetail(inquiry: AdmissionInquiryRecord) {
-    router.push({ pathname: "/(head-teacher)/inquiry-detail" as any, params: { inquiryId: inquiry.id } });
+    router.push({ pathname: "/(team)/inquiry-detail" as any, params: { inquiryId: inquiry.id } });
   }
 
   return (
@@ -57,7 +57,7 @@ export function HTInquiriesScreen() {
       <View style={[s.header, { paddingTop: insets.top + 20 }]}>
         <View style={s.titleRow}>
           <Text style={s.title}>Inquiries</Text>
-          <AnimatedPressable style={s.addBtn} onPress={() => router.push("/(head-teacher)/log-inquiry" as any)}>
+          <AnimatedPressable style={s.addBtn} onPress={() => router.push("/(team)/log-inquiry" as any)}>
             <Ionicons name="add" size={22} color="#fff" />
           </AnimatedPressable>
         </View>

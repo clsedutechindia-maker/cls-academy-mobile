@@ -30,8 +30,8 @@ export function HTMaterialsScreen() {
   const insets = useSafeAreaInsets();
   const { profile } = useSession();
   const segments = useSegments();
-  const materialDetailPath = (segments[0] as string) === "(teacher)" ? "/(teacher)/material-detail" : "/(head-teacher)/material-detail";
-  const postMaterialPath = (segments[0] as string) === "(teacher)" ? "/(teacher)/post-material" : "/(head-teacher)/post-material";
+  const materialDetailPath = (segments[0] as string) === "(teacher)" ? "/(teacher)/material-detail" : "/(team)/material-detail";
+  const postMaterialPath = (segments[0] as string) === "(teacher)" ? "/(teacher)/post-material" : "/(team)/post-material";
 
   const [selectedFilter, setSelectedFilter] = useState("All");
   const [search, setSearch] = useState("");

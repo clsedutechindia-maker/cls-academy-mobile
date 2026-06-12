@@ -163,7 +163,7 @@ export function HTResultsScreen() {
                     style={[s.resultRow, i < filtered.length - 1 && s.divider]}
                     onPress={() =>
                       router.push({
-                        pathname: "/(head-teacher)/result-detail",
+                        pathname: "/(team)/result-detail",
                         params: {
                           assessmentTitle: r.assessmentTitle,
                           classId: r.classId,
@@ -201,7 +201,7 @@ export function HTResultsScreen() {
       <TouchableOpacity
         style={s.fab}
         activeOpacity={0.85}
-        onPress={() => router.push("/(head-teacher)/upload-result")}
+        onPress={() => router.push("/(team)/upload-result")}
       >
         <Ionicons name="add" size={18} color="#fff" />
         <Text style={s.fabText}>Upload Result</Text>

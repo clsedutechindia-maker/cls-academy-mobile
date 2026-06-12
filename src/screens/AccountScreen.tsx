@@ -41,13 +41,7 @@ export function AccountScreen() {
   const displayName = profile?.name || authUser?.displayName || authUser?.email?.split("@")[0] || "Member";
   const displayEmail = authUser?.email || "No email";
 
-  const scopeLabel = adminRecord
-    ? adminRecord.role === "centre_incharge"
-      ? adminRecord.centreName || "Centre"
-      : adminRecord.role === "regional_incharge"
-        ? adminRecord.regionName || "Region"
-        : "All Centres"
-    : profile?.centreName || null;
+  const scopeLabel = adminRecord ? "All Centres" : profile?.centreName || null;
 
   return (
     <SafeAreaView style={s.safe}>

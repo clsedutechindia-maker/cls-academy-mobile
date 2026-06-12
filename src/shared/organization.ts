@@ -140,8 +140,14 @@ function normalizeAccountRole(value: unknown): AccountRole {
     return "teacher";
   }
 
+  if (value === "team") {
+    return "team";
+  }
+
+  // Legacy: dropped "employee" role maps to a plain teacher account (migration
+  // converts these; this is the defensive fallback for un-migrated docs).
   if (value === "employee") {
-    return "employee";
+    return "teacher";
   }
 
   return "student";
@@ -273,12 +279,17 @@ export function normalizeUserProfileRecord(
   data: Partial<UserProfileRecord> | undefined,
   fallbackEmail = "",
 ): UserProfileRecord {
-  const role = normalizeAccountRole(data?.role || data?.accountType);
-  const teacherRole = role === "teacher" ? normalizeTeacherRole(data?.teacherRole || data?.teacher_role) : "";
-  const teacherClassIds = role === "teacher" ? normalizeStringArray(data?.teacherClassIds || data?.teacher_class_ids) : [];
-  const teacherClassNames = role === "teacher" ? normalizeStringArray(data?.teacherClassNames || data?.teacher_class_names) : [];
-  const teacherSubjectIds = role === "teacher" ? normalizeStringArray(data?.teacherSubjectIds || data?.teacher_subject_ids) : [];
-  const teacherSubjectNames = role === "teacher" ? normalizeStringArray(data?.teacherSubjectNames || data?.teacher_subject_names) : [];
+  const rawRole = normalizeAccountRole(data?.role || data?.accountType);
+  // Legacy head teachers (role:"teacher" + teacherRole:"head_teacher") become "team".
+  const legacyTeacherRole = normalizeTeacherRole(data?.teacherRole || data?.teacher_role);
+  const role: AccountRole = rawRole === "teacher" && legacyTeacherRole === "head_teacher" ? "team" : rawRole;
+  const isTeaching = role === "teacher" || role === "team";
+  // teacherRole tier is retired; route off `role`. Always blank in normalized output.
+  const teacherRole = "" as const;
+  const teacherClassIds = isTeaching ? normalizeStringArray(data?.teacherClassIds || data?.teacher_class_ids) : [];
+  const teacherClassNames = isTeaching ? normalizeStringArray(data?.teacherClassNames || data?.teacher_class_names) : [];
+  const teacherSubjectIds = isTeaching ? normalizeStringArray(data?.teacherSubjectIds || data?.teacher_subject_ids) : [];
+  const teacherSubjectNames = isTeaching ? normalizeStringArray(data?.teacherSubjectNames || data?.teacher_subject_names) : [];
   const fullName = formatDisplayName(data?.name || data?.fullName || "");
   const className = data?.className?.trim() || data?.studentClass?.trim() || "";
   const centreName = data?.centreName?.trim() || data?.branch?.trim() || "";

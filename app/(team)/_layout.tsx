@@ -54,10 +54,10 @@ function ActiveTabIcon(name: IoniconsName, activeName: IoniconsName, subPaths: s
   };
 }
 
-export default function HeadTeacherLayout() {
-  const { role, profile, isReady } = useSession();
+export default function TeamLayout() {
+  const { role, isReady } = useSession();
 
-  if (isReady && (role !== "teacher" || profile?.teacherRole !== "head_teacher")) {
+  if (isReady && role !== "team") {
     return <Redirect href="/" />;
   }
 

@@ -156,7 +156,7 @@ function BasicInfoTab({ profile, approveMode, userId }: { profile: UserProfileRe
       ) : (
         <AnimatedPressable
           style={s.removeBtn}
-          onPress={() => router.push({ pathname: "/(head-teacher)/remove-student", params: { userId, name: profile?.name ?? "" } })}
+          onPress={() => router.push({ pathname: "/(team)/remove-student", params: { userId, name: profile?.name ?? "" } })}
         >
           <Ionicons name="trash-outline" size={18} color="#B91C1C" />
           <Text style={s.removeBtnText}>Remove Student</Text>
