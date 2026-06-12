@@ -112,10 +112,11 @@ export default function AdminLayout() {
         options={{
           title: "Operations",
           tabBarIcon: ActiveTabIcon("clipboard-outline", "clipboard", [
-            "/complaints", "/schedule", "/timetable-editor", "/exam-editor",
+            "/complaints", "/complaint-detail", "/schedule", "/timetable-editor", "/exam-editor",
             "/results", "/result-detail", "/leave",
             "/teaching-plans", "/teaching-plan-detail", "/teaching-plan-editor",
             "/sessions",
+            "/inquiries", "/inquiry-detail",
           ]),
         }}
       />
@@ -123,6 +124,7 @@ export default function AdminLayout() {
       <Tabs.Screen name="attendance" options={{ href: null }} />
       <Tabs.Screen name="lookups" options={{ href: null }} />
       <Tabs.Screen name="complaints" options={{ href: null }} />
+      <Tabs.Screen name="complaint-detail" options={{ href: null }} />
       <Tabs.Screen name="notifications" options={{ href: null }} />
       <Tabs.Screen name="profile-settings" options={{ href: null }} />
       <Tabs.Screen name="leave" options={{ href: null }} />
@@ -134,6 +136,8 @@ export default function AdminLayout() {
       <Tabs.Screen name="teaching-plan-detail" options={{ href: null }} />
       <Tabs.Screen name="teaching-plan-editor" options={{ href: null }} />
       <Tabs.Screen name="sessions" options={{ href: null }} />
+      <Tabs.Screen name="inquiries" options={{ href: null }} />
+      <Tabs.Screen name="inquiry-detail" options={{ href: null }} />
       <Tabs.Screen name="results" options={{ href: null }} />
       <Tabs.Screen name="result-detail" options={{ href: null }} />
     </Tabs>

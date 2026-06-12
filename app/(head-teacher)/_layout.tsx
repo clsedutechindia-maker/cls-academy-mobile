@@ -118,6 +118,7 @@ export default function HeadTeacherLayout() {
             "/doubts", "/doubt-detail",
             "/teaching-plans", "/teaching-plan-detail", "/teaching-plan-editor",
             "/sessions",
+            "/inquiries", "/log-inquiry", "/inquiry-detail",
           ]),
         }}
       />
@@ -141,6 +142,9 @@ export default function HeadTeacherLayout() {
       <Tabs.Screen name="teaching-plan-detail" options={{ href: null }} />
       <Tabs.Screen name="teaching-plan-editor" options={{ href: null }} />
       <Tabs.Screen name="sessions" options={{ href: null }} />
+      <Tabs.Screen name="inquiries" options={{ href: null }} />
+      <Tabs.Screen name="log-inquiry" options={{ href: null }} />
+      <Tabs.Screen name="inquiry-detail" options={{ href: null }} />
       <Tabs.Screen name="circulars" options={{ href: null }} />
       <Tabs.Screen name="post-circular" options={{ href: null }} />
       <Tabs.Screen name="circular-detail" options={{ href: null }} />

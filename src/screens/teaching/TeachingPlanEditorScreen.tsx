@@ -1,9 +1,10 @@
 import { useMemo, useState } from "react";
-import { ActivityIndicator, Alert, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
+import { ActivityIndicator, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { router, useLocalSearchParams } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { navigateBack } from "../../lib/navigation";
+import { showAlert } from "../../lib/alert";
 import { D } from "../../components/theme";
 import { AnimatedPressable } from "../../components/motion";
 import { useSession } from "../../providers/session";
@@ -26,6 +27,7 @@ export function TeachingPlanEditorScreen() {
   const insets = useSafeAreaInsets();
   const { authUser, profile, adminRecord } = useSession();
   const isAdmin = Boolean(adminRecord);
+  const group = isAdmin ? "(admin)" : profile?.teacherRole === "head_teacher" ? "(head-teacher)" : "(teacher)";
   const params = useLocalSearchParams<{ mode?: string; id?: string }>();
   const planId = typeof params.id === "string" ? params.id : "";
   const isEdit = params.mode === "edit" && Boolean(planId);
@@ -114,7 +116,7 @@ export function TeachingPlanEditorScreen() {
       .sort((a, b) => a.date.localeCompare(b.date))
       .map((row) => ({ date: row.date, day: dayLabelForDate(row.date) || row.day, topics: row.topics }));
     if (sortedRows.length === 0) {
-      Alert.alert("Missing Info", "Add at least one day with topics.");
+      showAlert("Missing Info", "Add at least one day with topics.");
       return null;
     }
     const weekEnd = sortedRows[sortedRows.length - 1]!.date;
@@ -149,7 +151,7 @@ export function TeachingPlanEditorScreen() {
     }
 
     if (!selectedMapping) {
-      Alert.alert("Missing Info", "Select a class & subject.");
+      showAlert("Missing Info", "Select a class & subject.");
       return null;
     }
     return {
@@ -180,11 +182,11 @@ export function TeachingPlanEditorScreen() {
 
   async function persist(submit: boolean) {
     if (!weekStart) {
-      Alert.alert("Missing Info", "Pick the week start date.");
+      showAlert("Missing Info", "Pick the week start date.");
       return;
     }
     if (!unitName.trim()) {
-      Alert.alert("Missing Info", "Enter a unit name.");
+      showAlert("Missing Info", "Enter a unit name.");
       return;
     }
     const input = buildInput("draft");
@@ -197,21 +199,19 @@ export function TeachingPlanEditorScreen() {
       }
       if (submit) {
         await submitTeachingPlan(newId, actor);
+        router.replace({ pathname: `/${group}/teaching-plan-detail` as never, params: { id: newId, g: group } });
+        return;
       }
-      Alert.alert(
-        submit ? "Submitted" : "Saved",
-        submit ? "Plan submitted for admin review." : "Plan saved as draft.",
-        [{ text: "OK", onPress: () => navigateBack(router) }],
-      );
+      showAlert("Saved", "Plan saved as draft.", [{ text: "OK", onPress: () => navigateBack(router) }]);
     } catch {
-      Alert.alert("Error", "Could not save. Try again.");
+      showAlert("Error", "Could not save. Try again.");
     } finally {
       setSaving(false);
     }
   }
 
   function handleDelete() {
-    Alert.alert("Delete Plan", "Delete this draft plan?", [
+    showAlert("Delete Plan", "Delete this draft plan?", [
       { text: "Cancel", style: "cancel" },
       {
         text: "Delete",
@@ -219,8 +219,8 @@ export function TeachingPlanEditorScreen() {
         onPress: () => {
           setSaving(true);
           deleteTeachingPlan(planId)
-            .then(() => Alert.alert("Deleted", "Plan removed.", [{ text: "OK", onPress: () => navigateBack(router) }]))
-            .catch(() => Alert.alert("Error", "Could not delete. Try again."))
+            .then(() => showAlert("Deleted", "Plan removed.", [{ text: "OK", onPress: () => navigateBack(router) }]))
+            .catch(() => showAlert("Error", "Could not delete. Try again."))
             .finally(() => setSaving(false));
         },
       },

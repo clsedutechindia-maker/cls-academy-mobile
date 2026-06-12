@@ -10,6 +10,7 @@ import type {
   LeaveRequestRecord,
 } from "./erp";
 import type { ClassSubjectRecord, SessionSlotRecord, StudentResultRecord, StudentAttendanceRecord } from "../shared";
+import type { AdmissionInquiryRecord, InquiryFollowUpRecord } from "../shared";
 import type { DemoRole } from "./demoMode";
 
 // ─── Shared constants ────────────────────────────────────────────────────────
@@ -711,7 +712,16 @@ export function getDemoMaterials() {
 }
 
 export function getDemoComplaints() {
-  return [..._pendingDemoComplaints, ...DEMO_COMPLAINTS];
+  return [..._pendingDemoComplaints, ...DEMO_COMPLAINTS].map((c) => {
+    const override = _complaintOverrides.get(c.id);
+    if (!override) return c;
+    return {
+      ...c,
+      status: override.status,
+      adminReply: override.adminReply ?? c.adminReply,
+      updatedAtIso: override.updatedAtIso,
+    };
+  });
 }
 
 // ─── Demo persistent queues ────────────────────────────────────────────────────
@@ -719,17 +729,24 @@ let _pendingDemoDoubts: StudentDoubtRecord[] = [];
 let _pendingDemoLeaves: StudentLeaveRequestRecord[] = [];
 let _pendingDemoComplaints: StudentComplaintRecord[] = [];
 let _demoSessionSlots: SessionSlotRecord[] = [];
+let _demoInquiries: AdmissionInquiryRecord[] = [];
+let _demoInquiryFollowUps: Record<string, InquiryFollowUpRecord[]> = {};
 let _demoAttendance: Record<string, StudentAttendanceRecord> = {};
 let _demoAttendanceLocks: string[] = [];
 const _studentLeaveOverrides = new Map<string, "approved" | "rejected">();
 const _staffLeaveOverrides = new Map<string, "approved" | "rejected">();
+type ComplaintOverride = { status: StudentComplaintRecord["status"]; adminReply?: string; updatedAtIso: string };
+const _complaintOverrides = new Map<string, ComplaintOverride>();
 
 const KEY_DOUBTS = "cls:demo-pending-doubts";
 const KEY_LEAVES = "cls:demo-pending-leaves";
 const KEY_COMPLAINTS = "cls:demo-pending-complaints";
 const KEY_STUDENT_OVERRIDES = "cls:demo-leave-overrides";
 const KEY_STAFF_OVERRIDES = "cls:demo-staff-overrides";
+const KEY_COMPLAINT_OVERRIDES = "cls:demo-complaint-overrides";
 const KEY_SESSIONS = "cls:demo-session-slots";
+const KEY_INQUIRIES = "cls:demo-inquiries";
+const KEY_INQUIRY_FOLLOWUPS = "cls:demo-inquiry-followups";
 const KEY_ATTENDANCE = "cls:demo-attendance";
 const KEY_ATT_LOCKS = "cls:demo-attendance-locks";
 let _hydrated = false;
@@ -738,7 +755,7 @@ export async function hydrateDemoState(): Promise<void> {
   if (_hydrated) return;
   _hydrated = true;
   try {
-    const [doubtsRaw, leavesRaw, complaintsRaw, studentOvRaw, staffOvRaw, sessionsRaw, attendanceRaw, locksRaw] = await Promise.all([
+    const [doubtsRaw, leavesRaw, complaintsRaw, studentOvRaw, staffOvRaw, sessionsRaw, attendanceRaw, locksRaw, complaintOvRaw, inquiriesRaw, followUpsRaw] = await Promise.all([
       AsyncStorage.getItem(KEY_DOUBTS),
       AsyncStorage.getItem(KEY_LEAVES),
       AsyncStorage.getItem(KEY_COMPLAINTS),
@@ -747,11 +764,22 @@ export async function hydrateDemoState(): Promise<void> {
       AsyncStorage.getItem(KEY_SESSIONS),
       AsyncStorage.getItem(KEY_ATTENDANCE),
       AsyncStorage.getItem(KEY_ATT_LOCKS),
+      AsyncStorage.getItem(KEY_COMPLAINT_OVERRIDES),
+      AsyncStorage.getItem(KEY_INQUIRIES),
+      AsyncStorage.getItem(KEY_INQUIRY_FOLLOWUPS),
     ]);
     if (doubtsRaw) _pendingDemoDoubts = JSON.parse(doubtsRaw) as StudentDoubtRecord[];
     if (leavesRaw) _pendingDemoLeaves = JSON.parse(leavesRaw) as StudentLeaveRequestRecord[];
     if (complaintsRaw) _pendingDemoComplaints = JSON.parse(complaintsRaw) as StudentComplaintRecord[];
     if (sessionsRaw) _demoSessionSlots = JSON.parse(sessionsRaw) as SessionSlotRecord[];
+    // Inquiries: use stored if present, otherwise seed sample leads so admin/HT
+    // have data to see in demo mode.
+    if (inquiriesRaw) {
+      _demoInquiries = JSON.parse(inquiriesRaw) as AdmissionInquiryRecord[];
+      _demoInquiryFollowUps = followUpsRaw ? (JSON.parse(followUpsRaw) as Record<string, InquiryFollowUpRecord[]>) : {};
+    } else {
+      seedDemoInquiries();
+    }
     if (attendanceRaw) _demoAttendance = JSON.parse(attendanceRaw) as Record<string, StudentAttendanceRecord>;
     if (locksRaw) _demoAttendanceLocks = JSON.parse(locksRaw) as string[];
     if (studentOvRaw) {
@@ -761,6 +789,10 @@ export async function hydrateDemoState(): Promise<void> {
     if (staffOvRaw) {
       const entries = JSON.parse(staffOvRaw) as Array<[string, "approved" | "rejected"]>;
       for (const [k, v] of entries) _staffLeaveOverrides.set(k, v);
+    }
+    if (complaintOvRaw) {
+      const entries = JSON.parse(complaintOvRaw) as Array<[string, ComplaintOverride]>;
+      for (const [k, v] of entries) _complaintOverrides.set(k, v);
     }
   } catch {}
 }
@@ -790,6 +822,20 @@ export function setDemoStaffLeaveStatus(id: string, status: "approved" | "reject
   void AsyncStorage.setItem(KEY_STAFF_OVERRIDES, JSON.stringify(Array.from(_staffLeaveOverrides.entries())));
 }
 
+export function setDemoComplaintResolution(
+  id: string,
+  status: StudentComplaintRecord["status"],
+  adminReply?: string,
+) {
+  const prev = _complaintOverrides.get(id);
+  _complaintOverrides.set(id, {
+    status,
+    adminReply: adminReply ?? prev?.adminReply,
+    updatedAtIso: new Date().toISOString(),
+  });
+  void AsyncStorage.setItem(KEY_COMPLAINT_OVERRIDES, JSON.stringify(Array.from(_complaintOverrides.entries())));
+}
+
 // ─── Demo session slots ─────────────────────────────────────────────────────
 function persistDemoSessions() {
   void AsyncStorage.setItem(KEY_SESSIONS, JSON.stringify(_demoSessionSlots));
@@ -812,6 +858,163 @@ export function updateDemoSessionSlot(id: string, patch: Partial<SessionSlotReco
 export function deleteDemoSessionSlot(id: string) {
   _demoSessionSlots = _demoSessionSlots.filter((s) => s.id !== id);
   persistDemoSessions();
+}
+
+// ─── Demo admission inquiries ───────────────────────────────────────────────
+function persistDemoInquiries() {
+  void AsyncStorage.setItem(KEY_INQUIRIES, JSON.stringify(_demoInquiries));
+  void AsyncStorage.setItem(KEY_INQUIRY_FOLLOWUPS, JSON.stringify(_demoInquiryFollowUps));
+}
+
+function daysFromNowIso(days: number): string {
+  return new Date(Date.now() + days * 86400000).toISOString();
+}
+
+function daysFromNowDate(days: number): string {
+  return new Date(Date.now() + days * 86400000).toISOString().slice(0, 10);
+}
+
+function seedDemoInquiries() {
+  const ht = { id: "demo-ht-001", name: "Ishika Sharma" };
+  const base = {
+    centreId: CENTRE_ID,
+    centreName: CENTRE_NAME,
+    regionId: REGION_ID,
+    regionName: REGION_NAME,
+    createdByUserId: ht.id,
+    createdByName: ht.name,
+    assignedToUserId: ht.id,
+    assignedToName: ht.name,
+    updatedByUserId: ht.id,
+    updatedByName: ht.name,
+  };
+  _demoInquiries = [
+    {
+      id: "demo-inq-001",
+      studentName: "Arya Agarwal",
+      phone: "7000068365",
+      phoneKey: "7000068365",
+      email: "arya.agarwal@example.com",
+      course: "10th Foundation",
+      mode: "phone",
+      status: "demo_scheduled",
+      remark: "Will join demo class tomorrow.",
+      followUpCount: 2,
+      lastContactedAtIso: daysFromNowIso(-1),
+      nextFollowUpDate: daysFromNowDate(1),
+      createdAtIso: daysFromNowIso(-3),
+      updatedAtIso: daysFromNowIso(-1),
+      ...base,
+    },
+    {
+      id: "demo-inq-002",
+      studentName: "Anagha Mishra",
+      phone: "8827256970",
+      phoneKey: "8827256970",
+      email: "anagha.mishra@example.com",
+      course: "11th NEET",
+      mode: "walk_in",
+      status: "demo_attended",
+      remark: "Joined the demo class today; parents reviewing fee.",
+      followUpCount: 3,
+      lastContactedAtIso: daysFromNowIso(0),
+      nextFollowUpDate: daysFromNowDate(2),
+      createdAtIso: daysFromNowIso(-5),
+      updatedAtIso: daysFromNowIso(0),
+      ...base,
+    },
+    {
+      id: "demo-inq-003",
+      studentName: "Prince Verma",
+      phone: "9303012345",
+      phoneKey: "9303012345",
+      email: "",
+      course: "12th JEE",
+      mode: "reference",
+      status: "contacted",
+      remark: "Referred by current student; call back after school hours.",
+      followUpCount: 1,
+      lastContactedAtIso: daysFromNowIso(-2),
+      nextFollowUpDate: daysFromNowDate(-1), // overdue
+      createdAtIso: daysFromNowIso(-2),
+      updatedAtIso: daysFromNowIso(-2),
+      ...base,
+    },
+    {
+      id: "demo-inq-004",
+      studentName: "Mihir Sahu",
+      phone: "7771234567",
+      phoneKey: "7771234567",
+      email: "mihir.sahu@example.com",
+      course: "11th NEET",
+      mode: "walk_in",
+      status: "enrolled",
+      remark: "Admission confirmed; fee paid.",
+      followUpCount: 4,
+      lastContactedAtIso: daysFromNowIso(-1),
+      nextFollowUpDate: "",
+      createdAtIso: daysFromNowIso(-9),
+      updatedAtIso: daysFromNowIso(-1),
+      ...base,
+    },
+    {
+      id: "demo-inq-005",
+      studentName: "Pokhan Yadav",
+      phone: "9425098765",
+      phoneKey: "9425098765",
+      email: "pokhan.y@example.com",
+      course: "10th Foundation",
+      mode: "online",
+      status: "new",
+      remark: "Enquired via website form; not yet contacted.",
+      followUpCount: 1,
+      lastContactedAtIso: daysFromNowIso(0),
+      nextFollowUpDate: daysFromNowDate(0),
+      createdAtIso: daysFromNowIso(0),
+      updatedAtIso: daysFromNowIso(0),
+      ...base,
+    },
+  ];
+  _demoInquiryFollowUps = {
+    "demo-inq-001": [
+      { id: "demo-fu-001a", note: "First call — interested in 10th foundation batch.", mode: "phone", outcome: "new", nextFollowUpDate: daysFromNowDate(-1), byUserId: ht.id, byName: ht.name, createdAtIso: daysFromNowIso(-3) },
+      { id: "demo-fu-001b", note: "Scheduled a demo class for tomorrow.", mode: "phone", outcome: "demo_scheduled", nextFollowUpDate: daysFromNowDate(1), byUserId: ht.id, byName: ht.name, createdAtIso: daysFromNowIso(-1) },
+    ],
+    "demo-inq-002": [
+      { id: "demo-fu-002a", note: "Walked into office, took batch details.", mode: "walk_in", outcome: "new", nextFollowUpDate: "", byUserId: ht.id, byName: ht.name, createdAtIso: daysFromNowIso(-5) },
+      { id: "demo-fu-002b", note: "Called to invite for demo.", mode: "phone", outcome: "demo_scheduled", nextFollowUpDate: daysFromNowDate(0), byUserId: ht.id, byName: ht.name, createdAtIso: daysFromNowIso(-2) },
+      { id: "demo-fu-002c", note: "Attended demo class; parents reviewing fee.", mode: "walk_in", outcome: "demo_attended", nextFollowUpDate: daysFromNowDate(2), byUserId: ht.id, byName: ht.name, createdAtIso: daysFromNowIso(0) },
+    ],
+    "demo-inq-003": [
+      { id: "demo-fu-003a", note: "Referred by current student; call back after school.", mode: "reference", outcome: "contacted", nextFollowUpDate: daysFromNowDate(-1), byUserId: ht.id, byName: ht.name, createdAtIso: daysFromNowIso(-2) },
+    ],
+    "demo-inq-004": [
+      { id: "demo-fu-004d", note: "Admission confirmed; fee paid.", mode: "walk_in", outcome: "enrolled", nextFollowUpDate: "", byUserId: ht.id, byName: ht.name, createdAtIso: daysFromNowIso(-1) },
+    ],
+    "demo-inq-005": [
+      { id: "demo-fu-005a", note: "Website enquiry received.", mode: "online", outcome: "new", nextFollowUpDate: daysFromNowDate(0), byUserId: ht.id, byName: ht.name, createdAtIso: daysFromNowIso(0) },
+    ],
+  };
+}
+
+export function getDemoInquiries(): AdmissionInquiryRecord[] {
+  return _demoInquiries;
+}
+
+export function getDemoInquiryFollowUps(inquiryId: string): InquiryFollowUpRecord[] {
+  return _demoInquiryFollowUps[inquiryId] ?? [];
+}
+
+export function addDemoInquiry(inquiry: AdmissionInquiryRecord, followUp: InquiryFollowUpRecord) {
+  _demoInquiries.unshift(inquiry);
+  _demoInquiryFollowUps[inquiry.id] = [followUp];
+  persistDemoInquiries();
+}
+
+export function addDemoInquiryFollowUp(inquiryId: string, followUp: InquiryFollowUpRecord, patch: Partial<AdmissionInquiryRecord>) {
+  _demoInquiryFollowUps[inquiryId] = [...(_demoInquiryFollowUps[inquiryId] ?? []), followUp];
+  _demoInquiries = _demoInquiries.map((i) => (i.id === inquiryId ? { ...i, ...patch } : i));
+  persistDemoInquiries();
 }
 
 // ─── Demo attendance + locks ────────────────────────────────────────────────

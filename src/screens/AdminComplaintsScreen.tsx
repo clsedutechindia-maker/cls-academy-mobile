@@ -101,7 +101,11 @@ export function AdminComplaintsScreen() {
           <View style={s.listCard}>
             <Stagger>
               {filtered.map((complaint, idx) => (
-                <View key={complaint.id} style={[s.row, idx < filtered.length - 1 && s.rowBorder]}>
+                <AnimatedPressable
+                  key={complaint.id}
+                  onPress={() => router.push(`/(admin)/complaint-detail?id=${encodeURIComponent(complaint.id)}`)}
+                  style={[s.row, idx < filtered.length - 1 && s.rowBorder]}
+                >
                   <View style={{ flex: 1, gap: 3 }}>
                     <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
                       <Text style={s.rowTitle} numberOfLines={1}>{complaint.subject} · {complaint.studentName}</Text>
@@ -112,7 +116,8 @@ export function AdminComplaintsScreen() {
                       <Text style={s.rowMeta} numberOfLines={2}>{complaint.description.slice(0, 80)}</Text>
                     ) : null}
                   </View>
-                </View>
+                  <Ionicons name="chevron-forward" size={16} color={D.outline} style={{ alignSelf: "center" }} />
+                </AnimatedPressable>
               ))}
             </Stagger>
           </View>
@@ -147,7 +152,7 @@ const s = StyleSheet.create({
   chipTextActive: { color: D.primary, fontFamily: D.fontExtraBold },
 
   listCard: { backgroundColor: D.surface, borderRadius: 18, borderWidth: 1, borderColor: D.outlineVariant, overflow: "hidden" },
-  row: { paddingHorizontal: 14, paddingVertical: 14 },
+  row: { flexDirection: "row", alignItems: "center", gap: 10, paddingHorizontal: 14, paddingVertical: 14 },
   rowBorder: { borderBottomWidth: 1, borderBottomColor: D.outlineVariant },
   rowTitle: { fontSize: 13, fontFamily: D.fontBold, color: D.onSurface, flex: 1 },
   rowSub: { fontSize: 11, color: D.onSurfaceVariant, fontFamily: D.font },

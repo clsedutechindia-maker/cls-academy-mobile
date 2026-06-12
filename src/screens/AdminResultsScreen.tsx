@@ -118,7 +118,7 @@ export function AdminResultsScreen() {
 
       <ScrollView contentContainerStyle={{ paddingHorizontal: 18, paddingBottom: MOBILE_BOTTOM_SPACING }} showsVerticalScrollIndicator={false}>
         <View style={s.filterRow}>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.chipsRow}>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={s.chipsScroll} contentContainerStyle={s.chipsRow}>
             {subjects.map((subj) => (
               <Pressable
                 key={subj}
@@ -272,6 +272,7 @@ const s = StyleSheet.create({
   searchBar: { flexDirection: "row", alignItems: "center", gap: 8, marginTop: 12, paddingHorizontal: 12, paddingVertical: 8, borderRadius: 10, backgroundColor: D.surface, borderWidth: 1, borderColor: D.outlineVariant },
   searchInput: { flex: 1, fontSize: 13, fontFamily: D.font, color: D.onSurface },
   filterRow: { flexDirection: "row", alignItems: "center", gap: 8, marginBottom: 14 },
+  chipsScroll: { flex: 1 },
   chipsRow: { flexDirection: "row", gap: 8, paddingRight: 8 },
   chip: { paddingHorizontal: 12, paddingVertical: 7, borderRadius: 10, backgroundColor: D.surface, borderWidth: 1, borderColor: D.outlineVariant },
   chipActive: { backgroundColor: D.surfaceLow, borderColor: D.primary },

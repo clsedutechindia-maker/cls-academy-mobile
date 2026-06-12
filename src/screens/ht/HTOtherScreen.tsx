@@ -17,6 +17,7 @@ const cards: { l: string; sub: string; icon: IoniconsName; color: string; bg: st
   { l: "Materials", sub: "Study resources", icon: "library-outline", color: "#15803D", bg: "#F0FDF4", route: "/(head-teacher)/materials" },
   { l: "Teaching Plan", sub: "Weekly plans", icon: "reader-outline", color: "#7C3AED", bg: "#F3E8FF", route: "/(head-teacher)/teaching-plans" },
   { l: "Sessions", sub: "Doubt & remedial requests", icon: "time-outline", color: "#0D9488", bg: "#CCFBF1", route: "/(head-teacher)/sessions" },
+  { l: "Inquiries", sub: "Walk-in & call leads", icon: "call-outline", color: "#BE185D", bg: "#FCE7F3", route: "/(head-teacher)/inquiries" },
 ];
 
 export function HTOtherScreen() {

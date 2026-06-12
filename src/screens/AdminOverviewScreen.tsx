@@ -197,9 +197,21 @@ export function AdminOverviewScreen() {
                     const sc = getSubjectColor(result.subjectName || "");
                     const pct = result.maxScore > 0 ? Math.round((result.score / result.maxScore) * 100) : 0;
                     return (
-                      <View
+                      <AnimatedPressable
                         key={result.id}
                         style={[s.listRow, i === resource.data!.recentResults.length - 1 && { borderBottomWidth: 0 }]}
+                        onPress={() =>
+                          router.push({
+                            pathname: "/(admin)/result-detail",
+                            params: {
+                              assessmentTitle: result.assessmentTitle,
+                              classId: result.classId,
+                              className: result.className,
+                              subjectName: result.subjectName,
+                              subjectId: result.subjectId,
+                            },
+                          })
+                        }
                       >
                         <View style={[s.subjectIcon, { backgroundColor: sc.bg }]}>
                           <Text style={[s.subjectIconText, { color: sc.text }]}>{(result.subjectName || "?").slice(0, 3).toUpperCase()}</Text>
@@ -210,7 +222,7 @@ export function AdminOverviewScreen() {
                         </View>
                         <Text style={[s.listRowMeta, { color: pct >= 80 ? "#15803D" : pct >= 60 ? "#B45309" : "#B91C1C" }]}>{pct}%</Text>
                         <Ionicons name="chevron-forward" size={16} color={D.outline} />
-                      </View>
+                      </AnimatedPressable>
                     );
                   })
                 )}

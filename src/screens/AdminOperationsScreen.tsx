@@ -11,6 +11,7 @@ const NAV_CARDS: { label: string; sub: string; icon: IoniconsName; color: string
   { label: "Schedule", sub: "Timetable & exams", icon: "calendar-outline", color: D.primary, bg: D.surfaceLow, route: "/(admin)/schedule" },
   { label: "Teaching Plan", sub: "Review & approve", icon: "reader-outline", color: "#7C3AED", bg: "#F3E8FF", route: "/(admin)/teaching-plans" },
   { label: "Sessions", sub: "Doubt & remedial", icon: "time-outline", color: "#0D9488", bg: "#CCFBF1", route: "/(admin)/sessions" },
+  { label: "Inquiries", sub: "Admission leads", icon: "call-outline", color: "#BE185D", bg: "#FCE7F3", route: "/(admin)/inquiries" },
   { label: "Results", sub: "Test results", icon: "trophy-outline", color: D.success, bg: "#dcfce7", route: "/(admin)/results" },
   { label: "Leave", sub: "Manage requests", icon: "document-text-outline", color: "#B45309", bg: "#FEF3C7", route: "/(admin)/leave" },
 ];

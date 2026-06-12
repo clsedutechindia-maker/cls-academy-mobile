@@ -30,12 +30,17 @@ import {
   addDemoSessionSlot,
   updateDemoSessionSlot,
   deleteDemoSessionSlot,
+  getDemoInquiries,
+  getDemoInquiryFollowUps,
+  addDemoInquiry,
+  addDemoInquiryFollowUp,
   getDemoAttendanceForClass,
   setDemoAttendance,
   isDemoAttendanceLocked,
   lockDemoAttendance,
   setDemoStudentLeaveStatus,
   setDemoStaffLeaveStatus,
+  setDemoComplaintResolution,
   getDemoAdminLeaveRequestsWithOverrides,
   hydrateDemoState,
 } from "./demoData";
@@ -67,6 +72,15 @@ import {
   buildTeachingPlanId,
   normalizeSessionSlotRecord,
   normalizeTeachingPlanRecord,
+  admissionInquiriesCollectionName,
+  inquiryFollowUpsSubcollectionName,
+  normalizeAdmissionInquiryRecord,
+  normalizeInquiryFollowUpRecord,
+  normalizeInquiryPhoneKey,
+  type AdmissionInquiryRecord,
+  type InquiryFollowUpRecord,
+  type InquiryMode,
+  type InquiryStatus,
   type AdminRecord,
   type AttendanceStatus,
   type ClassRecord,
@@ -1257,6 +1271,182 @@ export async function listAdminSessions(admin: AdminRecord): Promise<SessionSlot
     .sort((a, b) => `${b.date}-${b.startTime}`.localeCompare(`${a.date}-${a.startTime}`));
 }
 
+// ─── Admission inquiries (HT logs walk-in / call leads; admin tracks) ────────
+export type InquiryActor = { userId: string; name: string };
+
+function inquiryDocRef(id: string) {
+  return doc(firestoreDb, admissionInquiriesCollectionName, id);
+}
+
+function inquiryFollowUpsCol(id: string) {
+  return collection(firestoreDb, admissionInquiriesCollectionName, id, inquiryFollowUpsSubcollectionName);
+}
+
+// Newest-contacted first.
+function inquirySort(a: AdmissionInquiryRecord, b: AdmissionInquiryRecord): number {
+  return (b.lastContactedAtIso || b.createdAtIso).localeCompare(a.lastContactedAtIso || a.createdAtIso);
+}
+
+// Dedup lookup: same phone within the same centre = the same lead.
+export async function findInquiryByPhone(phone: string, centreId: string): Promise<AdmissionInquiryRecord | null> {
+  const phoneKey = normalizeInquiryPhoneKey(phone);
+  if (!phoneKey || !centreId) return null;
+  if (isDemoMode()) {
+    await hydrateDemoState();
+    return getDemoInquiries().find((i) => i.phoneKey === phoneKey && i.centreId === centreId) ?? null;
+  }
+  const snapshot = await getDocs(query(
+    collection(firestoreDb, admissionInquiriesCollectionName),
+    where("centreId", "==", centreId),
+    where("phoneKey", "==", phoneKey),
+  ));
+  const first = snapshot.docs[0];
+  return first ? normalizeAdmissionInquiryRecord(first.id, first.data()) : null;
+}
+
+export async function createInquiry(input: {
+  studentName: string;
+  phone: string;
+  email: string;
+  course: string;
+  mode: InquiryMode;
+  remark: string;
+  nextFollowUpDate: string;
+  profile: UserProfileRecord;
+}): Promise<string> {
+  const nowIso = new Date().toISOString();
+  const phoneKey = normalizeInquiryPhoneKey(input.phone);
+  const actorName = input.profile.name || input.profile.fullName || "Head Teacher";
+  const inquiryFields = {
+    studentName: input.studentName.trim(),
+    phone: input.phone.trim(),
+    phoneKey,
+    email: input.email.trim(),
+    course: input.course.trim(),
+    mode: input.mode,
+    status: "new" as const,
+    remark: input.remark.trim(),
+    centreId: input.profile.centreId,
+    centreName: input.profile.centreName,
+    regionId: input.profile.regionId,
+    regionName: input.profile.regionName,
+    createdByUserId: input.profile.userId,
+    createdByName: actorName,
+    assignedToUserId: input.profile.userId,
+    assignedToName: actorName,
+    followUpCount: 1,
+    lastContactedAtIso: nowIso,
+    nextFollowUpDate: input.nextFollowUpDate,
+    createdAtIso: nowIso,
+    updatedAtIso: nowIso,
+    updatedByUserId: input.profile.userId,
+    updatedByName: actorName,
+  };
+  const followUpFields = {
+    note: input.remark.trim(),
+    mode: input.mode,
+    outcome: "new" as const,
+    nextFollowUpDate: input.nextFollowUpDate,
+    byUserId: input.profile.userId,
+    byName: actorName,
+    createdAtIso: nowIso,
+  };
+  if (isDemoMode()) {
+    await hydrateDemoState();
+    const id = `demo-inq-${Date.now()}`;
+    addDemoInquiry({ id, ...inquiryFields }, { id: `demo-fu-${Date.now()}`, ...followUpFields });
+    return id;
+  }
+  const ref = await addDoc(collection(firestoreDb, admissionInquiriesCollectionName), inquiryFields);
+  await addDoc(inquiryFollowUpsCol(ref.id), followUpFields);
+  return ref.id;
+}
+
+export async function addInquiryFollowUp(input: {
+  inquiry: AdmissionInquiryRecord;
+  note: string;
+  mode: InquiryMode;
+  outcome: InquiryStatus;
+  nextFollowUpDate: string;
+  actor: InquiryActor;
+}): Promise<void> {
+  const nowIso = new Date().toISOString();
+  const followUpFields = {
+    note: input.note.trim(),
+    mode: input.mode,
+    outcome: input.outcome,
+    nextFollowUpDate: input.nextFollowUpDate,
+    byUserId: input.actor.userId,
+    byName: input.actor.name,
+    createdAtIso: nowIso,
+  };
+  const patch = {
+    status: input.outcome,
+    remark: input.note.trim() || input.inquiry.remark,
+    followUpCount: input.inquiry.followUpCount + 1,
+    lastContactedAtIso: nowIso,
+    nextFollowUpDate: input.nextFollowUpDate,
+    updatedAtIso: nowIso,
+    updatedByUserId: input.actor.userId,
+    updatedByName: input.actor.name,
+  };
+  if (isDemoMode()) {
+    await hydrateDemoState();
+    addDemoInquiryFollowUp(input.inquiry.id, { id: `demo-fu-${Date.now()}`, ...followUpFields }, patch);
+    return;
+  }
+  await addDoc(inquiryFollowUpsCol(input.inquiry.id), followUpFields);
+  await updateDoc(inquiryDocRef(input.inquiry.id), patch);
+}
+
+export async function listHeadTeacherInquiries(profile: UserProfileRecord): Promise<AdmissionInquiryRecord[]> {
+  if (isDemoMode()) {
+    await hydrateDemoState();
+    return [...getDemoInquiries()].filter((i) => i.centreId === profile.centreId).sort(inquirySort);
+  }
+  if (!profile.centreId) return [];
+  const snapshot = await getDocs(query(
+    collection(firestoreDb, admissionInquiriesCollectionName),
+    where("centreId", "==", profile.centreId),
+  ));
+  return snapshot.docs.map((d) => normalizeAdmissionInquiryRecord(d.id, d.data())).sort(inquirySort);
+}
+
+export async function listAdminInquiries(admin: AdminRecord): Promise<AdmissionInquiryRecord[]> {
+  if (isDemoMode()) {
+    await hydrateDemoState();
+    return [...getDemoInquiries()].sort(inquirySort);
+  }
+  const col = collection(firestoreDb, admissionInquiriesCollectionName);
+  const snapshot =
+    admin.role === "admin"
+      ? await getDocs(col)
+      : admin.role === "centre_incharge"
+        ? await getDocs(query(col, where("centreId", "==", admin.centreId)))
+        : await getDocs(query(col, where("regionId", "==", admin.regionId)));
+  return snapshot.docs.map((d) => normalizeAdmissionInquiryRecord(d.id, d.data())).sort(inquirySort);
+}
+
+export async function listInquiryFollowUps(inquiryId: string): Promise<InquiryFollowUpRecord[]> {
+  if (isDemoMode()) {
+    await hydrateDemoState();
+    return [...getDemoInquiryFollowUps(inquiryId)].sort((a, b) => b.createdAtIso.localeCompare(a.createdAtIso));
+  }
+  const snapshot = await getDocs(inquiryFollowUpsCol(inquiryId));
+  return snapshot.docs
+    .map((d) => normalizeInquiryFollowUpRecord(d.id, d.data()))
+    .sort((a, b) => b.createdAtIso.localeCompare(a.createdAtIso));
+}
+
+export async function getInquiryById(id: string): Promise<AdmissionInquiryRecord | null> {
+  if (isDemoMode()) {
+    await hydrateDemoState();
+    return getDemoInquiries().find((i) => i.id === id) ?? null;
+  }
+  const snapshot = await getDoc(inquiryDocRef(id));
+  return snapshot.exists() ? normalizeAdmissionInquiryRecord(snapshot.id, snapshot.data() ?? {}) : null;
+}
+
 export async function listStudentDoubts(profile: UserProfileRecord): Promise<StudentDoubtRecord[]> {
   if (isDemoMode()) { await hydrateDemoState(); return getDemoDoubts(); }
   const snapshot = await getDocs(
@@ -1971,7 +2161,7 @@ export async function listStudentResultsById(userId: string): Promise<StudentRes
 }
 
 export async function resolveComplaint(complaintId: string, adminReply: string): Promise<void> {
-  if (isDemoMode()) return;
+  if (isDemoMode()) { setDemoComplaintResolution(complaintId, "resolved", adminReply.trim()); return; }
   const nowIso = new Date().toISOString();
   await updateDoc(doc(firestoreDb, studentComplaintsCollectionName, complaintId), {
     status: "resolved",
@@ -1981,7 +2171,7 @@ export async function resolveComplaint(complaintId: string, adminReply: string):
 }
 
 export async function markComplaintInReview(complaintId: string): Promise<void> {
-  if (isDemoMode()) return;
+  if (isDemoMode()) { setDemoComplaintResolution(complaintId, "in_progress"); return; }
   const nowIso = new Date().toISOString();
   await updateDoc(doc(firestoreDb, studentComplaintsCollectionName, complaintId), {
     status: "in_progress",
@@ -1990,7 +2180,7 @@ export async function markComplaintInReview(complaintId: string): Promise<void> 
 }
 
 export async function rejectComplaint(complaintId: string, adminReply: string): Promise<void> {
-  if (isDemoMode()) return;
+  if (isDemoMode()) { setDemoComplaintResolution(complaintId, "rejected", adminReply.trim()); return; }
   const nowIso = new Date().toISOString();
   await updateDoc(doc(firestoreDb, studentComplaintsCollectionName, complaintId), {
     status: "rejected",

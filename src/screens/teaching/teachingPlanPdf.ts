@@ -70,12 +70,17 @@ function buildHtml(plan: TeachingPlanRecord): string {
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <style>
   * { box-sizing: border-box; }
-  body { font-family: Helvetica, Arial, sans-serif; color: #1B1230; margin: 0; padding: 28px 32px; }
+  body { font-family: Helvetica, Arial, sans-serif; color: #1B1230; margin: 0; padding: 18px; }
+  .page { border: 1.5px solid #1B1230; padding: 22px 26px; position: relative; min-height: calc(100vh - 36px); }
+  .page > *:not(.watermark) { position: relative; z-index: 1; }
+  .watermark { position: absolute; top: 46%; left: 50%; transform: translate(-50%, -50%); font-size: 150px; font-weight: 800; color: rgba(11,42,107,0.05); letter-spacing: -4px; z-index: 0; pointer-events: none; }
   .topbar { display: flex; justify-content: space-between; align-items: center; font-size: 12px; font-weight: 700; margin-bottom: 14px; }
   .month { background: #BBF7D0; padding: 3px 10px; border-radius: 3px; color: #14532D; }
   .course { color: #1B1230; }
   .syllabus { color: #1B1230; }
-  .brand { text-align: center; font-size: 34px; font-weight: 800; color: #0B2A6B; letter-spacing: -0.5px; margin: 8px 0 2px; }
+  .brand { text-align: center; font-size: 36px; font-weight: 800; color: #0B2A6B; letter-spacing: -0.5px; margin: 8px 0 0; }
+  .brand .accent { color: #C0392B; }
+  .brand-rule { text-align: center; font-size: 13px; font-weight: 800; color: #1B1230; letter-spacing: 4px; margin: 0 0 2px; }
   .heading { text-align: center; font-size: 17px; font-weight: 800; color: #6D28D9; margin-top: 10px; }
   .daterange { text-align: center; font-size: 13px; margin: 4px 0 12px; }
   .infobox { background: #DCE7FB; border: 1px solid #B9CCEF; border-radius: 4px; padding: 10px 14px; display: flex; justify-content: space-between; font-size: 13px; font-weight: 600; }
@@ -96,13 +101,16 @@ function buildHtml(plan: TeachingPlanRecord): string {
 </style>
 </head>
 <body>
+  <div class="page">
+  <div class="watermark">CLS</div>
   <div class="topbar">
     <span class="month">${esc(monthLabel(plan.monthKey))}</span>
     <span class="course">${esc(plan.className || "")}</span>
     <span class="syllabus">Syllabus Plan</span>
   </div>
 
-  <div class="brand">CLS Academy</div>
+  <div class="brand"><span class="accent">CLS</span> Academy</div>
+  <div class="brand-rule">- - -</div>
   <div class="heading">Teaching Plan &amp; Class Schedule</div>
   <div class="daterange">{Date: ${esc(dateRange(plan.weekStartDate, plan.weekEndDate))}}</div>
 
@@ -132,14 +140,38 @@ function buildHtml(plan: TeachingPlanRecord): string {
     <div class="tag">Ignite Your Potential &amp; Transform Your Career with CLS Academy</div>
     <div class="addr">CLS Academy: 3rd Floor, USHA Pride, Main Road Mowa, Raipur (C.G.) Ph. 0771-4520189, 89623-20189</div>
   </div>
+  </div>
 </body>
 </html>`;
+}
+
+// expo-print on web is a stub that calls window.print() and ignores the html,
+// which prints the live app page (floating tab bar included). Render the html in
+// an isolated hidden iframe and print that instead.
+function printHtmlWeb(html: string): void {
+  const iframe = document.createElement("iframe");
+  iframe.style.cssText = "position:fixed;right:0;bottom:0;width:0;height:0;border:0;";
+  const blob = new Blob([html], { type: "text/html" });
+  const url = URL.createObjectURL(blob);
+  iframe.src = url;
+  iframe.onload = () => {
+    const win = iframe.contentWindow;
+    if (win) {
+      win.focus();
+      win.print();
+    }
+    setTimeout(() => {
+      iframe.remove();
+      URL.revokeObjectURL(url);
+    }, 1000);
+  };
+  document.body.appendChild(iframe);
 }
 
 export async function exportTeachingPlanPdf(plan: TeachingPlanRecord): Promise<void> {
   const html = buildHtml(plan);
   if (Platform.OS === "web") {
-    await Print.printAsync({ html });
+    printHtmlWeb(html);
     return;
   }
   const { uri } = await Print.printToFileAsync({ html });
