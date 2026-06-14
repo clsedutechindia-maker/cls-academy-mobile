@@ -1,4 +1,4 @@
-export type AccountRole = "student" | "teacher" | "team";
+export type AccountRole = "student" | "teacher" | "team" | "employee";
 // Legacy only: pre-refactor profiles may still carry teacherRole. New code routes
 // off AccountRole ("team" replaces the old head_teacher tier). Kept for back-compat
 // normalization until migration clears the field.
@@ -11,6 +11,7 @@ export type StudentResultRecord = {
   studentUserId: string;
   teacherUserId: string;
   teacherName: string;
+  uploadedByEmployeeId?: string;
   studentName: string;
   classId: string;
   className: string;

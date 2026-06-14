@@ -75,7 +75,7 @@ export function StudentBookSessionScreen() {
       setSessionType("doubt");
       await slotsRes.reload();
       await mineRes.reload();
-      Alert.alert("Requested", "Your session request was sent to the teacher.");
+      Alert.alert("Confirmed", "Session booked! Check your sessions for details.");
     } catch {
       Alert.alert("Error", "Could not book. The slot may have just been taken.");
     } finally {

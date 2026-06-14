@@ -1,4 +1,4 @@
-import { Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from "react-native";
+import { Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -180,15 +180,6 @@ export function TeacherResultsScreen() {
           )}
         </View>
       </ScrollView>
-
-      <TouchableOpacity
-        style={s.fab}
-        activeOpacity={0.85}
-        onPress={() => router.push("/(teacher)/upload-result")}
-      >
-        <Ionicons name="add" size={18} color="#fff" />
-        <Text style={s.fabText}>Upload Result</Text>
-      </TouchableOpacity>
 
       <Modal visible={pickerOpen} transparent animationType="fade" onRequestClose={() => setPickerOpen(false)}>
         <Pressable style={s.modalOverlay} onPress={() => setPickerOpen(false)}>

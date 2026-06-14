@@ -13,7 +13,9 @@ import {
   deleteTeachingPlan,
   getTeachingPlanById,
   listTeacherMappings,
+  listEmployeeMappings,
   listTeachingPlansForTeacher,
+  listTeachingPlansForEmployee,
   saveTeachingPlan,
   submitTeachingPlan,
   type TeachingPlanInput,
@@ -27,29 +29,36 @@ export function TeachingPlanEditorScreen() {
   const insets = useSafeAreaInsets();
   const { authUser, profile, adminRecord } = useSession();
   const isAdmin = Boolean(adminRecord);
-  const group = isAdmin ? "(admin)" : profile?.role === "team" ? "(team)" : "(teacher)";
+  const isEmployee = profile?.role === "employee";
+  const group = isAdmin ? "(admin)" : profile?.role === "team" ? "(team)" : isEmployee ? "(employee)" : "(teacher)";
   const params = useLocalSearchParams<{ mode?: string; id?: string }>();
   const planId = typeof params.id === "string" ? params.id : "";
   const isEdit = params.mode === "edit" && Boolean(planId);
 
   const { data, loading, error } = useResource(async () => {
     const [mappings, myPlans, plan] = await Promise.all([
-      !isAdmin && profile ? listTeacherMappings(profile) : Promise.resolve([] as ClassSubjectRecord[]),
-      !isAdmin && profile ? listTeachingPlansForTeacher(profile) : Promise.resolve([] as TeachingPlanRecord[]),
+      !isAdmin && profile
+        ? isEmployee ? listEmployeeMappings(profile) : listTeacherMappings(profile)
+        : Promise.resolve([] as ClassSubjectRecord[]),
+      !isAdmin && profile
+        ? isEmployee ? listTeachingPlansForEmployee(profile) : listTeachingPlansForTeacher(profile)
+        : Promise.resolve([] as TeachingPlanRecord[]),
       isEdit ? getTeachingPlanById(planId) : Promise.resolve(null),
     ]);
     return { mappings, myPlans, plan };
-  }, [planId, isEdit, isAdmin, profile?.userId]);
+  }, [planId, isEdit, isAdmin, isEmployee, profile?.userId]);
 
   const mappings = data?.mappings ?? [];
   const myPlans = data?.myPlans ?? [];
   const plan = data?.plan ?? null;
 
   const [mappingId, setMappingId] = useState("");
+  const [selectedPlanClassId, setSelectedPlanClassId] = useState("");
   const [weekStart, setWeekStart] = useState("");
   const [unitName, setUnitName] = useState("");
   const [classTime, setClassTime] = useState("");
   const [rows, setRows] = useState<TeachingPlanRow[]>([]);
+  const [classSheet, setClassSheet] = useState(false);
   const [subjectSheet, setSubjectSheet] = useState(false);
   const [weekSheet, setWeekSheet] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -60,6 +69,7 @@ export function TeachingPlanEditorScreen() {
     setHydrated(true);
     if (plan) {
       setMappingId(plan.classSubjectId);
+      setSelectedPlanClassId(plan.classId);
       setWeekStart(plan.weekStartDate);
       setUnitName(plan.unitName);
       setClassTime(plan.classTime);
@@ -68,7 +78,18 @@ export function TeachingPlanEditorScreen() {
     }
   }
 
+  // For employee: unique classes from mappings, subjects filtered by selected class
+  const planClasses = useMemo(() => {
+    const seen = new Set<string>();
+    return mappings.filter((m) => { if (seen.has(m.classId)) return false; seen.add(m.classId); return true; });
+  }, [mappings]);
+  const subjectsForClass = useMemo(
+    () => (selectedPlanClassId ? mappings.filter((m) => m.classId === selectedPlanClassId) : []),
+    [mappings, selectedPlanClassId],
+  );
+
   const selectedMapping = useMemo(() => mappings.find((m) => m.id === mappingId) ?? null, [mappings, mappingId]);
+  const selectedPlanClass = useMemo(() => planClasses.find((m) => m.classId === selectedPlanClassId) ?? null, [planClasses, selectedPlanClassId]);
   const locked = isEdit && plan?.status === "approved" && !isAdmin;
 
   // Weeks already taken for the selected class+subject (excluding the plan being edited).
@@ -267,6 +288,29 @@ export function TeachingPlanEditorScreen() {
               <Ionicons name="school-outline" size={16} color={D.primary} />
               <Text style={kit.classBannerText}>{plan.className} · {plan.subjectName}</Text>
             </View>
+          ) : isEmployee ? (
+            <>
+              <FieldLabel>Class / Batch</FieldLabel>
+              <View style={{ marginBottom: 14 }}>
+                <DropdownButton
+                  value={selectedPlanClass?.className ?? ""}
+                  placeholder="Select class…"
+                  onPress={() => !locked && setClassSheet(true)}
+                />
+              </View>
+              <FieldLabel>Subject</FieldLabel>
+              <View style={{ marginBottom: 18 }}>
+                {!selectedPlanClassId ? (
+                  <DropdownButton value="" placeholder="Select class first…" onPress={() => {}} />
+                ) : (
+                  <DropdownButton
+                    value={selectedMapping?.subjectName ?? ""}
+                    placeholder="Select subject…"
+                    onPress={() => !locked && setSubjectSheet(true)}
+                  />
+                )}
+              </View>
+            </>
           ) : (
             <>
               <FieldLabel>Class & Subject</FieldLabel>
@@ -279,6 +323,13 @@ export function TeachingPlanEditorScreen() {
               </View>
             </>
           )}
+
+          {isEmployee && selectedMapping?.teacherName ? (
+            <View style={s.teacherBanner}>
+              <Ionicons name="person-outline" size={14} color="#0369A1" />
+              <Text style={s.teacherBannerText}>Plan for: {selectedMapping.teacherName}</Text>
+            </View>
+          ) : null}
 
           <FieldLabel>Week</FieldLabel>
           <View style={{ marginBottom: 18 }}>
@@ -342,12 +393,30 @@ export function TeachingPlanEditorScreen() {
         </ScrollView>
       )}
 
+      {isEmployee && (
+        <OptionSheet
+          visible={classSheet}
+          title="Select Class"
+          options={planClasses.map((m) => ({ key: m.classId, label: m.className }))}
+          selectedKey={selectedPlanClassId}
+          emptyText="No classes in your centre."
+          onSelect={(classId) => {
+            setSelectedPlanClassId(classId);
+            setMappingId("");
+          }}
+          onClose={() => setClassSheet(false)}
+        />
+      )}
       <OptionSheet
         visible={subjectSheet}
-        title="Class & Subject"
-        options={mappings.map((m) => ({ key: m.id, label: `${m.className} · ${m.subjectName}` }))}
+        title={isEmployee ? "Select Subject" : "Class & Subject"}
+        options={
+          isEmployee
+            ? subjectsForClass.map((m) => ({ key: m.id, label: m.subjectName + (m.teacherName ? ` · ${m.teacherName}` : "") }))
+            : mappings.map((m) => ({ key: m.id, label: `${m.className} · ${m.subjectName}` }))
+        }
         selectedKey={mappingId}
-        emptyText="No subjects assigned to you."
+        emptyText={isEmployee ? "No subjects for this class." : "No subjects assigned to you."}
         onSelect={setMappingId}
         onClose={() => setSubjectSheet(false)}
       />
@@ -405,4 +474,6 @@ const s = StyleSheet.create({
   addRowText: { fontSize: 12.5, fontFamily: D.fontBold, color: D.primary },
   draftBtn: { flex: 1, height: 54, borderRadius: 20, backgroundColor: D.surface, borderWidth: 1.5, borderColor: D.outlineVariant, alignItems: "center", justifyContent: "center" },
   draftText: { fontSize: 13, fontFamily: D.fontBold, color: D.onSurface },
+  teacherBanner: { flexDirection: "row", alignItems: "center", gap: 8, padding: 12, borderRadius: 12, backgroundColor: "#E0F2FE", borderWidth: 1, borderColor: "#BAE6FD", marginBottom: 18 },
+  teacherBannerText: { fontSize: 12, fontFamily: D.fontMedium, color: "#0369A1" },
 });

@@ -3,7 +3,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
 import { LinearGradient } from "expo-linear-gradient";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { useResource } from "../hooks/useResource";
+import { useCachedResource } from "../hooks/useResource";
 import {
   listAdminAttendanceOverview,
   listStaffAttendanceForAdmin,
@@ -71,7 +71,8 @@ export function AdminOverviewScreen() {
   const greeting = greetingHour < 12 ? "GOOD MORNING" : greetingHour < 17 ? "GOOD AFTERNOON" : "GOOD EVENING";
   const scopeLabel = "All centres";
 
-  const resource = useResource(
+  const resource = useCachedResource(
+    `home-admin:${adminRecord?.role ?? ""}:${adminRecord?.centreId ?? ""}:${adminRecord?.regionId ?? ""}`,
     async () => {
       if (!adminRecord) return null;
       const [profiles, attendance, staffAttendance, leaveRequests, complaints, studentLeaveRequests, recentResults, schedule] = await Promise.all([

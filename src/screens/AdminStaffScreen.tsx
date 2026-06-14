@@ -22,7 +22,7 @@ export function AdminStaffScreen() {
     async () => {
       if (!adminRecord) return [];
       const profiles = await listVisibleProfilesForAdmin(adminRecord);
-      return profiles.filter((p) => p.role === "teacher");
+      return profiles.filter((p) => p.role === "teacher" || p.role === "employee");
     },
     [adminRecord?.role, adminRecord?.centreId, adminRecord?.regionId],
   );

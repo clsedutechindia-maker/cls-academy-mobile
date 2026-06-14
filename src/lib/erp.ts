@@ -3,6 +3,8 @@ import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { firestoreDb, firebaseStorage } from "./firebase";
 import { formatDateTimeLabel, getTodayDateValue } from "./date";
 import { isDemoMode, getDemoRole } from "./demoMode";
+import { notifyEvent } from "./notify";
+import { chunk } from "./cache";
 import {
   getDemoAnnouncements,
   getDemoStudentResults,
@@ -34,6 +36,7 @@ import {
   getDemoInquiryFollowUps,
   addDemoInquiry,
   addDemoInquiryFollowUp,
+  getDemoClasses,
   getDemoAttendanceForClass,
   setDemoAttendance,
   isDemoAttendanceLocked,
@@ -99,6 +102,10 @@ import {
   type TestScheduleRecord,
   type UserProfileRecord,
 } from "../shared";
+
+// fees.ts imports listEmployeeStudents from here; this back-import is only used
+// inside function bodies (getStudentNotifications), so the cycle resolves lazily.
+import { listOwnStudentFees, feeRemindersDueOn } from "./fees";
 
 const learningResourcesCollectionName = "learningResources";
 const studentDoubtsCollectionName = "studentDoubts";
@@ -204,7 +211,7 @@ export type StudentLeaveRequestRecord = {
 
 export type StudentNotificationItem = {
   id: string;
-  type: "circular" | "complaint" | "doubt" | "leave" | "result" | "material";
+  type: "circular" | "complaint" | "doubt" | "leave" | "result" | "material" | "schedule" | "session" | "account" | "fee";
   title: string;
   message: string;
   createdAtIso: string;
@@ -726,6 +733,12 @@ export async function createStudentComplaint({
     updatedAtIso: nowIso,
     resolvedAtIso: "",
   });
+  notifyEvent("complaint.created", {
+    centreId: profile.centreId,
+    regionId: profile.regionId,
+    studentName: profile.name || profile.fullName || "Student",
+    subject: subject.trim(),
+  });
 }
 
 export async function listClassSubjectsForStudent(profile: UserProfileRecord): Promise<ClassSubjectRecord[]> {
@@ -832,6 +845,10 @@ export async function saveClassTimetableEntry(input: {
     },
     { merge: true },
   );
+  notifyEvent("schedule.posted", {
+    classId: input.classRecord.id,
+    className: input.classRecord.name,
+  });
   return id;
 }
 
@@ -880,6 +897,11 @@ export async function saveTestSchedule(input: {
     },
     { merge: true },
   );
+  notifyEvent("schedule.posted", {
+    classId: input.classRecord.id,
+    className: input.classRecord.name,
+    assessmentTitle: input.assessmentTitle.trim(),
+  });
   return id;
 }
 
@@ -970,6 +992,7 @@ export async function submitTeachingPlan(id: string, actor: ScheduleActor) {
     updatedByUserId: actor.userId,
     updatedByName: actor.name,
   });
+  notifyEvent("plan.submitted", { teachingPlanId: id });
 }
 
 export async function approveTeachingPlan(id: string, actor: ScheduleActor) {
@@ -984,6 +1007,7 @@ export async function approveTeachingPlan(id: string, actor: ScheduleActor) {
     updatedByUserId: actor.userId,
     updatedByName: actor.name,
   });
+  notifyEvent("plan.decided", { teachingPlanId: id, status: "approved" });
 }
 
 export async function rejectTeachingPlan(id: string, actor: ScheduleActor, note: string) {
@@ -997,6 +1021,7 @@ export async function rejectTeachingPlan(id: string, actor: ScheduleActor, note:
     updatedByUserId: actor.userId,
     updatedByName: actor.name,
   });
+  notifyEvent("plan.decided", { teachingPlanId: id, status: "rejected" });
 }
 
 export async function deleteTeachingPlan(id: string) {
@@ -1032,6 +1057,28 @@ export async function listTeachingPlansForAdmin(admin: AdminRecord): Promise<Tea
   return snapshot.docs
     .map((item) => normalizeTeachingPlanRecord(item.id, item.data()))
     .sort((left, right) => right.weekStartDate.localeCompare(left.weekStartDate));
+}
+
+export async function listTeachingPlansForEmployee(profile: UserProfileRecord): Promise<TeachingPlanRecord[]> {
+  if (isDemoMode()) return [];
+  if (!profile.centreId) return [];
+  const snapshot = await getDocs(
+    query(collection(firestoreDb, teachingPlansCollectionName), where("centreId", "==", profile.centreId)),
+  );
+  return snapshot.docs
+    .map((item) => normalizeTeachingPlanRecord(item.id, item.data()))
+    .sort((left, right) => right.weekStartDate.localeCompare(left.weekStartDate));
+}
+
+export async function listEmployeeMappings(profile: UserProfileRecord): Promise<ClassSubjectRecord[]> {
+  if (isDemoMode()) return getDemoClassSubjects();
+  if (!profile.centreId) return [];
+  const snapshot = await getDocs(
+    query(collection(firestoreDb, classSubjectsCollectionName), where("centreId", "==", profile.centreId)),
+  );
+  return snapshot.docs
+    .map((item) => normalizeClassSubjectRecord(item.id, item.data()))
+    .sort((left, right) => `${left.className} ${left.subjectName}`.localeCompare(`${right.className} ${right.subjectName}`));
 }
 
 export async function listTeachingPlansForStudent(profile: UserProfileRecord): Promise<TeachingPlanRecord[]> {
@@ -1185,7 +1232,7 @@ export async function bookSessionSlot(input: {
 }): Promise<void> {
   const nowIso = new Date().toISOString();
   const patch = {
-    status: "requested" as const,
+    status: "confirmed" as const,
     sessionType: input.sessionType,
     topic: input.topic.trim(),
     bookedByUserId: input.student.userId,
@@ -1199,6 +1246,11 @@ export async function bookSessionSlot(input: {
   };
   if (isDemoMode()) { await hydrateDemoState(); updateDemoSessionSlot(input.slot.id, patch); return; }
   await updateDoc(doc(firestoreDb, sessionSlotsCollectionName, input.slot.id), patch);
+  notifyEvent("session.booked", {
+    teacherUserId: input.slot.teacherUserId,
+    studentName: input.student.name || input.student.fullName || "Student",
+    date: input.slot.date,
+  });
 }
 
 const SESSION_RESET = {
@@ -1223,6 +1275,7 @@ export async function confirmSessionRequest(id: string, actor: ScheduleActor) {
   const patch = { status: "confirmed" as const, updatedAtIso: nowIso, updatedByUserId: actor.userId, updatedByName: actor.name };
   if (isDemoMode()) { updateDemoSessionSlot(id, patch); return; }
   await updateDoc(doc(firestoreDb, sessionSlotsCollectionName, id), patch);
+  notifyEvent("session.decided", { sessionSlotId: id, status: "confirmed" });
 }
 
 export async function declineSessionRequest(id: string, actor: ScheduleActor, note: string) {
@@ -1230,6 +1283,7 @@ export async function declineSessionRequest(id: string, actor: ScheduleActor, no
   const patch = { ...SESSION_RESET, declineNote: note.trim(), updatedAtIso: nowIso, updatedByUserId: actor.userId, updatedByName: actor.name };
   if (isDemoMode()) { updateDemoSessionSlot(id, patch); return; }
   await updateDoc(doc(firestoreDb, sessionSlotsCollectionName, id), patch);
+  notifyEvent("session.decided", { sessionSlotId: id, status: "declined" });
 }
 
 export async function completeSession(id: string, actor: ScheduleActor) {
@@ -1266,6 +1320,19 @@ export async function listAdminSessions(admin: AdminRecord): Promise<SessionSlot
       : admin.role === "centre_incharge"
         ? await getDocs(query(col, where("centreId", "==", admin.centreId)))
         : await getDocs(query(col, where("regionId", "==", admin.regionId)));
+  return snapshot.docs
+    .map((item) => normalizeSessionSlotRecord(item.id, item.data()))
+    .sort((a, b) => `${b.date}-${b.startTime}`.localeCompare(`${a.date}-${a.startTime}`));
+}
+
+export async function listEmployeeSessionSlots(profile: UserProfileRecord): Promise<SessionSlotRecord[]> {
+  if (isDemoMode()) {
+    await hydrateDemoState();
+    return [...getDemoSessionSlots()].sort((a, b) => `${b.date}-${b.startTime}`.localeCompare(`${a.date}-${a.startTime}`));
+  }
+  const snapshot = await getDocs(
+    query(collection(firestoreDb, sessionSlotsCollectionName), where("centreId", "==", profile.centreId)),
+  );
   return snapshot.docs
     .map((item) => normalizeSessionSlotRecord(item.id, item.data()))
     .sort((a, b) => `${b.date}-${b.startTime}`.localeCompare(`${a.date}-${a.startTime}`));
@@ -1359,6 +1426,11 @@ export async function createInquiry(input: {
   }
   const ref = await addDoc(collection(firestoreDb, admissionInquiriesCollectionName), inquiryFields);
   await addDoc(inquiryFollowUpsCol(ref.id), followUpFields);
+  notifyEvent("inquiry.created", {
+    centreId: input.profile.centreId,
+    regionId: input.profile.regionId,
+    studentName: input.studentName.trim(),
+  });
   return ref.id;
 }
 
@@ -1512,6 +1584,11 @@ export async function createStudentDoubt({
     createdAtIso: nowIso,
     updatedAtIso: nowIso,
   });
+  notifyEvent("doubt.created", {
+    teacherUserId: mapping.teacherUserId,
+    studentName: profile.name || profile.fullName || "Student",
+    subjectName: mapping.subjectName,
+  });
 }
 
 export async function listStudentDoubtReplies(doubtId: string): Promise<StudentDoubtReplyRecord[]> {
@@ -1610,6 +1687,14 @@ export async function createStudentLeaveRequest({
     requestedAtIso: nowIso,
     updatedAtIso: nowIso,
   });
+  notifyEvent("leave.submitted", {
+    classId: profile.classId,
+    centreId: profile.centreId,
+    regionId: profile.regionId,
+    studentName: profile.name || profile.fullName || "Student",
+    startDate,
+    endDate,
+  });
 }
 
 function datesInRange(startDate: string, endDate: string): string[] {
@@ -1678,6 +1763,12 @@ export async function approveStudentLeaveRequest(
     reviewedAtIso: nowIso,
     updatedAtIso: nowIso,
   });
+  notifyEvent("leave.decided", {
+    studentUserId: req.studentUserId,
+    status: "approved",
+    startDate: req.startDate,
+    endDate: req.endDate,
+  });
 }
 
 export async function rejectStudentLeaveRequest(requestId: string): Promise<void> {
@@ -1688,6 +1779,7 @@ export async function rejectStudentLeaveRequest(requestId: string): Promise<void
     reviewedAtIso: nowIso,
     updatedAtIso: nowIso,
   });
+  notifyEvent("leave.decided", { leaveRequestId: requestId, status: "rejected" });
 }
 
 export async function updateStudentProfileContact({
@@ -1721,14 +1813,35 @@ export async function markStudentNotificationsSeen(profile: UserProfileRecord) {
 
 export async function getStudentNotifications(profile: UserProfileRecord): Promise<StudentNotificationItem[]> {
   if (isDemoMode()) return getDemoNotifications();
-  const [circulars, complaints, doubts, leaves, results, materials] = await Promise.all([
+  const [circulars, complaints, doubts, leaves, results, materials, sessions, plans, fees] = await Promise.all([
     listAnnouncementsForProfile(profile),
     listStudentComplaints(profile),
     listStudentDoubts(profile),
     listStudentLeaveRequests(profile),
     listStudentResults(profile),
     listLearningResourcesForProfile(profile),
+    listStudentSessions(profile),
+    listTeachingPlansForStudent(profile),
+    listOwnStudentFees(profile),
   ]);
+
+  const todayIso = new Date().toISOString().slice(0, 10);
+  // Surface a fee item when there is an overdue installment or a reminder fires today.
+  const feeItems: StudentNotificationItem[] = fees
+    .filter((fee) => fee.dueAmount > 0 && (
+      fee.installments.some((i) => i.status === "overdue") || feeRemindersDueOn(fee, todayIso).length > 0
+    ))
+    .map((fee): StudentNotificationItem => {
+      const overdue = fee.installments.some((i) => i.status === "overdue");
+      return {
+        id: `fee-${fee.id}`,
+        type: "fee",
+        title: overdue ? "Fee overdue" : "Fee due soon",
+        message: `₹${fee.dueAmount.toLocaleString("en-IN")} due · ${fee.title}`,
+        createdAtIso: fee.updatedAtIso || todayIso,
+        href: "/(student)/fees",
+      };
+    });
 
   return [
     ...circulars.slice(0, 8).map((item): StudentNotificationItem => ({
@@ -1779,14 +1892,35 @@ export async function getStudentNotifications(profile: UserProfileRecord): Promi
       createdAtIso: item.updatedAtIso || item.createdAtIso,
       href: `/(student)/material-detail?id=${encodeURIComponent(item.id)}`,
     })),
+    ...sessions.filter((item) => item.status === "confirmed").slice(0, 5).map((item): StudentNotificationItem => ({
+      id: `session-${item.id}`,
+      type: "session",
+      title: "Session confirmed",
+      message: `${item.subjectName || "Doubt session"} · ${item.date}`,
+      createdAtIso: item.updatedAtIso || item.date,
+      href: "/(student)/schedules",
+    })),
+    ...plans.filter((item) => item.status === "approved").slice(0, 5).map((item): StudentNotificationItem => ({
+      id: `plan-${item.id}`,
+      type: "schedule",
+      title: "Teaching plan published",
+      message: `${item.subjectName} · week of ${item.weekStartDate}`,
+      createdAtIso: item.approvedAtIso || item.updatedAtIso || item.weekStartDate,
+      href: "/(student)/teaching-plan",
+    })),
+    ...feeItems,
   ].sort((left, right) => right.createdAtIso.localeCompare(left.createdAtIso));
 }
 
 export async function listTeacherStudents(profile: UserProfileRecord) {
   if (isDemoMode()) return getDemoHTStudents();
   const classIds = Array.from(new Set(profile.teacherClassIds)).filter(Boolean);
+  if (classIds.length === 0) return [];
+  // Batch into "in" queries (max 10 values each) instead of one query per class.
   const snapshots = await Promise.all(
-    classIds.map((classId) => getDocs(query(collection(firestoreDb, userProfilesCollectionName), where("classId", "==", classId)))),
+    chunk(classIds, 10).map((ids) =>
+      getDocs(query(collection(firestoreDb, userProfilesCollectionName), where("classId", "in", ids))),
+    ),
   );
 
   const records = snapshots
@@ -1817,6 +1951,142 @@ export async function listTeacherResults(profile: UserProfileRecord) {
   return snapshot.docs
     .map((item) => normalizeStudentResultRecord(item.id, item.data()))
     .sort((left, right) => `${right.className} ${right.studentName}`.localeCompare(`${left.className} ${left.studentName}`));
+}
+
+export async function listEmployeeClasses(profile: UserProfileRecord): Promise<ClassRecord[]> {
+  if (isDemoMode()) return getDemoClasses();
+  if (!profile.centreId) return [];
+  const snapshot = await getDocs(
+    query(collection(firestoreDb, classesCollectionName), where("centreId", "==", profile.centreId)),
+  );
+  return snapshot.docs
+    .map((item) => normalizeClassRecord(item.id, item.data()))
+    .filter((item) => item.active)
+    .sort((left, right) => left.name.localeCompare(right.name));
+}
+
+export async function listStudentsForClass(classId: string): Promise<UserProfileRecord[]> {
+  if (isDemoMode()) return getDemoHTStudents().filter((s) => s.classId === classId);
+  if (!classId) return [];
+  const snapshot = await getDocs(
+    query(collection(firestoreDb, userProfilesCollectionName), where("classId", "==", classId)),
+  );
+  return snapshot.docs
+    .map((item) => normalizeUserProfileRecord(item.id, item.data()))
+    .filter((item) => item.role === "student")
+    .sort((left, right) => left.name.localeCompare(right.name));
+}
+
+export async function listEmployeeStudents(profile: UserProfileRecord): Promise<UserProfileRecord[]> {
+  if (isDemoMode()) return getDemoHTStudents();
+  if (!profile.centreId) return [];
+  const classes = await listEmployeeClasses(profile);
+  const classIds = classes.map((c) => c.id).filter(Boolean);
+  if (classIds.length === 0) return [];
+  const snapshots = await Promise.all(
+    chunk(classIds, 10).map((ids) =>
+      getDocs(query(collection(firestoreDb, userProfilesCollectionName), where("classId", "in", ids))),
+    ),
+  );
+  return snapshots
+    .flatMap((s) => s.docs)
+    .map((item) => normalizeUserProfileRecord(item.id, item.data()))
+    .filter((item) => item.role === "student")
+    .sort((left, right) => left.name.localeCompare(right.name));
+}
+
+export async function listEmployeeResults(profile: UserProfileRecord): Promise<StudentResultRecord[]> {
+  if (isDemoMode()) return getDemoHTResults();
+  if (!profile.centreId) return [];
+  const classes = await listEmployeeClasses(profile);
+  const classIds = classes.map((c) => c.id).filter(Boolean);
+  if (classIds.length === 0) return [];
+  const snapshots = await Promise.all(
+    chunk(classIds, 10).map((ids) =>
+      getDocs(query(collection(firestoreDb, studentResultsCollectionName), where("classId", "in", ids))),
+    ),
+  );
+  return snapshots
+    .flatMap((s) => s.docs)
+    .map((item) => normalizeStudentResultRecord(item.id, item.data()))
+    .sort((left, right) => right.publishedAtIso.localeCompare(left.publishedAtIso));
+}
+
+export async function listEmployeeTimetable(profile: UserProfileRecord): Promise<{ timetableEntries: ClassTimetableRecord[]; tests: TestScheduleRecord[] }> {
+  if (isDemoMode()) return getDemoStudentSchedules();
+  if (!profile.centreId) return { timetableEntries: [], tests: [] };
+  const classes = await listEmployeeClasses(profile);
+  const classIds = classes.map((c) => c.id).filter(Boolean);
+  if (classIds.length === 0) return { timetableEntries: [], tests: [] };
+  const [timetableSnaps, testSnaps] = await Promise.all([
+    Promise.all(
+      chunk(classIds, 10).map((ids) =>
+        getDocs(query(collection(firestoreDb, classTimetablesCollectionName), where("classId", "in", ids))),
+      ),
+    ),
+    Promise.all(
+      chunk(classIds, 10).map((ids) =>
+        getDocs(query(collection(firestoreDb, testSchedulesCollectionName), where("classId", "in", ids))),
+      ),
+    ),
+  ]);
+  const timetableEntries = timetableSnaps
+    .flatMap((s) => s.docs)
+    .map((item) => normalizeClassTimetableRecord(item.id, item.data()))
+    .sort((a, b) => `${a.dayKey}-${a.startTime}`.localeCompare(`${b.dayKey}-${b.startTime}`));
+  const tests = testSnaps
+    .flatMap((s) => s.docs)
+    .map((item) => normalizeTestScheduleRecord(item.id, item.data()))
+    .sort((a, b) => a.scheduleDate.localeCompare(b.scheduleDate));
+  return { timetableEntries, tests };
+}
+
+export async function saveEmployeeResult({
+  employeeProfile,
+  studentProfile,
+  classSubject,
+  assessmentCategory,
+  assessmentTitle,
+  score,
+  maxScore,
+  remarks,
+}: {
+  employeeProfile: UserProfileRecord;
+  studentProfile: UserProfileRecord;
+  classSubject: ClassSubjectRecord;
+  assessmentCategory: ResultAssessmentCategory;
+  assessmentTitle: string;
+  score: number;
+  maxScore: number;
+  remarks: string;
+}) {
+  if (isDemoMode()) return;
+  const recordId = buildStudentResultId(studentProfile.userId, classSubject.id, assessmentCategory, assessmentTitle);
+  await setDoc(doc(firestoreDb, studentResultsCollectionName, recordId), {
+    studentUserId: studentProfile.userId,
+    teacherUserId: classSubject.teacherUserId || "",
+    teacherName: classSubject.teacherName || "",
+    uploadedByEmployeeId: employeeProfile.userId,
+    studentName: studentProfile.name,
+    classId: studentProfile.classId,
+    className: studentProfile.className,
+    subjectId: classSubject.subjectId,
+    subjectName: classSubject.subjectName,
+    subject: classSubject.subjectName,
+    classSubjectId: classSubject.id,
+    assessmentCategory,
+    assessmentTitle,
+    score,
+    maxScore,
+    grade: calculateGrade(score, maxScore),
+    remarks: remarks.trim() || "No feedback.",
+    publishedAtIso: new Date().toISOString(),
+  });
+  notifyEvent("result.published", {
+    studentUserId: studentProfile.userId,
+    subjectName: classSubject.subjectName,
+    assessmentTitle,
+  });
 }
 
 export async function listTeacherAttendanceForClass(classId: string, date = getTodayDateValue()) {
@@ -1983,6 +2253,12 @@ export async function saveTeacherResult({
     maxScore,
     grade: calculateGrade(score, maxScore),
     remarks: remarks.trim() || "No teacher feedback yet.",
+    publishedAtIso: new Date().toISOString(),
+  });
+  notifyEvent("result.published", {
+    studentUserId: studentProfile.userId,
+    subjectName: mapping.subjectName,
+    assessmentTitle,
   });
 }
 
@@ -2057,6 +2333,11 @@ export async function createAdminAnnouncement({
     createdAtIso: nowIso,
     updatedAtIso: nowIso,
   });
+  if (status === "approved") {
+    notifyEvent("circular.posted", { audienceScope: "all", centreId: admin.centreId, regionId: admin.regionId, title: title.trim() });
+  } else {
+    notifyEvent("announcement.submitted", { centreId: admin.centreId, regionId: admin.regionId, title: title.trim() });
+  }
 }
 
 export async function approveAnnouncement({
@@ -2075,17 +2356,22 @@ export async function approveAnnouncement({
     approvedAtIso: nowIso,
     updatedAtIso: nowIso,
   });
+  notifyEvent("circular.posted", { audienceScope: "all", centreId: admin.centreId, regionId: admin.regionId, title: "New circular" });
 }
 
 export async function listAdminAttendanceOverview(admin: AdminRecord) {
   const classes = await listScopedClasses(admin);
+  const classIds = classes.map((classRecord) => classRecord.id).filter(Boolean);
+  if (classIds.length === 0) return [];
+  const today = getTodayDateValue();
+  // Batch into "in" queries (max 10 each) instead of one query per class.
   const snapshots = await Promise.all(
-    classes.map((classRecord) =>
+    chunk(classIds, 10).map((ids) =>
       getDocs(
         query(
           collection(firestoreDb, studentAttendanceCollectionName),
-          where("classId", "==", classRecord.id),
-          where("attendanceDate", "==", getTodayDateValue()),
+          where("classId", "in", ids),
+          where("attendanceDate", "==", today),
         ),
       ),
     ),
@@ -2164,6 +2450,7 @@ export async function resolveComplaint(complaintId: string, adminReply: string):
     adminReply: adminReply.trim(),
     updatedAtIso: nowIso,
   });
+  notifyEvent("complaint.updated", { complaintId, status: "resolved" });
 }
 
 export async function markComplaintInReview(complaintId: string): Promise<void> {
@@ -2173,6 +2460,7 @@ export async function markComplaintInReview(complaintId: string): Promise<void> 
     status: "in_progress",
     updatedAtIso: nowIso,
   });
+  notifyEvent("complaint.updated", { complaintId, status: "in review" });
 }
 
 export async function rejectComplaint(complaintId: string, adminReply: string): Promise<void> {
@@ -2183,6 +2471,7 @@ export async function rejectComplaint(complaintId: string, adminReply: string): 
     adminReply: adminReply.trim(),
     updatedAtIso: nowIso,
   });
+  notifyEvent("complaint.updated", { complaintId, status: "rejected" });
 }
 
 export async function listStaffAttendanceForAdmin(admin: AdminRecord): Promise<StaffAttendanceRecord[]> {
@@ -2309,7 +2598,13 @@ export async function listAdminSchedule(admin: AdminRecord): Promise<{ timetable
 }
 
 export async function listResultsForAdmin(admin: AdminRecord): Promise<StudentResultRecord[]> {
-  if (isDemoMode()) return [];
+  if (isDemoMode()) {
+    return getDemoHTResults()
+      .slice()
+      .sort((a, b) =>
+        (b.publishedAtIso || b.assessmentDate).localeCompare(a.publishedAtIso || a.assessmentDate),
+      );
+  }
   const classes = await listScopedClasses(admin);
   if (classes.length === 0) return [];
 
@@ -2326,8 +2621,9 @@ export async function listResultsForAdmin(admin: AdminRecord): Promise<StudentRe
   return snapshots
     .flatMap((s) => s.docs)
     .map((item) => normalizeStudentResultRecord(item.id, item.data()))
-    .filter((r) => r.publishedAtIso)
-    .sort((a, b) => b.publishedAtIso.localeCompare(a.publishedAtIso));
+    .sort((a, b) =>
+      (b.publishedAtIso || b.assessmentDate).localeCompare(a.publishedAtIso || a.assessmentDate),
+    );
 }
 
 export async function listRecentResultsForAdmin(admin: AdminRecord, take = 6): Promise<StudentResultRecord[]> {
@@ -2337,7 +2633,7 @@ export async function listRecentResultsForAdmin(admin: AdminRecord, take = 6): P
 
 export type MobileNotificationItem = {
   id: string;
-  type: "announcement" | "complaint" | "leave_request" | "diary";
+  type: "announcement" | "complaint" | "leave_request" | "diary" | "plan" | "inquiry";
   title: string;
   description: string;
   timestamp: number;
@@ -2346,12 +2642,14 @@ export type MobileNotificationItem = {
 };
 
 export async function listAdminNotifications(admin: AdminRecord): Promise<MobileNotificationItem[]> {
-  const [announcements, complaints, leaveRequests, diaryEntries, studentLeaves] = await Promise.all([
+  const [announcements, complaints, leaveRequests, diaryEntries, studentLeaves, teachingPlans, inquiries] = await Promise.all([
     listAdminAnnouncements(admin),
     listAdminComplaints(admin),
     listPendingLeaveRequests(admin),
     listStaffDiaryForAdmin(admin),
     listStudentLeaveRequestsForAdmin(admin),
+    listTeachingPlansForAdmin(admin),
+    listAdminInquiries(admin),
   ]);
 
   const items: MobileNotificationItem[] = [];
@@ -2360,7 +2658,7 @@ export async function listAdminNotifications(admin: AdminRecord): Promise<Mobile
     items.push({
       id: `announcement-${a.id}`,
       type: "announcement",
-      title: "Announcement Awaiting Approval",
+      title: "Circular Awaiting Approval",
       description: `"${a.title}" — submitted by ${a.createdByName || "Staff"}`,
       timestamp: a.createdAtIso ? new Date(a.createdAtIso).getTime() : 0,
       dateLabel: formatDateTimeLabel(a.createdAtIso),
@@ -2416,6 +2714,30 @@ export async function listAdminNotifications(admin: AdminRecord): Promise<Mobile
     });
   }
 
+  for (const p of teachingPlans.filter((p) => p.status === "submitted")) {
+    items.push({
+      id: `plan-${p.id}`,
+      type: "plan",
+      title: "Teaching Plan Submitted",
+      description: `${p.subjectName} · ${p.teacherName}${p.className ? ` (${p.className})` : ""}`,
+      timestamp: p.submittedAtIso ? new Date(p.submittedAtIso).getTime() : (p.updatedAtIso ? new Date(p.updatedAtIso).getTime() : 0),
+      dateLabel: formatDateTimeLabel(p.submittedAtIso || p.updatedAtIso),
+      urgency: "normal",
+    });
+  }
+
+  for (const inq of inquiries.filter((i) => i.status === "new")) {
+    items.push({
+      id: `inquiry-${inq.id}`,
+      type: "inquiry",
+      title: "New Admission Inquiry",
+      description: `${inq.studentName}${inq.course ? ` · ${inq.course}` : ""}`,
+      timestamp: inq.createdAtIso ? new Date(inq.createdAtIso).getTime() : 0,
+      dateLabel: formatDateTimeLabel(inq.createdAtIso),
+      urgency: "normal",
+    });
+  }
+
   return items.sort((a, b) => b.timestamp - a.timestamp);
 }
 
@@ -2454,6 +2776,7 @@ export async function replyToDoubtAsTeacher({
     studentSeen: false,
     updatedAtIso: nowIso,
   });
+  notifyEvent("doubt.answered", { doubtId });
 }
 
 export async function listResultsForAssessment(assessmentTitle: string, classId: string, subjectId?: string): Promise<StudentResultRecord[]> {
@@ -2495,12 +2818,13 @@ export async function listPendingStudentsForTeacher(profile: UserProfileRecord) 
   if (isDemoMode()) return DEMO_PENDING_STUDENTS;
   const classIds = Array.from(new Set(profile.teacherClassIds)).filter(Boolean);
   if (classIds.length === 0) return [];
+  // Batch into "in" queries (max 10 each) instead of one query per class.
   const snapshots = await Promise.all(
-    classIds.map((classId) =>
+    chunk(classIds, 10).map((ids) =>
       getDocs(
         query(
           collection(firestoreDb, userProfilesCollectionName),
-          where("classId", "==", classId),
+          where("classId", "in", ids),
           where("active", "==", false),
         ),
       ),
@@ -2516,6 +2840,7 @@ export async function listPendingStudentsForTeacher(profile: UserProfileRecord) 
 export async function approveStudentEnrollment(userId: string) {
   if (isDemoMode()) return;
   await updateDoc(doc(firestoreDb, userProfilesCollectionName, userId), { active: true });
+  notifyEvent("enrollment.decided", { userId, status: "approved" });
 }
 
 export async function uploadMaterialFile(
@@ -2571,6 +2896,7 @@ export async function createMaterialRecord({
     attachments: [{ url: fileUrl, name: fileName, type: "file" }],
     createdAtIso: nowIso,
   });
+  notifyEvent("material.posted", { classId, title: title.trim() });
 }
 
 export async function createCircular({
@@ -2600,6 +2926,12 @@ export async function createCircular({
     status: "published",
     createdAtIso: nowIso,
     updatedAtIso: nowIso,
+  });
+  notifyEvent("circular.posted", {
+    audienceScope: audience,
+    centreId: profile.centreId || "",
+    regionId: profile.regionId || "",
+    title: title.trim(),
   });
 }
 
@@ -2642,6 +2974,11 @@ export async function submitTeacherLeaveRequest({
     requestedAtIso: nowIso,
     updatedAtIso: nowIso,
   });
+  notifyEvent("staffLeave.submitted", {
+    centreId: profile.centreId || "",
+    regionId: profile.regionId || "",
+    staffName: profile.name || "Teacher",
+  });
 }
 
 export async function removeStudentFromCentre(userId: string): Promise<void> {
@@ -2661,6 +2998,7 @@ export async function rejectStudentEnrollment(userId: string): Promise<void> {
     active: false,
     rejectedAtIso: nowIso,
   });
+  notifyEvent("enrollment.decided", { userId, status: "rejected" });
 }
 
 export async function listTeacherTimetable(profile: UserProfileRecord): Promise<{ timetableEntries: ClassTimetableRecord[]; tests: TestScheduleRecord[] }> {
@@ -2699,8 +3037,14 @@ export async function updateTeacherProfileContact(userId: string, fields: { phon
 
 export async function savePushToken(userId: string, token: string): Promise<void> {
   if (!userId || !token) return;
-  await updateDoc(doc(firestoreDb, userProfilesCollectionName, userId), {
-    expoPushToken: token,
-    pushTokenUpdatedAt: new Date().toISOString(),
-  });
+  // merge:true so this works even when the user has no userProfiles doc yet
+  // (e.g. admins, whose primary record lives in the `admins` collection).
+  await setDoc(
+    doc(firestoreDb, userProfilesCollectionName, userId),
+    {
+      expoPushToken: token,
+      pushTokenUpdatedAt: new Date().toISOString(),
+    },
+    { merge: true },
+  );
 }

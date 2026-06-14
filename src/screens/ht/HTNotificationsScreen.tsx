@@ -6,8 +6,9 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { D } from "../../components/theme";
 import { AnimatedPressable } from "../../components/motion";
 import { useSession } from "../../providers/session";
-import { useResource } from "../../hooks/useResource";
-import { listDoubtsForTeacher, listStudentLeaveRequestsForTeacher, type StudentLeaveRequestRecord } from "../../lib/erp";
+import { useCachedResource } from "../../hooks/useResource";
+import { listDoubtsForTeacher, listStudentLeaveRequestsForTeacher, listTeacherSessionSlots, listTeachingPlansForTeacher, type StudentLeaveRequestRecord } from "../../lib/erp";
+import type { SessionSlotRecord, TeachingPlanRecord } from "../../shared";
 
 function relativeTime(isoStr: string) {
   if (!isoStr) return "—";
@@ -24,20 +25,34 @@ export function HTNotificationsScreen() {
   const insets = useSafeAreaInsets();
   const { profile } = useSession();
 
-  const { data, loading, error } = useResource(
+  const { data, loading, error } = useCachedResource(
+    `notif-staff:${profile?.userId ?? "anon"}`,
     async () => {
-      if (!profile) return { doubts: [], studentLeaves: [] as StudentLeaveRequestRecord[] };
-      const [doubts, studentLeaves] = await Promise.all([
+      if (!profile) {
+        return {
+          doubts: [],
+          studentLeaves: [] as StudentLeaveRequestRecord[],
+          sessionRequests: [] as SessionSlotRecord[],
+          planUpdates: [] as TeachingPlanRecord[],
+        };
+      }
+      const [doubts, studentLeaves, slots, plans] = await Promise.all([
         listDoubtsForTeacher(profile),
         listStudentLeaveRequestsForTeacher(profile),
+        listTeacherSessionSlots(profile),
+        listTeachingPlansForTeacher(profile),
       ]);
-      return { doubts, studentLeaves };
+      const sessionRequests = slots.filter((slot) => slot.status === "requested");
+      const planUpdates = plans.filter((plan) => plan.status === "approved" || (plan.status === "draft" && !!plan.reviewNote));
+      return { doubts, studentLeaves, sessionRequests, planUpdates };
     },
     [profile?.userId],
   );
 
   const doubts = data?.doubts ?? [];
   const studentLeaves = (data?.studentLeaves ?? []).filter((l) => l.status === "pending");
+  const sessionRequests = data?.sessionRequests ?? [];
+  const planUpdates = data?.planUpdates ?? [];
   const openDoubts = doubts.filter((d) => d.status === "open");
   const repliedDoubts = doubts.filter((d) => d.status !== "open");
 
@@ -88,6 +103,60 @@ export function HTNotificationsScreen() {
                       <View style={s.newDot} />
                     </AnimatedPressable>
                   ))}
+                </View>
+              </>
+            )}
+
+            {/* Pending session requests */}
+            {sessionRequests.length > 0 && (
+              <>
+                <Text style={s.sectionLabel}>SESSION REQUESTS · {sessionRequests.length}</Text>
+                <View style={[s.card, { marginBottom: 18 }]}>
+                  {sessionRequests.map((slot, i) => (
+                    <AnimatedPressable
+                      key={slot.id}
+                      style={[s.notifRow, i < sessionRequests.length - 1 && s.divider]}
+                      onPress={() => router.push("/(team)/sessions")}
+                    >
+                      <View style={[s.notifIcon, { backgroundColor: "#EEF2FF" }]}>
+                        <Ionicons name="calendar-outline" size={16} color="#6366F1" />
+                      </View>
+                      <View style={{ flex: 1 }}>
+                        <Text style={s.notifTitle}>Session request — {slot.bookedByName || "Student"}</Text>
+                        <Text style={s.notifMsg} numberOfLines={2}>{slot.subjectName || "Doubt session"} · {slot.date} {slot.startTime}</Text>
+                        <Text style={s.notifTime}>{relativeTime(slot.updatedAtIso || slot.createdAtIso)}</Text>
+                      </View>
+                      <View style={s.newDot} />
+                    </AnimatedPressable>
+                  ))}
+                </View>
+              </>
+            )}
+
+            {/* Teaching plan status updates */}
+            {planUpdates.length > 0 && (
+              <>
+                <Text style={s.sectionLabel}>PLAN UPDATES · {planUpdates.length}</Text>
+                <View style={[s.card, { marginBottom: 18 }]}>
+                  {planUpdates.slice(0, 10).map((plan, i) => {
+                    const approved = plan.status === "approved";
+                    return (
+                      <AnimatedPressable
+                        key={plan.id}
+                        style={[s.notifRow, i < Math.min(planUpdates.length, 10) - 1 && s.divider]}
+                        onPress={() => router.push({ pathname: "/(team)/teaching-plan-detail", params: { planId: plan.id } })}
+                      >
+                        <View style={[s.notifIcon, { backgroundColor: approved ? "#DCFCE7" : "#FEE2E2" }]}>
+                          <Ionicons name={approved ? "checkmark-circle-outline" : "alert-circle-outline"} size={16} color={approved ? "#15803D" : "#B91C1C"} />
+                        </View>
+                        <View style={{ flex: 1 }}>
+                          <Text style={s.notifTitle}>Teaching plan {approved ? "approved" : "needs changes"}</Text>
+                          <Text style={s.notifMsg} numberOfLines={2}>{plan.subjectName} · week of {plan.weekStartDate}{!approved && plan.reviewNote ? ` · ${plan.reviewNote}` : ""}</Text>
+                          <Text style={s.notifTime}>{relativeTime(plan.approvedAtIso || plan.updatedAtIso)}</Text>
+                        </View>
+                      </AnimatedPressable>
+                    );
+                  })}
                 </View>
               </>
             )}
@@ -155,7 +224,7 @@ export function HTNotificationsScreen() {
               </>
             )}
 
-            {studentLeaves.length === 0 && openDoubts.length === 0 && repliedDoubts.length === 0 && (
+            {studentLeaves.length === 0 && openDoubts.length === 0 && repliedDoubts.length === 0 && sessionRequests.length === 0 && planUpdates.length === 0 && (
               <View style={[s.card, { padding: 32, alignItems: "center" }]}>
                 <Ionicons name="notifications-off-outline" size={32} color={D.outline} style={{ marginBottom: 12 }} />
                 <Text style={{ fontSize: 14, fontWeight: "700", fontFamily: D.fontBold, color: D.onSurface, marginBottom: 4 }}>No notifications</Text>

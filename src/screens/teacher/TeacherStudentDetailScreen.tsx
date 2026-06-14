@@ -88,12 +88,7 @@ export function TeacherStudentDetailScreen() {
               <InfoRow label="Centre" value={profile.centreName || "—"} />
               <View style={s.divider} />
               <InfoRow label="Region" value={profile.regionName || "—"} />
-              {(profile as any).email && (
-                <>
-                  <View style={s.divider} />
-                  <InfoRow label="Email" value={(profile as any).email} />
-                </>
-              )}
+              {/* Contact details (email/phone/parent/address) hidden from teachers. */}
             </View>
           </>
         )}

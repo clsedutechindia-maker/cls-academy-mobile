@@ -3,7 +3,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { navigateBack } from "../lib/navigation";
-import { useResource } from "../hooks/useResource";
+import { useCachedResource } from "../hooks/useResource";
 import { listAdminNotifications, type MobileNotificationItem } from "../lib/erp";
 import { useSession } from "../providers/session";
 import { D, MOBILE_BOTTOM_SPACING } from "../components/ui";
@@ -13,6 +13,8 @@ function notifRoute(type: MobileNotificationItem["type"]): string | null {
   if (type === "complaint") return "/(admin)/complaints";
   if (type === "leave_request") return "/(admin)/attendance";
   if (type === "diary") return "/(admin)/staff" as string;
+  if (type === "plan") return "/(admin)/teaching-plans";
+  if (type === "inquiry") return "/(admin)/inquiries";
   return null;
 }
 
@@ -26,6 +28,8 @@ function notifStyle(type: MobileNotificationItem["type"], urgency: MobileNotific
   }
   if (type === "leave_request") return { bg: "#fff8e8", fg: "#8f6610", icon: "calendar-outline" };
   if (type === "diary") return { bg: D.primaryFixed, fg: D.primary, icon: "document-text-outline" };
+  if (type === "plan") return { bg: D.primaryFixed, fg: D.primary, icon: "clipboard-outline" };
+  if (type === "inquiry") return { bg: D.infoBg, fg: D.infoFg, icon: "person-add-outline" };
   return { bg: D.infoBg, fg: D.infoFg, icon: "megaphone-outline" };
 }
 
@@ -33,14 +37,17 @@ function typeLabel(type: MobileNotificationItem["type"]) {
   if (type === "complaint") return "Complaint";
   if (type === "leave_request") return "Leave";
   if (type === "diary") return "Diary";
-  return "Announcement";
+  if (type === "plan") return "Plan";
+  if (type === "inquiry") return "Inquiry";
+  return "Circular";
 }
 
 export function AdminNotificationsScreen() {
   const { adminRecord } = useSession();
   const insets = useSafeAreaInsets();
 
-  const resource = useResource(
+  const resource = useCachedResource(
+    `notif-admin:${adminRecord?.role ?? ""}:${adminRecord?.centreId ?? ""}:${adminRecord?.regionId ?? ""}`,
     async () => (adminRecord ? listAdminNotifications(adminRecord) : []),
     [adminRecord?.role, adminRecord?.centreId, adminRecord?.regionId],
   );

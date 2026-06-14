@@ -53,6 +53,10 @@ export default function IndexRoute() {
     return <Redirect href="/(teacher)/home" />;
   }
 
+  if (role === "employee") {
+    return <Redirect href="/(employee)/home" />;
+  }
+
   if (role === "admin") {
     return <Redirect href="/(admin)/overview" />;
   }

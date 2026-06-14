@@ -117,6 +117,7 @@ export default function AdminLayout() {
             "/teaching-plans", "/teaching-plan-detail", "/teaching-plan-editor",
             "/sessions",
             "/inquiries", "/inquiry-detail",
+            "/fees", "/fee-detail",
           ]),
         }}
       />
@@ -140,6 +141,8 @@ export default function AdminLayout() {
       <Tabs.Screen name="inquiry-detail" options={{ href: null }} />
       <Tabs.Screen name="results" options={{ href: null }} />
       <Tabs.Screen name="result-detail" options={{ href: null }} />
+      <Tabs.Screen name="fees" options={{ href: null }} />
+      <Tabs.Screen name="fee-detail" options={{ href: null }} />
     </Tabs>
   );
 }

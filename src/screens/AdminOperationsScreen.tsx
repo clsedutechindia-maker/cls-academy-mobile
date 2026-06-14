@@ -14,6 +14,7 @@ const NAV_CARDS: { label: string; sub: string; icon: IoniconsName; color: string
   { label: "Inquiries", sub: "Admission leads", icon: "call-outline", color: "#BE185D", bg: "#FCE7F3", route: "/(admin)/inquiries" },
   { label: "Results", sub: "Test results", icon: "trophy-outline", color: D.success, bg: "#dcfce7", route: "/(admin)/results" },
   { label: "Leave", sub: "Manage requests", icon: "document-text-outline", color: "#B45309", bg: "#FEF3C7", route: "/(admin)/leave" },
+  { label: "Fees", sub: "Collections & dues", icon: "card-outline", color: "#047857", bg: "#ECFDF5", route: "/(admin)/fees" },
 ];
 
 export function AdminOperationsScreen() {

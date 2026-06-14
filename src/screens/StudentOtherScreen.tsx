@@ -48,7 +48,7 @@ const SECTIONS = [
   },
   {
     title: "Circulars",
-    subtitle: "Notices & announcements",
+    subtitle: "Notices & updates",
     icon: "megaphone-outline" as const,
     href: "/(student)/circulars" as const,
     color: "#EA580C",
@@ -72,6 +72,15 @@ const SECTIONS = [
     color: "#059669",
     bg: "#D1FAE5",
     badgeKey: "doubts" as null | "doubts" | "circulars",
+  },
+  {
+    title: "Fees",
+    subtitle: "Dues & receipts",
+    icon: "card-outline" as const,
+    href: "/(student)/fees" as const,
+    color: "#B45309",
+    bg: "#FEF3C7",
+    badgeKey: null as null | "doubts" | "circulars",
   },
 ];
 

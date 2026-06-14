@@ -144,10 +144,8 @@ function normalizeAccountRole(value: unknown): AccountRole {
     return "team";
   }
 
-  // Legacy: dropped "employee" role maps to a plain teacher account (migration
-  // converts these; this is the defensive fallback for un-migrated docs).
   if (value === "employee") {
-    return "teacher";
+    return "employee";
   }
 
   return "student";

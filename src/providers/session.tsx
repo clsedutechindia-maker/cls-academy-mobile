@@ -3,6 +3,7 @@ import { collection, doc, getDoc, getDocs, limit, query, serverTimestamp, setDoc
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type PropsWithChildren } from "react";
 import { Platform } from "react-native";
 import { firebaseAuth, firestoreDb, googleProvider } from "../lib/firebase";
+import { clearCache } from "../lib/cache";
 // Lazy-loaded: only available in dev builds, not Expo Go
 let GoogleSignin: typeof import("@react-native-google-signin/google-signin").GoogleSignin | null = null;
 try {
@@ -21,7 +22,7 @@ import {
   type UserProfileRecord,
 } from "../shared";
 
-type SessionRole = "loading" | "guest" | "student" | "teacher" | "team" | "admin" | "unsupported";
+type SessionRole = "loading" | "guest" | "student" | "teacher" | "team" | "employee" | "admin" | "unsupported";
 
 type SessionContextValue = {
   authUser: User | null;
@@ -328,6 +329,8 @@ export function SessionProvider({ children }: PropsWithChildren) {
   }, []);
 
   const signOutUser = useCallback(async () => {
+    // Drop cached per-user data so the next account never sees stale screens.
+    await clearCache();
     await signOut(firebaseAuth);
   }, []);
 
@@ -360,6 +363,10 @@ export function SessionProvider({ children }: PropsWithChildren) {
       return "teacher";
     }
 
+    if (profile?.role === "employee") {
+      return "employee";
+    }
+
     return "unsupported";
   }, [adminRecord?.active, authUser, isReady, pendingGoogleRedirect, profile?.role]);
 
@@ -378,6 +385,10 @@ export function SessionProvider({ children }: PropsWithChildren) {
 
     if (role === "student") {
       return "Student / Parent";
+    }
+
+    if (role === "employee") {
+      return "Office Staff";
     }
 
     return "Member";
@@ -438,6 +449,7 @@ const DEMO_ROLE_TO_SESSION: Record<DemoRole, SessionRole> = {
   student: "student",
   teacher: "teacher",
   team: "team",
+  employee: "employee",
   admin: "admin",
 };
 

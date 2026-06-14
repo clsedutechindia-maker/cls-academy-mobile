@@ -104,7 +104,7 @@ export default function TeamLayout() {
         name="results"
         options={{
           title: "Results",
-          tabBarIcon: ActiveTabIcon("document-text-outline", "document-text", ["/upload-result", "/result-detail"]),
+          tabBarIcon: ActiveTabIcon("document-text-outline", "document-text", ["/result-detail"]),
         }}
       />
       <Tabs.Screen
@@ -133,7 +133,6 @@ export default function TeamLayout() {
       <Tabs.Screen name="student-detail" options={{ href: null }} />
       <Tabs.Screen name="approve-student" options={{ href: null }} />
       <Tabs.Screen name="remove-student" options={{ href: null }} />
-      <Tabs.Screen name="upload-result" options={{ href: null }} />
       <Tabs.Screen name="result-detail" options={{ href: null }} />
       <Tabs.Screen name="schedule" options={{ href: null }} />
       <Tabs.Screen name="timetable-editor" options={{ href: null }} />

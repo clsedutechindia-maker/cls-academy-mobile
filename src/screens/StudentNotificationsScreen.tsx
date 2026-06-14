@@ -4,13 +4,13 @@ import { ScrollView, StyleSheet, Text, View, Pressable } from "react-native";
 import { EmptyCard, ErrorCard, LoadingCard, MOBILE_BOTTOM_SPACING, Pill, uiStyles, D } from "../components/ui";
 import { formatDateTimeLabel } from "../lib/date";
 import { getStudentNotifications, markStudentNotificationsSeen } from "../lib/erp";
-import { useResource } from "../hooks/useResource";
+import { useCachedResource } from "../hooks/useResource";
 import { useSession } from "../providers/session";
 import { Ionicons } from "@expo/vector-icons";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 function notificationTone(type: string) {
-  if (type === "complaint" || type === "leave") return "warning" as const;
+  if (type === "complaint" || type === "leave" || type === "fee") return "warning" as const;
   if (type === "doubt" || type === "result") return "success" as const;
   return "info" as const;
 }
@@ -43,7 +43,7 @@ function NotificationRow({
 export function StudentNotificationsScreen() {
   const { profile } = useSession();
   const insets = useSafeAreaInsets();
-  const resource = useResource(async () => {
+  const resource = useCachedResource(`notif-student:${profile?.userId ?? "anon"}`, async () => {
     if (!profile) return [];
     const items = await getStudentNotifications(profile);
     await markStudentNotificationsSeen(profile);

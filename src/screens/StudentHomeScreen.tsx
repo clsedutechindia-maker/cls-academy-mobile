@@ -1,7 +1,7 @@
 import { router } from "expo-router";
 import { StyleSheet, Text, View, ScrollView } from "react-native";
 import { useMemo } from "react";
-import { useResource } from "../hooks/useResource";
+import { useCachedResource } from "../hooks/useResource";
 import {
   listAnnouncementsForProfile,
   listLearningResourcesForProfile,
@@ -22,7 +22,7 @@ export function StudentHomeScreen() {
   const { profile } = useSession();
   const insets = useSafeAreaInsets();
 
-  const resource = useResource(async () => {
+  const resource = useCachedResource(`home-student:${profile?.userId ?? "anon"}`, async () => {
     if (!profile) return null;
     const [attendance, results, schedules, materials, circulars] = await Promise.all([
       listStudentAttendance(profile),

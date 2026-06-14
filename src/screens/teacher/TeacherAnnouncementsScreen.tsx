@@ -55,7 +55,7 @@ export function TeacherAnnouncementsScreen() {
         {/* Header */}
         <View style={[s.headerSection, { paddingTop: insets.top + 20 }]}>
           <View style={s.titleRow}>
-            <Text style={s.pageTitle}>Updates</Text>
+            <Text style={s.pageTitle}>Circulars</Text>
             <AnimatedPressable style={s.searchIconBtn} onPress={() => { setSearchVisible((v) => !v); if (searchVisible) setSearch(""); }}>
               <Ionicons name={searchVisible ? "close" : "search"} size={20} color={D.onSurface} />
             </AnimatedPressable>
@@ -66,7 +66,7 @@ export function TeacherAnnouncementsScreen() {
               <Ionicons name="search-outline" size={17} color={D.outline} />
               <TextInput
                 style={s.searchInput}
-                placeholder="Search announcements…"
+                placeholder="Search circulars…"
                 placeholderTextColor={D.outline}
                 value={search}
                 onChangeText={setSearch}
@@ -96,7 +96,7 @@ export function TeacherAnnouncementsScreen() {
         <View style={s.contentArea}>
           {loading && (
             <View style={[s.card, { padding: 20, alignItems: "center" }]}>
-              <Text style={{ fontSize: 13, fontFamily: D.font, color: D.outline }}>Loading announcements…</Text>
+              <Text style={{ fontSize: 13, fontFamily: D.font, color: D.outline }}>Loading circulars…</Text>
             </View>
           )}
 
@@ -112,7 +112,7 @@ export function TeacherAnnouncementsScreen() {
           {!loading && !error && filtered.length === 0 && (
             <View style={[s.emptyCard, { padding: 32 }]}>
               <Ionicons name="megaphone-outline" size={36} color={D.surfaceHigh} />
-              <Text style={s.emptyTitle}>No announcements</Text>
+              <Text style={s.emptyTitle}>No circulars</Text>
               <Text style={s.emptySub}>Nothing here yet for your classes.</Text>
             </View>
           )}

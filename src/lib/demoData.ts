@@ -9,7 +9,7 @@ import type {
   StudentNotificationItem,
   LeaveRequestRecord,
 } from "./erp";
-import type { ClassSubjectRecord, SessionSlotRecord, StudentResultRecord, StudentAttendanceRecord } from "../shared";
+import type { ClassRecord, ClassSubjectRecord, SessionSlotRecord, StudentResultRecord, StudentAttendanceRecord } from "../shared";
 import type { AdmissionInquiryRecord, InquiryFollowUpRecord } from "../shared";
 import type { DemoRole } from "./demoMode";
 
@@ -158,6 +158,41 @@ export const DEMO_PROFILES: Record<DemoRole, UserProfileRecord> = {
     employeeId: "",
     employee_id: "",
     employeeType: "",
+    employeeCompetitiveExam: "",
+    employeeQualification: "",
+    employeeSubject: "",
+    studentId: "",
+    rollNumber: "",
+    classId: "",
+    className: "",
+  } as unknown as UserProfileRecord,
+
+  employee: {
+    userId: "demo-employee-001",
+    name: "Ms. Priya Sharma",
+    fullName: "Ms. Priya Sharma",
+    email: "priya.sharma@demo.cls",
+    role: "employee",
+    accountType: "employee",
+    regionId: REGION_ID,
+    regionName: REGION_NAME,
+    centreId: CENTRE_ID,
+    centreName: CENTRE_NAME,
+    branch: "",
+    teacherId: "",
+    teacherRole: "",
+    teacher_role: "",
+    teacherClassIds: [],
+    teacherClassNames: [],
+    teacherSubjectIds: [],
+    teacherSubjectNames: [],
+    teacher_class_ids: [],
+    teacher_class_names: [],
+    teacher_subject_ids: [],
+    teacher_subject_names: [],
+    employeeId: "CLS-EMP-0001",
+    employee_id: "CLS-EMP-0001",
+    employeeType: "Office Staff",
     employeeCompetitiveExam: "",
     employeeQualification: "",
     employeeSubject: "",
@@ -1451,4 +1486,12 @@ const DEMO_DOUBT_REPLIES: Record<string, StudentDoubtReplyRecord[]> = {
 
 export function getDemoDoubtReplies(doubtId: string): StudentDoubtReplyRecord[] {
   return DEMO_DOUBT_REPLIES[doubtId] ?? [];
+}
+
+export function getDemoClasses(): ClassRecord[] {
+  return [
+    { id: CLASS_ID_11B, name: CLASS_NAME_11B, regionId: REGION_ID, regionName: REGION_NAME, centreId: CENTRE_ID, centreName: CENTRE_NAME, teacherUserId: "demo-teacher-003", teacherId: "CLS-HT-0001", teacherName: "Dr. Anand Joshi", active: true },
+    { id: CLASS_ID_12A, name: CLASS_NAME_12A, regionId: REGION_ID, regionName: REGION_NAME, centreId: CENTRE_ID, centreName: CENTRE_NAME, teacherUserId: "demo-teacher-003", teacherId: "CLS-HT-0001", teacherName: "Dr. Anand Joshi", active: true },
+    { id: CLASS_ID_11A, name: CLASS_NAME_11A, regionId: REGION_ID, regionName: REGION_NAME, centreId: CENTRE_ID, centreName: CENTRE_NAME, teacherUserId: "demo-teacher-003", teacherId: "CLS-HT-0001", teacherName: "Dr. Anand Joshi", active: true },
+  ];
 }

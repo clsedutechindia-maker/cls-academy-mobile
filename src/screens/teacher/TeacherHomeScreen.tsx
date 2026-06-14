@@ -6,12 +6,10 @@ import { useSession } from "../../providers/session";
 import { D } from "../../components/theme";
 import { AnimatedPressable } from "../../components/motion";
 import { LinearGradient } from "expo-linear-gradient";
-import { useResource } from "../../hooks/useResource";
+import { useCachedResource } from "../../hooks/useResource";
 import { listDoubtsForTeacher, listTeacherStudents, listTeacherResults, listTeacherTimetable } from "../../lib/erp";
 
 const quickActions = [
-  { label: "Upload\nResult", icon: "bar-chart-outline" as const, color: D.primary, route: "/(teacher)/upload-result" as const },
-  { label: "Mark\nAttendance", icon: "checkmark-circle-outline" as const, color: "#0369A1", route: "/(teacher)/attendance" as const },
   { label: "Post\nMaterial", icon: "document-text-outline" as const, color: "#15803D", route: "/(teacher)/post-material" as const },
   { label: "Answer\nDoubts", icon: "help-circle-outline" as const, color: "#EC4899", route: "/(teacher)/doubts" as const },
 ];
@@ -33,7 +31,8 @@ export function TeacherHomeScreen() {
   const insets = useSafeAreaInsets();
   const { profile } = useSession();
 
-  const { data: doubts } = useResource(
+  const { data: doubts } = useCachedResource(
+    `teacher-doubts:${profile?.userId ?? "anon"}`,
     async () => {
       if (!profile) return [];
       return listDoubtsForTeacher(profile);
@@ -41,7 +40,8 @@ export function TeacherHomeScreen() {
     [profile?.userId],
   );
 
-  const { data: students } = useResource(
+  const { data: students } = useCachedResource(
+    `teacher-students:${profile?.userId ?? "anon"}`,
     async () => {
       if (!profile) return [];
       return listTeacherStudents(profile);
@@ -49,7 +49,8 @@ export function TeacherHomeScreen() {
     [profile?.userId],
   );
 
-  const { data: results } = useResource(
+  const { data: results } = useCachedResource(
+    `teacher-results:${profile?.userId ?? "anon"}`,
     async () => {
       if (!profile) return [];
       return listTeacherResults(profile);
@@ -57,7 +58,8 @@ export function TeacherHomeScreen() {
     [profile?.userId],
   );
 
-  const { data: timetable } = useResource(
+  const { data: timetable } = useCachedResource(
+    `teacher-timetable:${profile?.userId ?? "anon"}`,
     async () => {
       if (!profile) return { timetableEntries: [], tests: [] };
       return listTeacherTimetable(profile);

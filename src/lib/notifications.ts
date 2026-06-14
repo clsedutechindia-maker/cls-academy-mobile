@@ -66,6 +66,10 @@ export function getNotificationRoute(data: Record<string, unknown> | undefined):
       case "leave": return "/(admin)/leave";
       case "complaint": return "/(admin)/complaints";
       case "circular": return "/(admin)/circulars";
+      case "announcement": return "/(admin)/circulars";
+      case "inquiry": return "/(admin)/inquiries";
+      case "plan": return "/(admin)/teaching-plans";
+      case "approval": return "/(admin)/students";
       default: return "/(admin)/overview";
     }
   }
@@ -73,15 +77,20 @@ export function getNotificationRoute(data: Record<string, unknown> | undefined):
   if (role === "team") {
     switch (type) {
       case "leave": return "/(team)/leave";
-      case "complaint": return "/(team)/announcements";
-      default: return "/(team)/announcements";
+      case "inquiry": return "/(team)/inquiries";
+      case "approval": return "/(team)/approve-student";
+      case "doubt": return "/(team)/doubts";
+      case "plan": return "/(team)/teaching-plans";
+      default: return "/(team)/home";
     }
   }
 
   if (role === "teacher") {
     switch (type) {
-      case "complaint": return "/(teacher)/announcements";
-      default: return "/(teacher)/announcements";
+      case "doubt": return "/(teacher)/doubts";
+      case "schedule": return "/(teacher)/sessions";
+      case "plan": return "/(teacher)/teaching-plans";
+      default: return "/(teacher)/notifications";
     }
   }
 
@@ -92,7 +101,11 @@ export function getNotificationRoute(data: Record<string, unknown> | undefined):
     case "attendance": return "/(student)/attendance";
     case "complaint": return "/(student)/complaints";
     case "schedule": return "/(student)/schedules";
-    case "leave": return "/(student)/request-leave";
+    case "leave": return "/(student)/attendance";
+    case "material": return "/(student)/materials";
+    case "doubt": return "/(student)/doubts";
+    case "account": return "/(student)/account";
+    case "fee": return "/(student)/fees";
     default: return null;
   }
 }

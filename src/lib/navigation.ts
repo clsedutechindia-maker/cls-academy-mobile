@@ -26,6 +26,7 @@ function getFallbackHref(currentHref: string): Href {
   if (currentHref.startsWith("/(student)")) return "/(student)/home";
   if (currentHref.startsWith("/(teacher)")) return "/(teacher)/home";
   if (currentHref.startsWith("/(team)")) return "/(team)/home";
+  if (currentHref.startsWith("/(employee)")) return "/(employee)/home";
   if (currentHref.startsWith("/(admin)")) return "/(admin)/overview";
   if (currentHref.startsWith("/(auth)")) return "/(auth)/welcome";
   return "/" as Href;

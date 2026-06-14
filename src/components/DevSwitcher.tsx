@@ -21,6 +21,7 @@ const ROLES: {
   { id: "student", email: "demo.student.neet@clsacademy.test", label: "Student / Parent", sub: "Demo NEET Student", icon: "school-outline", color: "#0EA5E9", bg: "#F0F9FF", route: "/(student)/home" },
   { id: "teacher", email: "demo.subject.teacher@clsacademy.test", label: "Teacher", sub: "Demo Teacher", icon: "book-outline", color: "#10B981", bg: "#F0FDF4", route: "/(teacher)/announcements" },
   { id: "team", email: "demo.teacher@clsacademy.test", label: "Team", sub: "Demo Team (ex Head Teacher)", icon: "ribbon-outline", color: "#6D28D9", bg: "#F5F3FF", route: "/(team)/home" },
+  { id: "employee", email: "demo.employee@clsacademy.test", label: "Employee", sub: "Demo Office Staff", icon: "briefcase-outline", color: "#F59E0B", bg: "#FFFBEB", route: "/(employee)/home" },
   { id: "admin", email: "demo.admin@clsacademy.test", label: "Admin", sub: "Demo Superadmin", icon: "shield-checkmark-outline", color: "#EF4444", bg: "#FEF2F2", route: "/(admin)/overview" },
 ];
 
@@ -36,24 +37,20 @@ export function DevSwitcher() {
     setSwitching(role);
     setSwitchError(null);
     try {
-      // Try real Firebase sign-in first for live Firestore data
-      setDemoRole(null);
       if (authUser) await signOutUser();
       await signIn(email, TEST_ACCOUNT_PASSWORD);
-      setActive(null);
-      setOpen(false);
-      router.replace(route as any);
     } catch {
-      // Account not seeded — fall back to demo mode with fake data
       try {
         if (authUser) await signOutUser();
       } catch {}
+    } finally {
+      // Always overlay demo profile so role routing is deterministic regardless of Firestore state
+      // (Firestore profiles may have been migrated to different roles than the DevSwitcher expects)
       setDemoRole(role);
       setActive(role);
       setOpen(false);
-      router.replace(route as any);
-    } finally {
       setSwitching(null);
+      router.replace(route as any);
     }
   }, [authUser, signIn, signOutUser]);
 

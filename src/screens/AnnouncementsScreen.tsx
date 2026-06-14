@@ -17,13 +17,13 @@ export function AnnouncementsScreen() {
   }, [profile?.userId, profile?.regionId, profile?.centreId]);
 
   return (
-    <Screen title="Announcements" subtitle="Approved notices available for your current CLS Academy scope.">
+    <Screen title="Circulars" subtitle="Approved notices available for your current CLS Academy scope.">
       {resource.loading ? (
-        <LoadingCard label="Loading announcements..." />
+        <LoadingCard label="Loading circulars..." />
       ) : resource.error ? (
         <ErrorCard message={resource.error} onRetry={() => void resource.reload()} />
       ) : !resource.data || resource.data.length === 0 ? (
-        <EmptyCard title="No announcements" message="There are no approved notices for your current role and centre yet." />
+        <EmptyCard title="No circulars" message="There are no approved notices for your current role and centre yet." />
       ) : (
         <Stagger>
           {resource.data.map((announcement) => (

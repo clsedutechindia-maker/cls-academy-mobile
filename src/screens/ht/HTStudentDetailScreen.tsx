@@ -75,17 +75,14 @@ function StudentHero({
 function BasicInfoTab({ profile, approveMode, userId }: { profile: UserProfileRecord | null; approveMode: boolean; userId: string }) {
   const [approving, setApproving] = useState(false);
 
+  // Contact details (phone, email, parent info, address) are intentionally hidden
+  // from teaching staff (incl. head teachers). Only employee/admin roles see contacts.
   const infoRows = [
     { l: "Full Name", v: profile?.name || "—" },
-    { l: "Phone", v: profile?.phone || "—" },
-    { l: "Email", v: profile?.email || "—" },
-    { l: "Parent / Guardian", v: profile?.parentOneName || profile?.parentTwoName || "—" },
-    { l: "Parent Email", v: profile?.parentOneEmail || "—" },
     { l: "Class", v: profile?.className || "—" },
     { l: "Roll No.", v: profile?.rollNumber || "—" },
     { l: "Date of Birth", v: profile?.dateOfBirth || "—" },
     { l: "Gender", v: profile?.gender || "—" },
-    { l: "Address", v: profile?.address || "—" },
   ];
 
   async function handleApprove() {

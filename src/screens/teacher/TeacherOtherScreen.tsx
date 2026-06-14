@@ -12,7 +12,7 @@ type IoniconsName = React.ComponentProps<typeof Ionicons>["name"];
 
 const cards: { l: string; sub: string; icon: IoniconsName; color: string; bg: string; route: string }[] = [
   { l: "Schedule", sub: "Timetable & test dates", icon: "calendar-outline", color: D.primary, bg: D.surfaceLow, route: "/(teacher)/schedules" },
-  { l: "Announcements", sub: "Notices & updates", icon: "megaphone-outline", color: "#0369A1", bg: "#E0F2FE", route: "/(teacher)/announcements" },
+  { l: "Circulars", sub: "Notices & updates", icon: "megaphone-outline", color: "#0369A1", bg: "#E0F2FE", route: "/(teacher)/announcements" },
   { l: "Materials", sub: "Study resources", icon: "library-outline", color: "#15803D", bg: "#F0FDF4", route: "/(teacher)/materials" },
   { l: "Teaching Plan", sub: "Weekly plans", icon: "reader-outline", color: "#7C3AED", bg: "#F3E8FF", route: "/(teacher)/teaching-plans" },
   { l: "Attendance", sub: "Mark daily attendance", icon: "checkmark-circle-outline", color: "#B45309", bg: "#FEF3C7", route: "/(teacher)/attendance" },

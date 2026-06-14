@@ -1,8 +1,8 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
-export type DemoRole = "student" | "teacher" | "team" | "admin";
+export type DemoRole = "student" | "teacher" | "team" | "employee" | "admin";
 
-const VALID_ROLES: DemoRole[] = ["student", "teacher", "team", "admin"];
+const VALID_ROLES: DemoRole[] = ["student", "teacher", "team", "employee", "admin"];
 const ROLE_KEY = "cls:demo-role";
 
 let _activeRole: DemoRole | null = null;

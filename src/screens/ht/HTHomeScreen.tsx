@@ -6,11 +6,10 @@ import { useSession } from "../../providers/session";
 import { D } from "../../components/theme";
 import { AnimatedPressable } from "../../components/motion";
 import { LinearGradient } from "expo-linear-gradient";
-import { useResource } from "../../hooks/useResource";
+import { useCachedResource } from "../../hooks/useResource";
 import { listDoubtsForTeacher, listPendingStudentsForTeacher, listTeacherTimetable } from "../../lib/erp";
 
 const quickActions = [
-  { label: "Upload\nResult", icon: "bar-chart-outline" as const, color: D.primary, route: "/(team)/upload-result" as const },
   { label: "Post\nCircular", icon: "megaphone-outline" as const, color: "#0369A1", route: "/(team)/post-circular" as const },
   { label: "Leave\nRequests", icon: "document-text-outline" as const, color: "#15803D", route: "/(team)/leave" as const },
   { label: "Answer\nDoubts", icon: "help-circle-outline" as const, color: "#EC4899", route: "/(team)/doubts" as const },
@@ -33,7 +32,8 @@ export function HTHomeScreen() {
   const insets = useSafeAreaInsets();
   const { profile } = useSession();
 
-  const { data: doubts } = useResource(
+  const { data: doubts } = useCachedResource(
+    `ht-doubts:${profile?.userId ?? "anon"}`,
     async () => {
       if (!profile) return [];
       return listDoubtsForTeacher(profile);
@@ -41,7 +41,8 @@ export function HTHomeScreen() {
     [profile?.userId],
   );
 
-  const { data: pendingStudents } = useResource(
+  const { data: pendingStudents } = useCachedResource(
+    `ht-pending:${profile?.userId ?? "anon"}`,
     async () => {
       if (!profile) return [];
       return listPendingStudentsForTeacher(profile);
@@ -49,7 +50,8 @@ export function HTHomeScreen() {
     [profile?.userId],
   );
 
-  const { data: timetable } = useResource(
+  const { data: timetable } = useCachedResource(
+    `ht-timetable:${profile?.userId ?? "anon"}`,
     async () => {
       if (!profile) return { timetableEntries: [], tests: [] };
       return listTeacherTimetable(profile);

@@ -81,7 +81,7 @@ export default function TeacherLayout() {
         name="results"
         options={{
           title: "Results",
-          tabBarIcon: ActiveTabIcon("document-text-outline", "document-text", ["/upload-result", "/result-detail"]),
+          tabBarIcon: ActiveTabIcon("document-text-outline", "document-text", ["/result-detail"]),
         }}
       />
       <Tabs.Screen
@@ -98,7 +98,6 @@ export default function TeacherLayout() {
       <Tabs.Screen name="teaching-plan-editor" options={{ href: null }} />
       <Tabs.Screen name="announcements" options={{ href: null }} />
       <Tabs.Screen name="schedules" options={{ href: null }} />
-      <Tabs.Screen name="upload-result" options={{ href: null }} />
       <Tabs.Screen name="result-detail" options={{ href: null }} />
       <Tabs.Screen name="doubts" options={{ href: null }} />
       <Tabs.Screen name="doubt-detail" options={{ href: null }} />
