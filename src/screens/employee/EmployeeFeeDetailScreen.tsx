@@ -13,6 +13,8 @@ import {
   listPaymentsForFee,
   recordFeePayment,
   refundFeePayment,
+  setStudentFeeDiscount,
+  publishStudentFee,
   FEE_MODES,
   type FeeMode,
   type StudentFeeRecord,
@@ -55,6 +57,57 @@ export function EmployeeFeeDetailScreen() {
   const [installmentLabel, setInstallmentLabel] = useState<string>("");
   const [note, setNote] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [discountInput, setDiscountInput] = useState("");
+  const [discountSaving, setDiscountSaving] = useState(false);
+  const [publishing, setPublishing] = useState(false);
+
+  const isDraft = !!fee && !fee.published;
+  const canManage = !readOnly && !!fee;
+
+  async function handleSaveDiscount() {
+    if (!fee) return;
+    const d = Number(discountInput);
+    if (!Number.isFinite(d) || d < 0) {
+      showAlert("Invalid discount", "Enter a discount amount of zero or more.");
+      return;
+    }
+    setDiscountSaving(true);
+    try {
+      await setStudentFeeDiscount(fee, d);
+      setDiscountInput("");
+      await reload();
+    } catch (e) {
+      showAlert("Could not apply discount", e instanceof Error ? e.message : "Try again.");
+    } finally {
+      setDiscountSaving(false);
+    }
+  }
+
+  function handlePublish() {
+    if (!fee) return;
+    showAlert(
+      "Publish fee",
+      `Publish ${fee.studentName}'s fee of ${money(fee.totalAmount)}? It becomes visible to the student and you can start recording payments.`,
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Publish",
+          onPress: async () => {
+            setPublishing(true);
+            try {
+              await publishStudentFee(fee);
+              await reload();
+              showAlert("Published", "The fee is now final and visible to the student.");
+            } catch (e) {
+              showAlert("Publish failed", e instanceof Error ? e.message : "Try again.");
+            } finally {
+              setPublishing(false);
+            }
+          },
+        },
+      ],
+    );
+  }
 
   function openPay(prefillLabel = "", prefillAmount = "") {
     setInstallmentLabel(prefillLabel);
@@ -150,11 +203,21 @@ export function EmployeeFeeDetailScreen() {
         {!loading && fee && (
           <View style={{ paddingHorizontal: 18 }}>
             <View style={[s.card, s.pad]}>
-              <Text style={s.studentName}>{fee.studentName}</Text>
+              <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
+                <Text style={s.studentName}>{fee.studentName}</Text>
+                {isDraft && (
+                  <View style={s.draftPill}>
+                    <Text style={s.draftPillText}>DRAFT</Text>
+                  </View>
+                )}
+              </View>
               <Text style={s.studentMeta}>{fee.rollNumber ? `Roll ${fee.rollNumber} · ` : ""}{fee.className} · {fee.title}</Text>
+              {fee.discount > 0 && (
+                <Text style={s.discountLine}>Gross {money(fee.grossAmount)} − Discount {money(fee.discount)}</Text>
+              )}
               <View style={s.balRow}>
                 <View style={s.balItem}>
-                  <Text style={s.balLabel}>TOTAL</Text>
+                  <Text style={s.balLabel}>PAYABLE</Text>
                   <Text style={s.balValue}>{money(fee.totalAmount)}</Text>
                 </View>
                 <View style={s.balItem}>
@@ -166,13 +229,42 @@ export function EmployeeFeeDetailScreen() {
                   <Text style={[s.balValue, { color: fee.dueAmount > 0 ? "#B45309" : D.onSurface }]}>{money(fee.dueAmount)}</Text>
                 </View>
               </View>
-              {!readOnly && (
+              {canManage && fee.published && (
                 <AnimatedPressable style={s.payBtn} onPress={() => openPay()}>
                   <Ionicons name="add-circle-outline" size={18} color="#fff" />
                   <Text style={s.payBtnText}>Record Payment</Text>
                 </AnimatedPressable>
               )}
             </View>
+
+            {canManage && isDraft && (
+              <View style={[s.card, s.pad, { marginTop: 14, borderColor: "#FCD34D", backgroundColor: "#FFFBEB" }]}>
+                <Text style={s.draftTitle}>Finalise this fee</Text>
+                <Text style={s.draftHint}>Apply an optional discount, then publish to make it final and visible to the student.</Text>
+                <Text style={s.fieldLabel}>Discount (₹)</Text>
+                <View style={{ flexDirection: "row", gap: 8 }}>
+                  <TextInput
+                    style={[s.input, { flex: 1 }]}
+                    value={discountInput}
+                    onChangeText={setDiscountInput}
+                    keyboardType="numeric"
+                    placeholder={fee.discount > 0 ? String(fee.discount) : "0"}
+                    placeholderTextColor={D.outline}
+                  />
+                  <AnimatedPressable style={[s.discountBtn, discountSaving && { opacity: 0.6 }]} onPress={handleSaveDiscount} disabled={discountSaving}>
+                    {discountSaving ? <ActivityIndicator size="small" color={D.primary} /> : <Text style={s.discountBtnText}>Apply</Text>}
+                  </AnimatedPressable>
+                </View>
+                <AnimatedPressable style={[s.payBtn, { marginTop: 14 }, publishing && { opacity: 0.6 }]} onPress={handlePublish} disabled={publishing}>
+                  {publishing ? <ActivityIndicator size="small" color="#fff" /> : (
+                    <>
+                      <Ionicons name="checkmark-done-outline" size={18} color="#fff" />
+                      <Text style={s.payBtnText}>Publish Fee</Text>
+                    </>
+                  )}
+                </AnimatedPressable>
+              </View>
+            )}
 
             <Text style={s.sectionLabel}>INSTALLMENTS</Text>
             <View style={[s.card]}>
@@ -194,7 +286,7 @@ export function EmployeeFeeDetailScreen() {
                       <View style={[s.badge, { backgroundColor: tone.bg }]}>
                         <Text style={[s.badgeText, { color: tone.fg }]}>{inst.status}</Text>
                       </View>
-                      {remaining > 0 && !readOnly && (
+                      {remaining > 0 && canManage && fee.published && (
                         <Pressable onPress={() => openPay(inst.label, String(remaining))}>
                           <Text style={s.payLink}>Pay {money(remaining)}</Text>
                         </Pressable>
@@ -318,6 +410,13 @@ const s = StyleSheet.create({
   muted: { fontSize: 13, fontFamily: D.font, color: D.outline },
   studentName: { fontSize: 17, fontWeight: "800", fontFamily: D.fontExtraBold, color: D.onSurface, letterSpacing: -0.3 },
   studentMeta: { fontSize: 12, fontFamily: D.font, color: D.outline, marginTop: 3 },
+  discountLine: { fontSize: 11.5, fontFamily: D.fontSemiBold, color: "#B45309", marginTop: 6 },
+  draftPill: { paddingHorizontal: 8, paddingVertical: 3, borderRadius: 99, backgroundColor: "#FEF3C7" },
+  draftPillText: { fontSize: 9.5, fontWeight: "800", fontFamily: D.fontExtraBold, color: "#B45309", letterSpacing: 0.5 },
+  draftTitle: { fontSize: 14, fontWeight: "800", fontFamily: D.fontExtraBold, color: "#92400E" },
+  draftHint: { fontSize: 11.5, fontFamily: D.font, color: "#B45309", marginTop: 4, lineHeight: 16 },
+  discountBtn: { paddingHorizontal: 18, borderRadius: 10, alignItems: "center", justifyContent: "center", backgroundColor: "#fff", borderWidth: 1, borderColor: D.primary },
+  discountBtnText: { fontSize: 13, fontWeight: "700", fontFamily: D.fontBold, color: D.primary },
   balRow: { flexDirection: "row", gap: 10, marginTop: 16 },
   balItem: { flex: 1, backgroundColor: D.surfaceLow, borderRadius: 10, padding: 12 },
   balLabel: { fontSize: 9, fontWeight: "700", fontFamily: D.fontBold, color: D.outline, letterSpacing: 0.5 },

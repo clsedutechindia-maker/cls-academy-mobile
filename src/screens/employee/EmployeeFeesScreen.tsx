@@ -168,9 +168,15 @@ export function EmployeeFeesScreen() {
                     </View>
                     <View style={{ alignItems: "flex-end", gap: 4 }}>
                       <Text style={s.feeDue}>{f.dueAmount > 0 ? money(f.dueAmount) : "Paid"}</Text>
-                      <View style={[s.badge, { backgroundColor: tone.bg }]}>
-                        <Text style={[s.badgeText, { color: tone.fg }]}>{tone.label}</Text>
-                      </View>
+                      {f.published ? (
+                        <View style={[s.badge, { backgroundColor: tone.bg }]}>
+                          <Text style={[s.badgeText, { color: tone.fg }]}>{tone.label}</Text>
+                        </View>
+                      ) : (
+                        <View style={[s.badge, { backgroundColor: "#FEF3C7" }]}>
+                          <Text style={[s.badgeText, { color: "#B45309" }]}>Draft</Text>
+                        </View>
+                      )}
                     </View>
                   </AnimatedPressable>
                 );

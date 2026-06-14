@@ -9,6 +9,9 @@ import { AvatarCircle } from "../../components/ui";
 import { useSession } from "../../providers/session";
 import { useResource } from "../../hooks/useResource";
 import { listEmployeeStudents } from "../../lib/erp";
+import { listStudentFees } from "../../lib/fees";
+
+const money = (n: number) => `₹${Number(n || 0).toLocaleString("en-IN")}`;
 
 export function EmployeeStudentsScreen() {
   const insets = useSafeAreaInsets();
@@ -18,13 +21,22 @@ export function EmployeeStudentsScreen() {
   const [search, setSearch] = useState("");
   const [searchVisible, setSearchVisible] = useState(false);
 
-  const { data: students, loading, error } = useResource(
+  const { data, loading, error } = useResource(
     async () => {
-      if (!profile) return [];
-      return listEmployeeStudents(profile);
+      if (!profile) return { students: [], dueByStudent: {} as Record<string, number> };
+      const [students, fees] = await Promise.all([listEmployeeStudents(profile), listStudentFees(profile)]);
+      const dueByStudent: Record<string, number> = {};
+      for (const f of fees) {
+        if (!f.published) continue; // drafts not yet final
+        dueByStudent[f.studentUserId] = (dueByStudent[f.studentUserId] ?? 0) + f.dueAmount;
+      }
+      return { students, dueByStudent };
     },
     [profile?.userId],
   );
+
+  const students = data?.students ?? [];
+  const dueByStudent = data?.dueByStudent ?? {};
 
   const classNames: string[] = Array.from(
     new Set((students ?? []).map((s) => s.className).filter(Boolean))
@@ -147,6 +159,17 @@ export function EmployeeStudentsScreen() {
                       {st.rollNumber ? `Roll ${st.rollNumber} · ` : ""}{st.className}
                     </Text>
                   </View>
+                  {Object.prototype.hasOwnProperty.call(dueByStudent, st.userId) && (
+                    (dueByStudent[st.userId] ?? 0) > 0 ? (
+                      <View style={[s.feeBadge, { backgroundColor: "#FEF3C7" }]}>
+                        <Text style={[s.feeBadgeText, { color: "#B45309" }]}>{money(dueByStudent[st.userId])} due</Text>
+                      </View>
+                    ) : (
+                      <View style={[s.feeBadge, { backgroundColor: "#ECFDF5" }]}>
+                        <Text style={[s.feeBadgeText, { color: "#047857" }]}>Paid</Text>
+                      </View>
+                    )
+                  )}
                   <Ionicons name="chevron-forward" size={13} color={D.outline} />
                 </AnimatedPressable>
               ))}
@@ -204,4 +227,6 @@ const s = StyleSheet.create({
   studentRow: { flexDirection: "row", alignItems: "center", gap: 12, padding: 14 },
   studentName: { fontSize: 12, fontWeight: "700", color: D.onSurface, letterSpacing: -0.1, fontFamily: D.fontBold },
   studentMeta: { fontSize: 10.5, color: D.outline, marginTop: 2, fontFamily: D.font },
+  feeBadge: { paddingHorizontal: 8, paddingVertical: 3, borderRadius: 99 },
+  feeBadgeText: { fontSize: 10, fontWeight: "700", fontFamily: D.fontBold },
 });

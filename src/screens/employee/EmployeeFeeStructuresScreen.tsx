@@ -2,9 +2,10 @@ import { ActivityIndicator, Modal, Pressable, ScrollView, StyleSheet, Text, Text
 import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { D } from "../../components/theme";
 import { AnimatedPressable } from "../../components/motion";
+import { DateField, dateToValue } from "../schedule/scheduleEditorKit";
 import { useSession } from "../../providers/session";
 import { useResource } from "../../hooks/useResource";
 import { showAlert } from "../../lib/alert";
@@ -21,6 +22,24 @@ import {
 const money = (n: number) => `₹${Number(n || 0).toLocaleString("en-IN")}`;
 
 type DraftInstallment = { label: string; amount: string; dueDateIso: string };
+
+const FREQUENCIES: { label: string; months: number }[] = [
+  { label: "Monthly", months: 1 },
+  { label: "Every 2 months", months: 2 },
+  { label: "Quarterly", months: 3 },
+  { label: "Half-yearly", months: 6 },
+];
+
+// Add `months` to a YYYY-MM-DD date, clamping day-of-month overflow (e.g. Jan 31
+// + 1 month → Feb 28, not Mar 3).
+function addMonthsIso(iso: string, months: number): string {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(iso)) return "";
+  const d = new Date(`${iso}T00:00:00`);
+  const day = d.getDate();
+  d.setMonth(d.getMonth() + months);
+  if (d.getDate() < day) d.setDate(0);
+  return dateToValue(d);
+}
 
 export function EmployeeFeeStructuresScreen() {
   const insets = useSafeAreaInsets();
@@ -42,30 +61,49 @@ export function EmployeeFeeStructuresScreen() {
   const [title, setTitle] = useState("");
   const [academicYear, setAcademicYear] = useState("");
   const [classId, setClassId] = useState("");
-  const [installments, setInstallments] = useState<DraftInstallment[]>([{ label: "Installment 1", amount: "", dueDateIso: "" }]);
+  const [totalAmount, setTotalAmount] = useState("");
+  const [count, setCount] = useState(3);
+  const [firstDueIso, setFirstDueIso] = useState("");
+  const [intervalMonths, setIntervalMonths] = useState(1);
+  const [installments, setInstallments] = useState<DraftInstallment[]>([]);
   const [saving, setSaving] = useState(false);
 
   function openEditor() {
     setTitle("");
     setAcademicYear("");
     setClassId(classes[0]?.id ?? "");
-    setInstallments([{ label: "Installment 1", amount: "", dueDateIso: "" }]);
+    setTotalAmount("");
+    setCount(3);
+    setFirstDueIso("");
+    setIntervalMonths(1);
+    setInstallments([]);
     setEditorOpen(true);
   }
 
-  function addInstallment() {
-    setInstallments((cur) => [...cur, { label: `Installment ${cur.length + 1}`, amount: "", dueDateIso: "" }]);
+  // Auto-generate installments whenever the inputs change: split the total evenly
+  // (remainder lands on the last one) and space due dates by the chosen interval.
+  useEffect(() => {
+    if (!editorOpen) return;
+    const total = Math.max(0, Math.round(Number(totalAmount) || 0));
+    const n = Math.max(1, Math.min(60, Math.floor(count) || 1));
+    const base = Math.floor(total / n);
+    const remainder = total - base * n;
+    const rows: DraftInstallment[] = Array.from({ length: n }, (_, i) => ({
+      label: `Installment ${i + 1}`,
+      amount: String(base + (i === n - 1 ? remainder : 0)),
+      dueDateIso: firstDueIso ? addMonthsIso(firstDueIso, i * intervalMonths) : "",
+    }));
+    setInstallments(rows);
+  }, [editorOpen, totalAmount, count, firstDueIso, intervalMonths]);
+
+  function updateDueDate(idx: number, value: string) {
+    setInstallments((cur) => cur.map((it, i) => (i === idx ? { ...it, dueDateIso: value } : it)));
   }
 
-  function updateInstallment(idx: number, key: keyof DraftInstallment, value: string) {
-    setInstallments((cur) => cur.map((it, i) => (i === idx ? { ...it, [key]: value } : it)));
-  }
-
-  function removeInstallment(idx: number) {
-    setInstallments((cur) => (cur.length > 1 ? cur.filter((_, i) => i !== idx) : cur));
-  }
-
-  const draftTotal = installments.reduce((sum, it) => sum + (Number(it.amount) || 0), 0);
+  const draftTotal = useMemo(
+    () => installments.reduce((sum, it) => sum + (Number(it.amount) || 0), 0),
+    [installments],
+  );
 
   async function handleSave() {
     if (!profile) return;
@@ -94,7 +132,12 @@ export function EmployeeFeeStructuresScreen() {
     if (!profile) return;
     try {
       const count = await assignFeeStructureToClass(profile, structure);
-      showAlert("Assigned", count > 0 ? `Applied to ${count} new student${count !== 1 ? "s" : ""}.` : "All students in this batch already have this plan.");
+      showAlert(
+        "Drafts created",
+        count > 0
+          ? `Draft fees added for ${count} student${count !== 1 ? "s" : ""}. Open Fees to add discounts and publish each one.`
+          : "All students in this batch already have this plan.",
+      );
     } catch (e) {
       showAlert("Assign failed", e instanceof Error ? e.message : "Try again.");
     }
@@ -187,23 +230,50 @@ export function EmployeeFeeStructuresScreen() {
                 })}
               </ScrollView>
 
+              <Text style={s.fieldLabel}>Total Amount</Text>
+              <TextInput style={s.input} value={totalAmount} onChangeText={setTotalAmount} keyboardType="numeric" placeholder="e.g. 60000" placeholderTextColor={D.outline} />
+
+              <Text style={s.fieldLabel}>Number of Installments</Text>
+              <View style={s.stepperRow}>
+                <Pressable style={s.stepperBtn} onPress={() => setCount((c) => Math.max(1, c - 1))}>
+                  <Ionicons name="remove" size={20} color={D.primary} />
+                </Pressable>
+                <Text style={s.stepperValue}>{count}</Text>
+                <Pressable style={s.stepperBtn} onPress={() => setCount((c) => Math.min(60, c + 1))}>
+                  <Ionicons name="add" size={20} color={D.primary} />
+                </Pressable>
+              </View>
+
+              <Text style={s.fieldLabel}>First Due Date</Text>
+              <DateField value={firstDueIso} onChange={setFirstDueIso} />
+
+              {count > 1 && (
+                <>
+                  <Text style={s.fieldLabel}>Frequency</Text>
+                  <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8 }}>
+                    {FREQUENCIES.map((f) => {
+                      const active = intervalMonths === f.months;
+                      return (
+                        <AnimatedPressable key={f.months} style={[s.modeChip, active && s.modeChipActive]} onPress={() => setIntervalMonths(f.months)}>
+                          <Text style={[s.modeChipText, active && { color: "#fff" }]}>{f.label}</Text>
+                        </AnimatedPressable>
+                      );
+                    })}
+                  </ScrollView>
+                </>
+              )}
+
               <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginTop: 18 }}>
-                <Text style={s.fieldLabel}>Installments · total {money(draftTotal)}</Text>
-                <Pressable onPress={addInstallment}><Text style={s.addLink}>+ Add</Text></Pressable>
+                <Text style={s.fieldLabel}>Schedule · total {money(draftTotal)}</Text>
               </View>
               {installments.map((it, idx) => (
-                <View key={idx} style={s.instCard}>
-                  <View style={{ flexDirection: "row", gap: 8 }}>
-                    <TextInput style={[s.input, { flex: 1 }]} value={it.label} onChangeText={(v) => updateInstallment(idx, "label", v)} placeholder="Label" placeholderTextColor={D.outline} />
-                    {installments.length > 1 && (
-                      <Pressable style={s.deleteBtn} onPress={() => removeInstallment(idx)}>
-                        <Ionicons name="close" size={17} color="#B91C1C" />
-                      </Pressable>
-                    )}
+                <View key={idx} style={s.instRow}>
+                  <View style={{ flex: 1 }}>
+                    <Text style={s.instLabel}>{it.label}</Text>
+                    <Text style={s.instAmount}>{money(Number(it.amount) || 0)}</Text>
                   </View>
-                  <View style={{ flexDirection: "row", gap: 8, marginTop: 8 }}>
-                    <TextInput style={[s.input, { flex: 1 }]} value={it.amount} onChangeText={(v) => updateInstallment(idx, "amount", v)} keyboardType="numeric" placeholder="Amount ₹" placeholderTextColor={D.outline} />
-                    <TextInput style={[s.input, { flex: 1 }]} value={it.dueDateIso} onChangeText={(v) => updateInstallment(idx, "dueDateIso", v)} placeholder="Due YYYY-MM-DD" placeholderTextColor={D.outline} />
+                  <View style={{ width: 150 }}>
+                    <DateField value={it.dueDateIso} onChange={(v) => updateDueDate(idx, v)} minDate={idx === 0 ? undefined : installments[idx - 1]?.dueDateIso} />
                   </View>
                 </View>
               ))}
@@ -243,7 +313,12 @@ const s = StyleSheet.create({
   fieldLabel: { fontSize: 11, fontWeight: "700", fontFamily: D.fontBold, color: D.outline, letterSpacing: 0.3, marginBottom: 8, marginTop: 14 },
   addLink: { fontSize: 12, fontWeight: "700", fontFamily: D.fontBold, color: D.primary },
   input: { borderWidth: 1, borderColor: D.outlineVariant, borderRadius: 10, paddingHorizontal: 14, paddingVertical: 11, fontSize: 14, fontFamily: D.fontMedium, color: D.onSurface, backgroundColor: D.surface },
-  instCard: { backgroundColor: D.surfaceLow, borderRadius: 12, padding: 12, marginTop: 10 },
+  stepperRow: { flexDirection: "row", alignItems: "center", gap: 16 },
+  stepperBtn: { width: 44, height: 44, borderRadius: 10, alignItems: "center", justifyContent: "center", backgroundColor: D.surface, borderWidth: 1, borderColor: D.outlineVariant },
+  stepperValue: { fontSize: 18, fontWeight: "800", fontFamily: D.fontExtraBold, color: D.onSurface, minWidth: 28, textAlign: "center" },
+  instRow: { flexDirection: "row", alignItems: "center", gap: 10, backgroundColor: D.surfaceLow, borderRadius: 12, padding: 12, marginTop: 10 },
+  instLabel: { fontSize: 12, fontFamily: D.fontSemiBold, color: D.outline },
+  instAmount: { fontSize: 15, fontWeight: "800", fontFamily: D.fontExtraBold, color: D.onSurface, marginTop: 2 },
   modeChip: { paddingHorizontal: 14, paddingVertical: 9, borderRadius: 99, backgroundColor: D.surface, borderWidth: 1, borderColor: D.outlineVariant },
   modeChipActive: { backgroundColor: D.primary, borderColor: D.primary },
   modeChipText: { fontSize: 12, fontFamily: D.fontSemiBold, color: D.onSurfaceVariant },

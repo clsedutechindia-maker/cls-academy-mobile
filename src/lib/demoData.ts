@@ -11,6 +11,7 @@ import type {
 } from "./erp";
 import type { ClassRecord, ClassSubjectRecord, SessionSlotRecord, StudentResultRecord, StudentAttendanceRecord } from "../shared";
 import type { AdmissionInquiryRecord, InquiryFollowUpRecord } from "../shared";
+import type { FeeStructureRecord, StudentFeeRecord, FeePaymentRecord } from "./fees";
 import type { DemoRole } from "./demoMode";
 
 // ─── Shared constants ────────────────────────────────────────────────────────
@@ -749,13 +750,19 @@ const KEY_INQUIRIES = "cls:demo-inquiries";
 const KEY_INQUIRY_FOLLOWUPS = "cls:demo-inquiry-followups";
 const KEY_ATTENDANCE = "cls:demo-attendance";
 const KEY_ATT_LOCKS = "cls:demo-attendance-locks";
+const KEY_FEE_STRUCTURES = "cls:demo-fee-structures";
+const KEY_STUDENT_FEES = "cls:demo-student-fees";
+const KEY_FEE_PAYMENTS = "cls:demo-fee-payments";
+let _demoFeeStructures: FeeStructureRecord[] = [];
+let _demoStudentFees: StudentFeeRecord[] = [];
+let _demoFeePayments: FeePaymentRecord[] = [];
 let _hydrated = false;
 
 export async function hydrateDemoState(): Promise<void> {
   if (_hydrated) return;
   _hydrated = true;
   try {
-    const [doubtsRaw, leavesRaw, complaintsRaw, studentOvRaw, staffOvRaw, sessionsRaw, attendanceRaw, locksRaw, complaintOvRaw, inquiriesRaw, followUpsRaw] = await Promise.all([
+    const [doubtsRaw, leavesRaw, complaintsRaw, studentOvRaw, staffOvRaw, sessionsRaw, attendanceRaw, locksRaw, complaintOvRaw, inquiriesRaw, followUpsRaw, feeStructuresRaw, studentFeesRaw, feePaymentsRaw] = await Promise.all([
       AsyncStorage.getItem(KEY_DOUBTS),
       AsyncStorage.getItem(KEY_LEAVES),
       AsyncStorage.getItem(KEY_COMPLAINTS),
@@ -767,6 +774,9 @@ export async function hydrateDemoState(): Promise<void> {
       AsyncStorage.getItem(KEY_COMPLAINT_OVERRIDES),
       AsyncStorage.getItem(KEY_INQUIRIES),
       AsyncStorage.getItem(KEY_INQUIRY_FOLLOWUPS),
+      AsyncStorage.getItem(KEY_FEE_STRUCTURES),
+      AsyncStorage.getItem(KEY_STUDENT_FEES),
+      AsyncStorage.getItem(KEY_FEE_PAYMENTS),
     ]);
     if (doubtsRaw) _pendingDemoDoubts = JSON.parse(doubtsRaw) as StudentDoubtRecord[];
     if (leavesRaw) _pendingDemoLeaves = JSON.parse(leavesRaw) as StudentLeaveRequestRecord[];
@@ -782,6 +792,9 @@ export async function hydrateDemoState(): Promise<void> {
     }
     if (attendanceRaw) _demoAttendance = JSON.parse(attendanceRaw) as Record<string, StudentAttendanceRecord>;
     if (locksRaw) _demoAttendanceLocks = JSON.parse(locksRaw) as string[];
+    if (feeStructuresRaw) _demoFeeStructures = JSON.parse(feeStructuresRaw) as FeeStructureRecord[];
+    if (studentFeesRaw) _demoStudentFees = JSON.parse(studentFeesRaw) as StudentFeeRecord[];
+    if (feePaymentsRaw) _demoFeePayments = JSON.parse(feePaymentsRaw) as FeePaymentRecord[];
     if (studentOvRaw) {
       const entries = JSON.parse(studentOvRaw) as Array<[string, "approved" | "rejected"]>;
       for (const [k, v] of entries) _studentLeaveOverrides.set(k, v);
@@ -858,6 +871,63 @@ export function updateDemoSessionSlot(id: string, patch: Partial<SessionSlotReco
 export function deleteDemoSessionSlot(id: string) {
   _demoSessionSlots = _demoSessionSlots.filter((s) => s.id !== id);
   persistDemoSessions();
+}
+
+// ─── Demo fee system ────────────────────────────────────────────────────────
+function persistDemoFeeStructures() {
+  void AsyncStorage.setItem(KEY_FEE_STRUCTURES, JSON.stringify(_demoFeeStructures));
+}
+function persistDemoStudentFees() {
+  void AsyncStorage.setItem(KEY_STUDENT_FEES, JSON.stringify(_demoStudentFees));
+}
+function persistDemoFeePayments() {
+  void AsyncStorage.setItem(KEY_FEE_PAYMENTS, JSON.stringify(_demoFeePayments));
+}
+
+export function getDemoFeeStructures(): FeeStructureRecord[] {
+  return _demoFeeStructures;
+}
+
+export function upsertDemoFeeStructure(record: FeeStructureRecord) {
+  const idx = _demoFeeStructures.findIndex((s) => s.id === record.id);
+  if (idx >= 0) _demoFeeStructures[idx] = record;
+  else _demoFeeStructures.unshift(record);
+  persistDemoFeeStructures();
+}
+
+export function deleteDemoFeeStructure(id: string) {
+  _demoFeeStructures = _demoFeeStructures.filter((s) => s.id !== id);
+  persistDemoFeeStructures();
+}
+
+export function getDemoStudentFees(): StudentFeeRecord[] {
+  return _demoStudentFees;
+}
+
+export function addDemoStudentFees(records: StudentFeeRecord[]) {
+  const existing = new Set(_demoStudentFees.map((f) => f.id));
+  const fresh = records.filter((r) => !existing.has(r.id));
+  _demoStudentFees = [..._demoStudentFees, ...fresh];
+  persistDemoStudentFees();
+}
+
+export function updateDemoStudentFee(id: string, patch: Partial<StudentFeeRecord>) {
+  _demoStudentFees = _demoStudentFees.map((f) => (f.id === id ? { ...f, ...patch } : f));
+  persistDemoStudentFees();
+}
+
+export function getDemoFeePayments(): FeePaymentRecord[] {
+  return _demoFeePayments;
+}
+
+export function addDemoFeePayment(payment: FeePaymentRecord) {
+  _demoFeePayments.unshift(payment);
+  persistDemoFeePayments();
+}
+
+export function updateDemoFeePayment(id: string, patch: Partial<FeePaymentRecord>) {
+  _demoFeePayments = _demoFeePayments.map((p) => (p.id === id ? { ...p, ...patch } : p));
+  persistDemoFeePayments();
 }
 
 // ─── Demo admission inquiries ───────────────────────────────────────────────
