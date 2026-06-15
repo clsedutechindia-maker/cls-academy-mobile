@@ -9,9 +9,11 @@ import { DateField, dateToValue } from "../schedule/scheduleEditorKit";
 import { useSession } from "../../providers/session";
 import { useResource } from "../../hooks/useResource";
 import { showAlert } from "../../lib/alert";
-import { listEmployeeClasses } from "../../lib/erp";
+import { listEmployeeClasses, listAllClasses } from "../../lib/erp";
+import { normalizeUserProfileRecord } from "../../shared";
 import {
   listFeeStructures,
+  listAllFeeStructures,
   upsertFeeStructure,
   deleteFeeStructure,
   assignFeeStructureToClass,
@@ -43,15 +45,41 @@ function addMonthsIso(iso: string, months: number): string {
 
 export function EmployeeFeeStructuresScreen() {
   const insets = useSafeAreaInsets();
-  const { profile } = useSession();
+  const { profile, adminRecord, authUser } = useSession();
+
+  // Admins have no `userProfiles` doc (their record lives in `admins/{uid}`), so
+  // `profile` is null for them. Fall back to a profile-shaped view of adminRecord
+  // so admin-facing routes (e.g. (admin)/fee-structures) can reuse this screen.
+  const effectiveProfile = useMemo(() => {
+    if (profile) return profile;
+    if (!adminRecord) return null;
+    return normalizeUserProfileRecord(
+      authUser?.uid ?? adminRecord.email,
+      {
+        role: "employee",
+        regionId: adminRecord.regionId,
+        regionName: adminRecord.regionName,
+        centreId: adminRecord.centreId,
+        centreName: adminRecord.centreName,
+        email: adminRecord.email,
+      },
+      adminRecord.email,
+    );
+  }, [profile, adminRecord, authUser?.uid]);
+
+  // Superadmin (adminRecord, mobile has no centre/region tier) has no centreId of
+  // its own — fetch org-wide instead of the centre-scoped employee queries.
+  const isOrgWideAdmin = !!adminRecord;
 
   const { data, loading, error, reload } = useResource(
     async () => {
-      if (!profile) return { structures: [] as FeeStructureRecord[], classes: [] as { id: string; name: string }[] };
-      const [structures, classes] = await Promise.all([listFeeStructures(profile), listEmployeeClasses(profile)]);
-      return { structures, classes: classes.map((c) => ({ id: c.id, name: c.name })) };
+      if (!effectiveProfile) return { structures: [] as FeeStructureRecord[], classes: [] as { id: string; name: string; centreId: string; regionId: string }[] };
+      const [structures, classes] = isOrgWideAdmin
+        ? await Promise.all([listAllFeeStructures(), listAllClasses()])
+        : await Promise.all([listFeeStructures(effectiveProfile), listEmployeeClasses(effectiveProfile)]);
+      return { structures, classes: classes.map((c) => ({ id: c.id, name: c.name, centreId: c.centreId, regionId: c.regionId })) };
     },
-    [profile?.userId],
+    [effectiveProfile?.userId, isOrgWideAdmin],
   );
 
   const structures = data?.structures ?? [];
@@ -106,7 +134,7 @@ export function EmployeeFeeStructuresScreen() {
   );
 
   async function handleSave() {
-    if (!profile) return;
+    if (!effectiveProfile) return;
     const cls = classes.find((c) => c.id === classId);
     if (!title.trim()) { showAlert("Title required", "Give the fee plan a title."); return; }
     if (!cls) { showAlert("Class required", "Pick a class for this plan."); return; }
@@ -117,7 +145,7 @@ export function EmployeeFeeStructuresScreen() {
 
     setSaving(true);
     try {
-      await upsertFeeStructure(profile, { classId: cls.id, className: cls.name, title: title.trim(), academicYear: academicYear.trim(), installments: plans });
+      await upsertFeeStructure(effectiveProfile, { classId: cls.id, className: cls.name, centreId: cls.centreId, regionId: cls.regionId, title: title.trim(), academicYear: academicYear.trim(), installments: plans });
       setEditorOpen(false);
       await reload();
       showAlert("Saved", "Fee plan created. Use 'Assign' to apply it to the batch.");
@@ -129,9 +157,14 @@ export function EmployeeFeeStructuresScreen() {
   }
 
   async function handleAssign(structure: FeeStructureRecord) {
-    if (!profile) return;
+    if (!effectiveProfile) return;
     try {
-      const count = await assignFeeStructureToClass(profile, structure);
+      // Admin has no centreId of its own — borrow the structure's centre/region so
+      // listEmployeeStudents (centre-scoped) can find the batch's students.
+      const assignProfile = isOrgWideAdmin
+        ? { ...effectiveProfile, centreId: structure.centreId, regionId: structure.regionId }
+        : effectiveProfile;
+      const count = await assignFeeStructureToClass(assignProfile, structure);
       showAlert(
         "Drafts created",
         count > 0
@@ -165,7 +198,10 @@ export function EmployeeFeeStructuresScreen() {
     <View style={{ flex: 1, backgroundColor: D.bg }}>
       <ScrollView contentContainerStyle={{ paddingBottom: 160 }} showsVerticalScrollIndicator={false}>
         <View style={[s.header, { paddingTop: insets.top + 16 }]}>
-          <AnimatedPressable style={s.backBtn} onPress={() => router.back()}>
+          <AnimatedPressable
+            style={s.backBtn}
+            onPress={() => router.replace((isOrgWideAdmin ? "/(admin)/(tabs)/operations" : "/(employee)/(tabs)/data") as any)}
+          >
             <Ionicons name="chevron-back" size={22} color={D.onSurface} />
           </AnimatedPressable>
           <Text style={s.headerTitle}>Fee Plans</Text>
@@ -219,7 +255,7 @@ export function EmployeeFeeStructuresScreen() {
 
               <Text style={s.fieldLabel}>Batch</Text>
               <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8 }}>
-                {classes.length === 0 && <Text style={s.muted}>No classes in your centre.</Text>}
+                {classes.length === 0 && <Text style={s.muted}>{isOrgWideAdmin ? "No classes found." : "No classes in your centre."}</Text>}
                 {classes.map((c) => {
                   const active = classId === c.id;
                   return (

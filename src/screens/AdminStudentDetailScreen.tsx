@@ -345,9 +345,7 @@ export function AdminStudentDetailScreen() {
           <Ionicons name="chevron-back" size={20} color={D.onSurface} />
         </AnimatedPressable>
         <Text style={s.navTitle}>Student Profile</Text>
-        <View style={s.moreBtn}>
-          <Ionicons name="ellipsis-horizontal" size={18} color={D.onSurface} />
-        </View>
+        <View style={{ width: 36 }} />
       </View>
 
       {profileLoading && (
@@ -411,5 +409,4 @@ const s = StyleSheet.create({
   navHeader: { flexDirection: "row", alignItems: "center", paddingHorizontal: 16, paddingBottom: 12, backgroundColor: D.bg },
   navBack: { width: 36, height: 36, borderRadius: 10, backgroundColor: D.surface, borderWidth: 1, borderColor: D.outlineVariant, alignItems: "center", justifyContent: "center" },
   navTitle: { flex: 1, fontSize: 16, fontWeight: "700", fontFamily: D.fontBold, color: D.onSurface, textAlign: "center", letterSpacing: -0.3 },
-  moreBtn: { width: 36, height: 36, borderRadius: 10, backgroundColor: D.surface, borderWidth: 1, borderColor: D.outlineVariant, alignItems: "center", justifyContent: "center" },
 });

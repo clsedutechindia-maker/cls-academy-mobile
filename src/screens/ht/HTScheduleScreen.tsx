@@ -5,6 +5,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useCallback, useState } from "react";
 import { D } from "../../components/theme";
 import { AnimatedPressable } from "../../components/motion";
+import { HeaderBackButton } from "../../components/HeaderBackButton";
 import { useSession } from "../../providers/session";
 import { useResource } from "../../hooks/useResource";
 import { listHeadTeacherClasses, listTeacherTimetable } from "../../lib/erp";
@@ -138,7 +139,8 @@ export function HTScheduleScreen() {
   return (
     <View style={{ flex: 1, backgroundColor: D.bg }}>
       <View style={[s.headerSection, { paddingTop: insets.top + 20 }]}>
-        <View style={s.titleRow}>
+        <View style={[s.titleRow, { justifyContent: "flex-start" }]}>
+          <HeaderBackButton />
           <Text style={s.pageTitle}>Schedule</Text>
         </View>
         {classes.length > 0 && (
@@ -148,9 +150,11 @@ export function HTScheduleScreen() {
               <Text style={s.classPickText} numberOfLines={1}>{selectedClass ? selectedClass.name : "Select class"}</Text>
               <Ionicons name="chevron-down" size={14} color={D.outline} />
             </AnimatedPressable>
-            <AnimatedPressable style={[s.addBtn, !selectedClassId && { opacity: 0.5 }]} onPress={openCreate} disabled={!selectedClassId}>
-              <Ionicons name="add" size={20} color="#fff" />
-            </AnimatedPressable>
+            {profile?.permissions?.includes("schedules") && (
+              <AnimatedPressable style={[s.addBtn, !selectedClassId && { opacity: 0.5 }]} onPress={openCreate} disabled={!selectedClassId}>
+                <Ionicons name="add" size={20} color="#fff" />
+              </AnimatedPressable>
+            )}
           </View>
         )}
         <View style={s.segControl}>
@@ -206,7 +210,7 @@ export function HTScheduleScreen() {
                 {todaySlots.map((sl, i) => {
                   const sc = subjectStyle(sl.subjectName);
                   return (
-                    <AnimatedPressable key={sl.id} style={[s.slotRow, i < todaySlots.length - 1 && s.divider]} onPress={() => openEditSlot(sl)}>
+                    <AnimatedPressable key={sl.id} style={[s.slotRow, i < todaySlots.length - 1 && s.divider]} onPress={profile?.permissions?.includes("schedules") ? () => openEditSlot(sl) : undefined}>
                       <View style={s.slotTimeBlock}>
                         <Text style={s.slotTime}>{formatTime(sl.startTime)}</Text>
                         {sl.endTime && <Text style={s.slotHall}>{formatTime(sl.endTime)}</Text>}
@@ -240,7 +244,7 @@ export function HTScheduleScreen() {
                   const { mon, day } = formatExamDate(e.scheduleDate);
                   const dl = daysUntil(e.scheduleDate);
                   return (
-                    <AnimatedPressable key={e.id} style={[s.examRow, i < upcomingTests.length - 1 && s.divider]} onPress={() => openEditExam(e)}>
+                    <AnimatedPressable key={e.id} style={[s.examRow, i < upcomingTests.length - 1 && s.divider]} onPress={profile?.permissions?.includes("schedules") ? () => openEditExam(e) : undefined}>
                       <View style={s.datePill}>
                         <Text style={[s.datePillMon, { color: D.outline }]}>{mon}</Text>
                         <Text style={[s.datePillDay, { color: D.onSurface }]}>{day}</Text>

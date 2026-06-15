@@ -95,6 +95,7 @@ export default function RootLayout() {
         <Stack.Screen name="(teacher)" />
         <Stack.Screen name="(admin)" />
         <Stack.Screen name="(team)" />
+        <Stack.Screen name="(employee)" />
         <Stack.Screen name="unsupported" />
       </Stack>
       <DevSwitcher />

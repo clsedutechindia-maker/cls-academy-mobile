@@ -5,6 +5,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useState } from "react";
 import { D } from "../../components/theme";
 import { AnimatedPressable } from "../../components/motion";
+import { HeaderBackButton } from "../../components/HeaderBackButton";
 import { useSession } from "../../providers/session";
 import { useResource } from "../../hooks/useResource";
 import { listAnnouncementsForProfile } from "../../lib/erp";
@@ -51,14 +52,19 @@ export function HTCircularsScreen() {
     <View style={{ flex: 1, backgroundColor: D.bg }}>
       <View style={[s.headerSection, { paddingTop: insets.top + 20 }]}>
         <View style={s.titleRow}>
-          <Text style={s.pageTitle}>Circulars</Text>
+          <View style={{ flexDirection: "row", alignItems: "center" }}>
+            <HeaderBackButton />
+            <Text style={s.pageTitle}>Circulars</Text>
+          </View>
           <View style={{ flexDirection: "row", gap: 8 }}>
             <AnimatedPressable style={s.searchIconBtn} onPress={() => { setSearchVisible((v) => !v); if (searchVisible) setSearch(""); }}>
               <Ionicons name={searchVisible ? "close" : "search"} size={20} color={D.onSurface} />
             </AnimatedPressable>
-            <AnimatedPressable style={s.searchIconBtn} onPress={() => router.push("/(team)/post-circular")}>
-              <Ionicons name="add" size={20} color={D.onSurface} />
-            </AnimatedPressable>
+            {profile?.permissions?.includes("circulars") && (
+              <AnimatedPressable style={s.searchIconBtn} onPress={() => router.push("/(team)/post-circular")}>
+                <Ionicons name="add" size={20} color={D.onSurface} />
+              </AnimatedPressable>
+            )}
           </View>
         </View>
 

@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { ActivityIndicator, KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import { router } from "expo-router";
+import { router, useSegments } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { navigateBack } from "../../lib/navigation";
 import { showAlert } from "../../lib/alert";
@@ -16,6 +16,9 @@ import { MODE_OPTIONS, inquiryStatusMeta } from "./inquiryShared";
 export function LogInquiryScreen() {
   const insets = useSafeAreaInsets();
   const { profile } = useSession();
+  // Shared by (team) and (employee) — route within the active group.
+  const segments = useSegments();
+  const group = segments[0] === "(employee)" ? "(employee)" : "(team)";
 
   const [studentName, setStudentName] = useState("");
   const [phone, setPhone] = useState("");
@@ -72,13 +75,13 @@ export function LogInquiryScreen() {
     setBusy(false);
     // Navigate after a confirmed save — a routing error must not look like a save failure.
     navigateBack(router);
-    router.push({ pathname: "/(team)/inquiry-detail" as any, params: { inquiryId: id } });
+    router.push({ pathname: `/${group}/inquiry-detail` as any, params: { inquiryId: id } });
   }
 
   function openMatch() {
     if (!match) return;
     navigateBack(router);
-    router.push({ pathname: "/(team)/inquiry-detail" as any, params: { inquiryId: match.id, addFollowUp: "1" } });
+    router.push({ pathname: `/${group}/inquiry-detail` as any, params: { inquiryId: match.id, addFollowUp: "1" } });
   }
 
   const modeLabel = MODE_OPTIONS.find((m) => m.key === mode)?.label ?? "Select";

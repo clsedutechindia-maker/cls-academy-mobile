@@ -5,6 +5,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useState } from "react";
 import { D } from "../../components/theme";
 import { AnimatedPressable } from "../../components/motion";
+import { HeaderBackButton } from "../../components/HeaderBackButton";
 import { useSession } from "../../providers/session";
 import { useResource } from "../../hooks/useResource";
 import { listLearningResourcesForProfile } from "../../lib/erp";
@@ -62,7 +63,10 @@ export function HTMaterialsScreen() {
     <View style={{ flex: 1, backgroundColor: D.bg }}>
       <View style={[s.headerSection, { paddingTop: insets.top + 20 }]}>
         <View style={s.titleRow}>
-          <Text style={s.pageTitle}>Materials</Text>
+          <View style={{ flexDirection: "row", alignItems: "center" }}>
+            <HeaderBackButton />
+            <Text style={s.pageTitle}>Materials</Text>
+          </View>
           <AnimatedPressable style={s.searchIconBtn} onPress={() => { setSearchVisible((v) => !v); if (searchVisible) setSearch(""); }}>
             <Ionicons name={searchVisible ? "close" : "search"} size={22} color={D.onSurface} />
           </AnimatedPressable>
@@ -163,14 +167,16 @@ export function HTMaterialsScreen() {
         )}
       </ScrollView>
 
-      <TouchableOpacity
-        style={s.fab}
-        activeOpacity={0.85}
-        onPress={() => router.push(postMaterialPath as any)}
-      >
-        <Ionicons name="add" size={18} color="#fff" />
-        <Text style={s.fabText}>Post Material</Text>
-      </TouchableOpacity>
+      {profile?.permissions?.includes("materials") && (
+        <TouchableOpacity
+          style={s.fab}
+          activeOpacity={0.85}
+          onPress={() => router.push(postMaterialPath as any)}
+        >
+          <Ionicons name="add" size={18} color="#fff" />
+          <Text style={s.fabText}>Post Material</Text>
+        </TouchableOpacity>
+      )}
     </View>
   );
 }

@@ -37,6 +37,7 @@ export function EmployeeStudentsScreen() {
 
   const students = data?.students ?? [];
   const dueByStudent = data?.dueByStudent ?? {};
+  const canRegisterStudents = profile?.permissions?.includes("register_students");
 
   const classNames: string[] = Array.from(
     new Set((students ?? []).map((s) => s.className).filter(Boolean))
@@ -119,6 +120,12 @@ export function EmployeeStudentsScreen() {
 
           <View style={s.sectionHeader}>
             <Text style={s.sectionTitle}>All students</Text>
+            {canRegisterStudents && (
+              <AnimatedPressable style={s.registerBtn} onPress={() => router.push("/(employee)/register-student")}>
+                <Ionicons name="person-add-outline" size={13} color={D.primary} />
+                <Text style={s.registerBtnText}>Register</Text>
+              </AnimatedPressable>
+            )}
           </View>
 
           {loading && (
@@ -222,6 +229,8 @@ const s = StyleSheet.create({
   fcSub: { marginTop: 3, fontSize: 9.5, color: D.onSurfaceVariant, letterSpacing: -0.05, fontFamily: D.font },
   sectionHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginTop: 24, marginBottom: 12, paddingHorizontal: 2 },
   sectionTitle: { fontSize: 12, fontWeight: "700", fontFamily: D.fontBold, color: D.onSurface, letterSpacing: -0.1 },
+  registerBtn: { flexDirection: "row", alignItems: "center", gap: 5, paddingHorizontal: 11, paddingVertical: 6, borderRadius: 10, backgroundColor: D.surfaceLow, borderWidth: 1, borderColor: D.surfaceHigh },
+  registerBtnText: { fontSize: 11, fontWeight: "700", fontFamily: D.fontBold, color: D.primary },
   card: { backgroundColor: D.surface, borderRadius: 12, borderWidth: 1, borderColor: D.outlineVariant, overflow: "hidden", shadowColor: D.primary, shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.03, shadowRadius: 5, elevation: 1 },
   divider: { borderBottomWidth: 1, borderBottomColor: D.outlineVariant },
   studentRow: { flexDirection: "row", alignItems: "center", gap: 12, padding: 14 },

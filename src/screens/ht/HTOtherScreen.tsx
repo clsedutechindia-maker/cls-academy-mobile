@@ -10,13 +10,13 @@ import { listDoubtsForTeacher } from "../../lib/erp";
 
 type IoniconsName = React.ComponentProps<typeof Ionicons>["name"];
 
-const cards: { l: string; sub: string; icon: IoniconsName; color: string; bg: string; route: string }[] = [
-  { l: "Schedule", sub: "Timetable & exams", icon: "calendar-outline", color: D.primary, bg: D.surfaceLow, route: "/(team)/schedule" },
-  { l: "Circulars", sub: "Notices & updates", icon: "megaphone-outline", color: "#0369A1", bg: "#E0F2FE", route: "/(team)/circulars" },
+const cards: { l: string; sub: string; icon: IoniconsName; color: string; bg: string; route: string; cap?: string }[] = [
+  { l: "Schedule", sub: "Timetable & exams", icon: "calendar-outline", color: D.primary, bg: D.surfaceLow, route: "/(team)/schedule", cap: "schedules" },
+  { l: "Circulars", sub: "Notices & updates", icon: "megaphone-outline", color: "#0369A1", bg: "#E0F2FE", route: "/(team)/circulars", cap: "circulars" },
   { l: "Leave", sub: "Manage requests", icon: "document-text-outline", color: "#B45309", bg: "#FEF3C7", route: "/(team)/leave" },
-  { l: "Materials", sub: "Study resources", icon: "library-outline", color: "#15803D", bg: "#F0FDF4", route: "/(team)/materials" },
-  { l: "Teaching Plan", sub: "Weekly plans", icon: "reader-outline", color: "#7C3AED", bg: "#F3E8FF", route: "/(team)/teaching-plans" },
-  { l: "Sessions", sub: "Doubt & remedial requests", icon: "time-outline", color: "#0D9488", bg: "#CCFBF1", route: "/(team)/sessions" },
+  { l: "Materials", sub: "Study resources", icon: "library-outline", color: "#15803D", bg: "#F0FDF4", route: "/(team)/materials", cap: "materials" },
+  { l: "Teaching Plan", sub: "Weekly plans", icon: "reader-outline", color: "#7C3AED", bg: "#F3E8FF", route: "/(team)/teaching-plans", cap: "teaching_plans" },
+  { l: "Sessions", sub: "Doubt & remedial requests", icon: "time-outline", color: "#0D9488", bg: "#CCFBF1", route: "/(team)/sessions", cap: "sessions" },
 ];
 
 export function HTOtherScreen() {
@@ -32,6 +32,8 @@ export function HTOtherScreen() {
   );
 
   const openDoubtsCount = (doubts ?? []).filter((d) => d.status === "open").length;
+  const visibleCards = cards.filter((c) => !c.cap || profile?.permissions?.includes(c.cap));
+  const canHandleDoubts = profile?.permissions?.includes("doubts");
 
   return (
     <View style={{ flex: 1, backgroundColor: D.bg }}>
@@ -44,7 +46,7 @@ export function HTOtherScreen() {
         </View>
 
         <View style={s.grid}>
-          {cards.map((c) => (
+          {visibleCards.map((c) => (
             <AnimatedPressable key={c.l} style={s.gridCard} onPress={() => router.push(c.route as any)}>
               <View style={[s.cardIcon, { backgroundColor: c.bg }]}>
                 <Ionicons name={c.icon} size={20} color={c.color} />
@@ -61,23 +63,25 @@ export function HTOtherScreen() {
         </View>
 
         {/* Doubts — full width */}
-        <AnimatedPressable style={s.doubtsCard} onPress={() => router.push("/(team)/doubts")}>
-          <View style={[s.cardIcon, { backgroundColor: D.surfaceLow }]}>
-            <Ionicons name="help-circle-outline" size={20} color={D.primaryBtn} />
-          </View>
-          <View style={{ flex: 1 }}>
-            <Text style={s.cardTitle}>Doubt Requests</Text>
-            <Text style={s.cardSub} numberOfLines={1}>
-              {openDoubtsCount > 0 ? `${openDoubtsCount} unanswered from students` : "No pending doubts"}
-            </Text>
-          </View>
-          {openDoubtsCount > 0 && (
-            <View style={s.countBadge}>
-              <Text style={s.countBadgeText}>{openDoubtsCount}</Text>
+        {canHandleDoubts && (
+          <AnimatedPressable style={s.doubtsCard} onPress={() => router.push("/(team)/doubts")}>
+            <View style={[s.cardIcon, { backgroundColor: D.surfaceLow }]}>
+              <Ionicons name="help-circle-outline" size={20} color={D.primaryBtn} />
             </View>
-          )}
-          <Ionicons name="chevron-forward" size={13} color={D.outline} />
-        </AnimatedPressable>
+            <View style={{ flex: 1 }}>
+              <Text style={s.cardTitle}>Doubt Requests</Text>
+              <Text style={s.cardSub} numberOfLines={1}>
+                {openDoubtsCount > 0 ? `${openDoubtsCount} unanswered from students` : "No pending doubts"}
+              </Text>
+            </View>
+            {openDoubtsCount > 0 && (
+              <View style={s.countBadge}>
+                <Text style={s.countBadgeText}>{openDoubtsCount}</Text>
+              </View>
+            )}
+            <Ionicons name="chevron-forward" size={13} color={D.outline} />
+          </AnimatedPressable>
+        )}
       </ScrollView>
     </View>
   );

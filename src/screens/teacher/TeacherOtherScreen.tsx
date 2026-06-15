@@ -10,13 +10,14 @@ import { listDoubtsForTeacher } from "../../lib/erp";
 
 type IoniconsName = React.ComponentProps<typeof Ionicons>["name"];
 
-const cards: { l: string; sub: string; icon: IoniconsName; color: string; bg: string; route: string }[] = [
-  { l: "Schedule", sub: "Timetable & test dates", icon: "calendar-outline", color: D.primary, bg: D.surfaceLow, route: "/(teacher)/schedules" },
-  { l: "Circulars", sub: "Notices & updates", icon: "megaphone-outline", color: "#0369A1", bg: "#E0F2FE", route: "/(teacher)/announcements" },
-  { l: "Materials", sub: "Study resources", icon: "library-outline", color: "#15803D", bg: "#F0FDF4", route: "/(teacher)/materials" },
-  { l: "Teaching Plan", sub: "Weekly plans", icon: "reader-outline", color: "#7C3AED", bg: "#F3E8FF", route: "/(teacher)/teaching-plans" },
-  { l: "Attendance", sub: "Mark daily attendance", icon: "checkmark-circle-outline", color: "#B45309", bg: "#FEF3C7", route: "/(teacher)/attendance" },
-  { l: "Sessions", sub: "Doubt & remedial requests", icon: "time-outline", color: "#0D9488", bg: "#CCFBF1", route: "/(teacher)/sessions" },
+const cards: { l: string; sub: string; icon: IoniconsName; color: string; bg: string; route: string; cap?: string }[] = [
+  { l: "Schedule", sub: "Timetable & test dates", icon: "calendar-outline", color: D.primary, bg: D.surfaceLow, route: "/(teacher)/schedules", cap: "schedules" },
+  { l: "Circulars", sub: "Notices & updates", icon: "megaphone-outline", color: "#0369A1", bg: "#E0F2FE", route: "/(teacher)/announcements", cap: "circulars" },
+  { l: "Materials", sub: "Study resources", icon: "library-outline", color: "#15803D", bg: "#F0FDF4", route: "/(teacher)/materials", cap: "materials" },
+  { l: "Teaching Plan", sub: "Weekly plans", icon: "reader-outline", color: "#7C3AED", bg: "#F3E8FF", route: "/(teacher)/teaching-plans", cap: "teaching_plans" },
+  { l: "Attendance", sub: "Mark daily attendance", icon: "checkmark-circle-outline", color: "#B45309", bg: "#FEF3C7", route: "/(teacher)/attendance", cap: "attendance" },
+  { l: "Sessions", sub: "Doubt & remedial requests", icon: "time-outline", color: "#0D9488", bg: "#CCFBF1", route: "/(teacher)/sessions", cap: "sessions" },
+  { l: "Leave", sub: "Submit leave requests", icon: "document-text-outline", color: "#DC2626", bg: "#FEE2E2", route: "/(teacher)/leave" },
 ];
 
 export function TeacherOtherScreen() {
@@ -32,6 +33,8 @@ export function TeacherOtherScreen() {
   );
 
   const openDoubtsCount = (doubts ?? []).filter((d) => d.status === "open").length;
+  const visibleCards = cards.filter((c) => !c.cap || profile?.permissions?.includes(c.cap));
+  const canHandleDoubts = profile?.permissions?.includes("doubts");
 
   return (
     <View style={{ flex: 1, backgroundColor: D.bg }}>
@@ -44,7 +47,7 @@ export function TeacherOtherScreen() {
         </View>
 
         <View style={s.grid}>
-          {cards.map((c) => (
+          {visibleCards.map((c) => (
             <AnimatedPressable key={c.l} style={s.gridCard} onPress={() => router.push(c.route as any)}>
               <View style={[s.cardIcon, { backgroundColor: c.bg }]}>
                 <Ionicons name={c.icon} size={20} color={c.color} />
@@ -60,23 +63,25 @@ export function TeacherOtherScreen() {
           ))}
         </View>
 
-        <AnimatedPressable style={s.doubtsCard} onPress={() => router.push("/(teacher)/doubts")}>
-          <View style={[s.cardIcon, { backgroundColor: D.surfaceLow }]}>
-            <Ionicons name="help-circle-outline" size={20} color={D.primary} />
-          </View>
-          <View style={{ flex: 1 }}>
-            <Text style={s.cardTitle}>Doubt Requests</Text>
-            <Text style={s.cardSub} numberOfLines={1}>
-              {openDoubtsCount > 0 ? `${openDoubtsCount} unanswered from students` : "No pending doubts"}
-            </Text>
-          </View>
-          {openDoubtsCount > 0 && (
-            <View style={s.countBadge}>
-              <Text style={s.countBadgeText}>{openDoubtsCount}</Text>
+        {canHandleDoubts && (
+          <AnimatedPressable style={s.doubtsCard} onPress={() => router.push("/(teacher)/doubts")}>
+            <View style={[s.cardIcon, { backgroundColor: D.surfaceLow }]}>
+              <Ionicons name="help-circle-outline" size={20} color={D.primary} />
             </View>
-          )}
-          <Ionicons name="chevron-forward" size={13} color={D.outline} />
-        </AnimatedPressable>
+            <View style={{ flex: 1 }}>
+              <Text style={s.cardTitle}>Doubt Requests</Text>
+              <Text style={s.cardSub} numberOfLines={1}>
+                {openDoubtsCount > 0 ? `${openDoubtsCount} unanswered from students` : "No pending doubts"}
+              </Text>
+            </View>
+            {openDoubtsCount > 0 && (
+              <View style={s.countBadge}>
+                <Text style={s.countBadgeText}>{openDoubtsCount}</Text>
+              </View>
+            )}
+            <Ionicons name="chevron-forward" size={13} color={D.outline} />
+          </AnimatedPressable>
+        )}
       </ScrollView>
     </View>
   );

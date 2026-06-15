@@ -4,6 +4,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useState } from "react";
 import { D } from "../../components/theme";
 import { AnimatedPressable } from "../../components/motion";
+import { HeaderBackButton } from "../../components/HeaderBackButton";
 import { useSession } from "../../providers/session";
 import { useResource } from "../../hooks/useResource";
 import { listAnnouncementsForProfile } from "../../lib/erp";
@@ -55,7 +56,10 @@ export function TeacherAnnouncementsScreen() {
         {/* Header */}
         <View style={[s.headerSection, { paddingTop: insets.top + 20 }]}>
           <View style={s.titleRow}>
-            <Text style={s.pageTitle}>Circulars</Text>
+            <View style={{ flexDirection: "row", alignItems: "center" }}>
+              <HeaderBackButton />
+              <Text style={s.pageTitle}>Circulars</Text>
+            </View>
             <AnimatedPressable style={s.searchIconBtn} onPress={() => { setSearchVisible((v) => !v); if (searchVisible) setSearch(""); }}>
               <Ionicons name={searchVisible ? "close" : "search"} size={20} color={D.onSurface} />
             </AnimatedPressable>

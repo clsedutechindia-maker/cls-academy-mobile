@@ -1,3 +1,1 @@
-import { SchedulesScreen } from "../../src/screens/SchedulesScreen";
-
-export default SchedulesScreen;
+export { HTScheduleScreen as default } from "../../src/screens/ht/HTScheduleScreen";

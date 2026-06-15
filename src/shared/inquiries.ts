@@ -12,6 +12,7 @@ export type InquiryStatus =
   | "contacted"
   | "demo_scheduled"
   | "demo_attended"
+  | "demo" // active demo student (taking demo classes at the centre)
   | "enrolled"
   | "lost";
 
@@ -60,6 +61,7 @@ export const INQUIRY_STATUS_META: Record<InquiryStatus, { label: string; fg: str
   contacted: { label: "Contacted", fg: "#7C3AED", bg: "#F3E8FF" },
   demo_scheduled: { label: "Demo Scheduled", fg: "#B45309", bg: "#FEF3C7" },
   demo_attended: { label: "Demo Attended", fg: "#0D9488", bg: "#CCFBF1" },
+  demo: { label: "Demo Student", fg: "#4338CA", bg: "#E0E7FF" },
   enrolled: { label: "Enrolled", fg: "#166534", bg: "#DCFCE7" },
   lost: { label: "Lost", fg: "#B91C1C", bg: "#FEE2E2" },
 };
@@ -70,6 +72,7 @@ export const INQUIRY_STATUS_ORDER: InquiryStatus[] = [
   "contacted",
   "demo_scheduled",
   "demo_attended",
+  "demo",
   "enrolled",
   "lost",
 ];
@@ -109,6 +112,7 @@ function normalizeInquiryStatus(value: unknown): InquiryStatus {
   return value === "contacted"
     || value === "demo_scheduled"
     || value === "demo_attended"
+    || value === "demo"
     || value === "enrolled"
     || value === "lost"
     ? value

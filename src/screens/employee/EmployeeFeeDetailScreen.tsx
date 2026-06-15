@@ -1,17 +1,20 @@
 import { ActivityIndicator, Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { router, useLocalSearchParams } from "expo-router";
+import { navigateBack } from "../../lib/navigation";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { D } from "../../components/theme";
 import { AnimatedPressable } from "../../components/motion";
 import { useSession } from "../../providers/session";
 import { useResource } from "../../hooks/useResource";
 import { showAlert } from "../../lib/alert";
+import { normalizeUserProfileRecord } from "../../shared";
 import {
   getStudentFee,
   listPaymentsForFee,
-  recordFeePayment,
+  markInstallmentPaid,
+  markInstallmentUnpaid,
   refundFeePayment,
   setStudentFeeDiscount,
   publishStudentFee,
@@ -33,16 +36,35 @@ const INST_TONES: Record<string, { bg: string; fg: string }> = {
 
 export function EmployeeFeeDetailScreen() {
   const insets = useSafeAreaInsets();
-  const { profile, role } = useSession();
+  const { profile, adminRecord, authUser } = useSession();
   const { feeId } = useLocalSearchParams<{ feeId: string }>();
-  // Admins get read-only oversight: no record/refund (fees are the employee's job),
-  // and admin sessions have no `profile` for collectedBy attribution.
-  const readOnly = role === "admin";
+
+  // Admins have no `userProfiles` doc (their record lives in `admins/{uid}`), so
+  // `profile` is null for them. Fall back to a profile-shaped view of adminRecord
+  // so admin sessions can record/refund payments with proper collectedBy attribution.
+  const effectiveProfile = useMemo(() => {
+    if (profile) return profile;
+    if (!adminRecord) return null;
+    return normalizeUserProfileRecord(
+      authUser?.uid ?? adminRecord.email,
+      {
+        name: "Admin",
+        role: "employee",
+        regionId: adminRecord.regionId,
+        regionName: adminRecord.regionName,
+        centreId: adminRecord.centreId,
+        centreName: adminRecord.centreName,
+        email: adminRecord.email,
+      },
+      adminRecord.email,
+    );
+  }, [profile, adminRecord, authUser?.uid]);
 
   const { data, loading, error, reload } = useResource(
     async () => {
       if (!feeId) return { fee: null, payments: [] as FeePaymentRecord[] };
-      const [fee, payments] = await Promise.all([getStudentFee(feeId), listPaymentsForFee(feeId)]);
+      const fee = await getStudentFee(feeId);
+      const payments = fee ? await listPaymentsForFee(feeId, { centreId: fee.centreId }) : [];
       return { fee, payments };
     },
     [feeId],
@@ -51,10 +73,11 @@ export function EmployeeFeeDetailScreen() {
   const fee = data?.fee ?? null;
   const payments = data?.payments ?? [];
 
-  const [payOpen, setPayOpen] = useState(false);
-  const [amount, setAmount] = useState("");
+  // Mark-as-paid sheet. `markTarget` is a single installment, or "all" for
+  // "Collect all dues" (loops over every unpaid installment with one mode).
+  const [markOpen, setMarkOpen] = useState(false);
+  const [markTarget, setMarkTarget] = useState<{ label: string; amount: number } | "all" | null>(null);
   const [mode, setMode] = useState<FeeMode>("cash");
-  const [installmentLabel, setInstallmentLabel] = useState<string>("");
   const [note, setNote] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [discountInput, setDiscountInput] = useState("");
@@ -62,7 +85,7 @@ export function EmployeeFeeDetailScreen() {
   const [publishing, setPublishing] = useState(false);
 
   const isDraft = !!fee && !fee.published;
-  const canManage = !readOnly && !!fee;
+  const canManage = !!fee;
 
   async function handleSaveDiscount() {
     if (!fee) return;
@@ -109,40 +132,67 @@ export function EmployeeFeeDetailScreen() {
     );
   }
 
-  function openPay(prefillLabel = "", prefillAmount = "") {
-    setInstallmentLabel(prefillLabel);
-    setAmount(prefillAmount);
+  function openMark(target: { label: string; amount: number } | "all") {
+    setMarkTarget(target);
     setMode("cash");
     setNote("");
-    setPayOpen(true);
+    setMarkOpen(true);
   }
 
-  async function handleRecord() {
-    if (!fee) return;
-    const amt = Number(amount);
-    if (!Number.isFinite(amt) || amt <= 0) {
-      showAlert("Invalid amount", "Enter a payment amount greater than zero.");
-      return;
-    }
+  // Confirm the mark-as-paid sheet. Records a full-installment receipt for the
+  // chosen mode; for "all" it loops every unpaid installment (one receipt each).
+  async function handleConfirmMark() {
+    if (!fee || !markTarget) return;
     setSubmitting(true);
     try {
-      const receiptNo = await recordFeePayment({
-        studentFee: fee,
-        amount: amt,
-        mode,
-        installmentLabel: installmentLabel || undefined,
-        note: note.trim() || undefined,
-        collectedByUserId: profile?.userId || "",
-        collectedByName: profile?.name || "Office Staff",
-      });
-      setPayOpen(false);
+      const collectedByUserId = effectiveProfile?.userId || "";
+      const collectedByName = effectiveProfile?.name || "Office Staff";
+      const trimmedNote = note.trim() || undefined;
+      if (markTarget === "all") {
+        const unpaid = fee.installments.filter((i) => i.amount - i.paidAmount > 0);
+        for (const inst of unpaid) {
+          await markInstallmentPaid({ studentFee: fee, installmentLabel: inst.label, mode, note: trimmedNote, collectedByUserId, collectedByName });
+        }
+      } else {
+        await markInstallmentPaid({ studentFee: fee, installmentLabel: markTarget.label, mode, note: trimmedNote, collectedByUserId, collectedByName });
+      }
+      setMarkOpen(false);
       await reload();
-      showAlert("Payment recorded", `Receipt ${receiptNo} created.`);
+      showAlert("Marked paid", "Payment recorded and receipt created.");
     } catch (e) {
       showAlert("Could not record payment", e instanceof Error ? e.message : "Try again.");
     } finally {
       setSubmitting(false);
     }
+  }
+
+  function confirmMarkUnpaid(inst: { label: string }) {
+    if (!fee) return;
+    showAlert("Mark unpaid", `Reverse the payment for ${inst.label}? This creates a refund receipt.`, [
+      { text: "Cancel", style: "cancel" },
+      {
+        text: "Mark unpaid",
+        style: "destructive",
+        onPress: async () => {
+          try {
+            const reversed = await markInstallmentUnpaid({
+              studentFee: fee,
+              installmentLabel: inst.label,
+              collectedByUserId: effectiveProfile?.userId || "",
+              collectedByName: effectiveProfile?.name || "Office Staff",
+            });
+            await reload();
+            if (reversed === 0) {
+              showAlert("Nothing to reverse", "No matching receipt for this installment. Use the payment history below to refund manually.");
+            } else {
+              showAlert("Marked unpaid", "A refund receipt was created.");
+            }
+          } catch (e) {
+            showAlert("Could not update", e instanceof Error ? e.message : "Try again.");
+          }
+        },
+      },
+    ]);
   }
 
   function confirmRefund(payment: FeePaymentRecord) {
@@ -153,7 +203,7 @@ export function EmployeeFeeDetailScreen() {
         style: "destructive",
         onPress: async () => {
           try {
-            await refundFeePayment(payment, profile?.userId || "", profile?.name || "Office Staff");
+            await refundFeePayment(payment, effectiveProfile?.userId || "", effectiveProfile?.name || "Office Staff");
             await reload();
             showAlert("Refunded", "A refund receipt was created.");
           } catch (e) {
@@ -177,7 +227,7 @@ export function EmployeeFeeDetailScreen() {
     <View style={{ flex: 1, backgroundColor: D.bg }}>
       <ScrollView contentContainerStyle={{ paddingBottom: 160 }} showsVerticalScrollIndicator={false}>
         <View style={[s.header, { paddingTop: insets.top + 16 }]}>
-          <AnimatedPressable style={s.backBtn} onPress={() => router.back()}>
+          <AnimatedPressable style={s.backBtn} onPress={() => navigateBack(router)}>
             <Ionicons name="chevron-back" size={22} color={D.onSurface} />
           </AnimatedPressable>
           <Text style={s.headerTitle}>Fee Details</Text>
@@ -229,10 +279,10 @@ export function EmployeeFeeDetailScreen() {
                   <Text style={[s.balValue, { color: fee.dueAmount > 0 ? "#B45309" : D.onSurface }]}>{money(fee.dueAmount)}</Text>
                 </View>
               </View>
-              {canManage && fee.published && (
-                <AnimatedPressable style={s.payBtn} onPress={() => openPay()}>
-                  <Ionicons name="add-circle-outline" size={18} color="#fff" />
-                  <Text style={s.payBtnText}>Record Payment</Text>
+              {canManage && fee.published && fee.dueAmount > 0 && (
+                <AnimatedPressable style={s.payBtn} onPress={() => openMark("all")}>
+                  <Ionicons name="checkmark-done-outline" size={18} color="#fff" />
+                  <Text style={s.payBtnText}>Collect all dues · {money(fee.dueAmount)}</Text>
                 </AnimatedPressable>
               )}
             </View>
@@ -282,14 +332,22 @@ export function EmployeeFeeDetailScreen() {
                         {money(inst.amount)}{inst.dueDateIso ? ` · due ${inst.dueDateIso.slice(0, 10)}` : ""}
                       </Text>
                     </View>
-                    <View style={{ alignItems: "flex-end", gap: 4 }}>
+                    <View style={{ alignItems: "flex-end", gap: 6 }}>
                       <View style={[s.badge, { backgroundColor: tone.bg }]}>
                         <Text style={[s.badgeText, { color: tone.fg }]}>{inst.status}</Text>
                       </View>
-                      {remaining > 0 && canManage && fee.published && (
-                        <Pressable onPress={() => openPay(inst.label, String(remaining))}>
-                          <Text style={s.payLink}>Pay {money(remaining)}</Text>
-                        </Pressable>
+                      {canManage && fee.published && (
+                        inst.status === "paid" ? (
+                          <AnimatedPressable style={s.togglePaid} onPress={() => confirmMarkUnpaid(inst)}>
+                            <Ionicons name="checkmark-circle" size={17} color="#047857" />
+                            <Text style={s.togglePaidText}>Paid</Text>
+                          </AnimatedPressable>
+                        ) : remaining > 0 ? (
+                          <AnimatedPressable style={s.toggleUnpaid} onPress={() => openMark({ label: inst.label, amount: remaining })}>
+                            <Ionicons name="ellipse-outline" size={15} color={D.primary} />
+                            <Text style={s.toggleUnpaidText}>Mark paid</Text>
+                          </AnimatedPressable>
+                        ) : null
                       )}
                     </View>
                   </View>
@@ -317,7 +375,7 @@ export function EmployeeFeeDetailScreen() {
                       <Pressable style={s.smallBtn} onPress={() => printReceipt(p)}>
                         <Ionicons name="print-outline" size={16} color={D.primary} />
                       </Pressable>
-                      {!isRefund && !p.refunded && !readOnly && (
+                      {!isRefund && !p.refunded && (
                         <Pressable style={s.smallBtn} onPress={() => confirmRefund(p)}>
                           <Ionicons name="return-down-back-outline" size={16} color="#B91C1C" />
                         </Pressable>
@@ -331,22 +389,21 @@ export function EmployeeFeeDetailScreen() {
         )}
       </ScrollView>
 
-      <Modal visible={payOpen} transparent animationType="slide" onRequestClose={() => setPayOpen(false)}>
-        <Pressable style={s.overlay} onPress={() => setPayOpen(false)}>
+      <Modal visible={markOpen} transparent animationType="slide" onRequestClose={() => setMarkOpen(false)}>
+        <Pressable style={s.overlay} onPress={() => setMarkOpen(false)}>
           <Pressable style={s.sheet} onPress={(e) => e.stopPropagation()}>
-            <Text style={s.sheetTitle}>Record Payment</Text>
+            <Text style={s.sheetTitle}>Mark as paid</Text>
 
-            <Text style={s.fieldLabel}>Amount (₹)</Text>
-            <TextInput
-              style={s.input}
-              value={amount}
-              onChangeText={setAmount}
-              keyboardType="numeric"
-              placeholder="0"
-              placeholderTextColor={D.outline}
-            />
+            <View style={s.markTargetCard}>
+              <Text style={s.markTargetLabel}>
+                {markTarget === "all" ? "All dues" : markTarget?.label ?? ""}
+              </Text>
+              <Text style={s.markTargetAmount}>
+                {markTarget === "all" ? money(fee?.dueAmount ?? 0) : money(markTarget?.amount ?? 0)}
+              </Text>
+            </View>
 
-            <Text style={s.fieldLabel}>Mode</Text>
+            <Text style={s.fieldLabel}>Payment mode</Text>
             <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8 }}>
               {FEE_MODES.map((m) => {
                 const active = mode === m.value;
@@ -358,25 +415,6 @@ export function EmployeeFeeDetailScreen() {
               })}
             </ScrollView>
 
-            {fee && fee.installments.length > 0 && (
-              <>
-                <Text style={s.fieldLabel}>Installment (optional)</Text>
-                <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8 }}>
-                  <AnimatedPressable style={[s.modeChip, !installmentLabel && s.modeChipActive]} onPress={() => setInstallmentLabel("")}>
-                    <Text style={[s.modeChipText, !installmentLabel && { color: "#fff" }]}>Auto</Text>
-                  </AnimatedPressable>
-                  {fee.installments.map((inst) => {
-                    const active = installmentLabel === inst.label;
-                    return (
-                      <AnimatedPressable key={inst.label} style={[s.modeChip, active && s.modeChipActive]} onPress={() => setInstallmentLabel(inst.label)}>
-                        <Text style={[s.modeChipText, active && { color: "#fff" }]}>{inst.label}</Text>
-                      </AnimatedPressable>
-                    );
-                  })}
-                </ScrollView>
-              </>
-            )}
-
             <Text style={s.fieldLabel}>Note (optional)</Text>
             <TextInput
               style={s.input}
@@ -386,11 +424,11 @@ export function EmployeeFeeDetailScreen() {
               placeholderTextColor={D.outline}
             />
 
-            <AnimatedPressable style={[s.payBtn, { marginTop: 18 }, submitting && { opacity: 0.6 }]} onPress={handleRecord} disabled={submitting}>
+            <AnimatedPressable style={[s.payBtn, { marginTop: 18 }, submitting && { opacity: 0.6 }]} onPress={handleConfirmMark} disabled={submitting}>
               {submitting ? <ActivityIndicator size="small" color="#fff" /> : (
                 <>
                   <Ionicons name="checkmark-circle-outline" size={18} color="#fff" />
-                  <Text style={s.payBtnText}>Save Payment</Text>
+                  <Text style={s.payBtnText}>Confirm payment</Text>
                 </>
               )}
             </AnimatedPressable>
@@ -430,7 +468,13 @@ const s = StyleSheet.create({
   instMeta: { fontSize: 11, fontFamily: D.font, color: D.outline, marginTop: 2 },
   badge: { paddingHorizontal: 8, paddingVertical: 2, borderRadius: 99 },
   badgeText: { fontSize: 9.5, fontWeight: "700", fontFamily: D.fontBold, textTransform: "capitalize" },
-  payLink: { fontSize: 11, fontWeight: "700", fontFamily: D.fontBold, color: D.primary },
+  togglePaid: { flexDirection: "row", alignItems: "center", gap: 4, paddingHorizontal: 9, paddingVertical: 5, borderRadius: 99, backgroundColor: "#ECFDF5", borderWidth: 1, borderColor: "#A7F3D0" },
+  togglePaidText: { fontSize: 11, fontWeight: "700", fontFamily: D.fontBold, color: "#047857" },
+  toggleUnpaid: { flexDirection: "row", alignItems: "center", gap: 4, paddingHorizontal: 9, paddingVertical: 5, borderRadius: 99, backgroundColor: D.surface, borderWidth: 1, borderColor: D.primary },
+  toggleUnpaidText: { fontSize: 11, fontWeight: "700", fontFamily: D.fontBold, color: D.primary },
+  markTargetCard: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", backgroundColor: D.surfaceLow, borderRadius: 10, padding: 14 },
+  markTargetLabel: { fontSize: 13.5, fontWeight: "700", fontFamily: D.fontBold, color: D.onSurface },
+  markTargetAmount: { fontSize: 15, fontWeight: "800", fontFamily: D.fontExtraBold, color: D.onSurface },
   payRow: { flexDirection: "row", alignItems: "center", gap: 12, padding: 14 },
   payAmt: { fontSize: 13, fontWeight: "800", fontFamily: D.fontExtraBold, color: D.onSurface },
   payMeta: { fontSize: 10.5, fontFamily: D.font, color: D.outline, marginTop: 2 },

@@ -125,6 +125,7 @@ export type UserProfileRecord = {
   password_hash: string;
   emailVerified: boolean;
   active: boolean;
+  permissions: string[];
 };
 
 function normalizeTeacherRole(value: unknown): TeacherRole | "" {
@@ -352,5 +353,8 @@ export function normalizeUserProfileRecord(
     password_hash: passwordHash,
     emailVerified: typeof data?.emailVerified === "boolean" ? data.emailVerified : false,
     active: data?.active ?? true,
+    permissions: Array.isArray(data?.permissions)
+      ? data.permissions.filter((value): value is string => typeof value === "string")
+      : [],
   };
 }

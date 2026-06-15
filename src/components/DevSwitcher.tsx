@@ -1,10 +1,11 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { ActivityIndicator, Modal, Pressable, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
 import { setDemoRole, getDemoRole, type DemoRole } from "../lib/demoMode";
 import { useSession } from "../providers/session";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { repairDemoEmployeeProfile } from "../lib/demoRepair";
 
 const TEST_ACCOUNT_PASSWORD = "Demo@12345";
 
@@ -31,7 +32,7 @@ export function DevSwitcher() {
   const [switching, setSwitching] = useState<DemoRole | null>(null);
   const [switchError, setSwitchError] = useState<string | null>(null);
   const insets = useSafeAreaInsets();
-  const { authUser, signIn, signOutUser } = useSession();
+  const { authUser, signIn, signOutUser, refresh } = useSession();
 
   const switchRole = useCallback(async (role: DemoRole, email: string, route: string) => {
     setSwitching(role);
@@ -39,20 +40,38 @@ export function DevSwitcher() {
     try {
       if (authUser) await signOutUser();
       await signIn(email, TEST_ACCOUNT_PASSWORD);
-    } catch {
-      try {
-        if (authUser) await signOutUser();
-      } catch {}
-    } finally {
-      // Always overlay demo profile so role routing is deterministic regardless of Firestore state
-      // (Firestore profiles may have been migrated to different roles than the DevSwitcher expects)
-      setDemoRole(role);
-      setActive(role);
+      if (role === "employee") {
+        await repairDemoEmployeeProfile(email).catch(() => undefined);
+        await refresh();
+      }
+      // Real auth only — never overlay fake data. Every read/write hits real Firestore.
+      setDemoRole(null);
+      setActive(null);
       setOpen(false);
-      setSwitching(null);
       router.replace(route as any);
+    } catch (error) {
+      // No fake fallback: this switcher is for testing against REAL data. Surface the error so
+      // it's obvious the demo accounts need seeding (web admin → seed) rather than silently
+      // dropping into in-memory mode.
+      setDemoRole(null);
+      setActive(null);
+      try {
+        await signOutUser();
+      } catch {}
+      setSwitchError(error instanceof Error ? error.message : `Could not sign in as ${email}. Run the demo seeder on the web admin first.`);
+    } finally {
+      setSwitching(null);
     }
-  }, [authUser, signIn, signOutUser]);
+  }, [authUser, refresh, signIn, signOutUser]);
+
+  // The switcher is real-data-only — make sure a stale demo flag from an older build never boots
+  // the app into in-memory mode.
+  useEffect(() => {
+    if (getDemoRole()) {
+      setDemoRole(null);
+      setActive(null);
+    }
+  }, []);
 
   const clearAll = useCallback(async () => {
     setDemoRole(null);
@@ -91,7 +110,8 @@ export function DevSwitcher() {
             <View style={s.sheetHandle} />
             <Text style={s.sheetTitle}>Quick Switch</Text>
             <Text style={s.sheetSub}>
-              Taps auto sign-in with real Firebase data. Falls back to demo (fake) data if account not seeded.
+              One tap signs in to the real account — live Firestore data, real reads &amp; writes. Seed the
+              demo accounts on the web admin first.
             </Text>
 
             <View style={s.roleList}>

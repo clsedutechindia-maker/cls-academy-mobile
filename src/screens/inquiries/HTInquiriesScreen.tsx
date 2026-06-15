@@ -1,10 +1,11 @@
 import { useCallback, useMemo, useState } from "react";
 import { ActivityIndicator, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import { router, useFocusEffect } from "expo-router";
+import { router, useFocusEffect, useSegments } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { D } from "../../components/theme";
 import { AnimatedPressable } from "../../components/motion";
+import { HeaderBackButton } from "../../components/HeaderBackButton";
 import { useSession } from "../../providers/session";
 import { useResource } from "../../hooks/useResource";
 import { listHeadTeacherInquiries } from "../../lib/erp";
@@ -26,6 +27,10 @@ const FILTERS: { key: InquiryStatus | "all" | "overdue"; label: string }[] = [
 export function HTInquiriesScreen() {
   const insets = useSafeAreaInsets();
   const { profile } = useSession();
+  // This screen is shared by (team) and (employee); route within the active group
+  // so the +/detail links don't bounce to the wrong group's redirect (→ home).
+  const segments = useSegments();
+  const group = segments[0] === "(employee)" ? "(employee)" : "(team)";
   const [filter, setFilter] = useState<InquiryStatus | "all" | "overdue">("all");
   const [search, setSearch] = useState("");
 
@@ -49,15 +54,18 @@ export function HTInquiriesScreen() {
   }, [all, filter, search]);
 
   function openDetail(inquiry: AdmissionInquiryRecord) {
-    router.push({ pathname: "/(team)/inquiry-detail" as any, params: { inquiryId: inquiry.id } });
+    router.push({ pathname: `/${group}/inquiry-detail` as any, params: { inquiryId: inquiry.id } });
   }
 
   return (
     <View style={{ flex: 1, backgroundColor: D.bg }}>
       <View style={[s.header, { paddingTop: insets.top + 20 }]}>
         <View style={s.titleRow}>
-          <Text style={s.title}>Inquiries</Text>
-          <AnimatedPressable style={s.addBtn} onPress={() => router.push("/(team)/log-inquiry" as any)}>
+          <View style={{ flex: 1, flexDirection: "row", alignItems: "center" }}>
+            <HeaderBackButton />
+            <Text style={s.title}>Inquiries</Text>
+          </View>
+          <AnimatedPressable style={s.addBtn} onPress={() => router.push(`/${group}/log-inquiry` as any)}>
             <Ionicons name="add" size={22} color="#fff" />
           </AnimatedPressable>
         </View>

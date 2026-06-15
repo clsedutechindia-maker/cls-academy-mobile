@@ -4,6 +4,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useEffect, useMemo, useState } from "react";
 import { D } from "../../components/theme";
 import { AnimatedPressable } from "../../components/motion";
+import { HeaderBackButton } from "../../components/HeaderBackButton";
 import { AvatarCircle } from "../../components/ui";
 import { useSession } from "../../providers/session";
 import { useResource } from "../../hooks/useResource";
@@ -151,7 +152,10 @@ export function EmployeeAttendanceScreen() {
     <View style={{ flex: 1, backgroundColor: D.bg }}>
       <ScrollView contentContainerStyle={{ paddingBottom: 160 }} showsVerticalScrollIndicator={false}>
         <View style={[s.headerSection, { paddingTop: insets.top + 20 }]}>
-          <Text style={s.pageTitle}>Attendance</Text>
+          <View style={{ flexDirection: "row", alignItems: "center" }}>
+            <HeaderBackButton />
+            <Text style={s.pageTitle}>Attendance</Text>
+          </View>
           <View style={s.toolbar}>
             {(classes ?? []).length > 0 ? (
               <AnimatedPressable style={s.batchDropdown} onPress={() => setPickerOpen(true)}>

@@ -5,6 +5,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useEffect, useState } from "react";
 import { D } from "../../components/theme";
 import { AnimatedPressable } from "../../components/motion";
+import { HeaderBackButton } from "../../components/HeaderBackButton";
 import { AvatarCircle, MOBILE_BOTTOM_SPACING } from "../../components/ui";
 import { useResource } from "../../hooks/useResource";
 import {
@@ -282,7 +283,8 @@ export function HTLeaveScreen() {
         busy={isModalBusy}
       />
       <View style={[s.headerSection, { paddingTop: insets.top + 20 }]}>
-        <View style={s.titleRow}>
+        <View style={[s.titleRow, { justifyContent: "flex-start" }]}>
+          <HeaderBackButton />
           <Text style={s.pageTitle}>Leave</Text>
         </View>
         <View style={s.segControl}>

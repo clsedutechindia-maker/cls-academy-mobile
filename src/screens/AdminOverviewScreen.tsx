@@ -13,11 +13,16 @@ import {
   listStudentLeaveRequestsForAdmin,
   listAdminSchedule,
   listRecentResultsForAdmin,
+  getInquirySummaryForAdmin,
+  getPendingApprovalsCount,
 } from "../lib/erp";
+import { getFeeCollectionByPeriod } from "../lib/fees";
 import { getTodayDateValue } from "../lib/date";
 import { useSession } from "../providers/session";
 import { D, EmptyCard, ErrorCard, LoadingCard, MOBILE_BOTTOM_SPACING } from "../components/ui";
 import { Animated, AnimatedPressable, CountUp, enter } from "../components/motion";
+
+const money = (n: number) => `₹${Number(n || 0).toLocaleString("en-IN")}`;
 
 const DAY_KEYS = ["sunday", "monday", "tuesday", "wednesday", "thursday", "friday", "saturday"];
 
@@ -75,7 +80,7 @@ export function AdminOverviewScreen() {
     `home-admin:${adminRecord?.role ?? ""}:${adminRecord?.centreId ?? ""}:${adminRecord?.regionId ?? ""}`,
     async () => {
       if (!adminRecord) return null;
-      const [profiles, attendance, staffAttendance, leaveRequests, complaints, studentLeaveRequests, recentResults, schedule] = await Promise.all([
+      const [profiles, attendance, staffAttendance, leaveRequests, complaints, studentLeaveRequests, recentResults, schedule, feeStats, inquirySummary, pendingApprovals] = await Promise.all([
         listVisibleProfilesForAdmin(adminRecord),
         listAdminAttendanceOverview(adminRecord),
         listStaffAttendanceForAdmin(adminRecord),
@@ -84,6 +89,9 @@ export function AdminOverviewScreen() {
         listStudentLeaveRequestsForAdmin(adminRecord),
         listRecentResultsForAdmin(adminRecord, 2),
         listAdminSchedule(adminRecord),
+        getFeeCollectionByPeriod(adminRecord.centreId || undefined),
+        getInquirySummaryForAdmin(adminRecord),
+        getPendingApprovalsCount(adminRecord),
       ]);
 
       const studentProfiles = profiles.filter((p) => p.role === "student");
@@ -117,6 +125,9 @@ export function AdminOverviewScreen() {
         upcomingExams,
         openComplaints,
         pendingLeaveRequests,
+        feeStats,
+        inquirySummary,
+        pendingApprovals,
       };
     },
     [adminRecord?.role, adminRecord?.centreId, adminRecord?.regionId],
@@ -163,23 +174,73 @@ export function AdminOverviewScreen() {
             <EmptyCard title="No data" message="Unable to load overview." />
           ) : (
             <>
-              {/* Pending leave requests / open complaints */}
-              <Animated.View entering={enter(0)} style={s.statsCard}>
-                <AnimatedPressable style={s.statSec} onPress={() => router.push("/(admin)/leave")}>
-                  <CountUp value={resource.data.pendingLeaveRequests} style={s.statVal} />
-                  <Text style={s.statKey}>Leave Requests</Text>
-                  <Text style={s.statSub}>Pending</Text>
-                </AnimatedPressable>
-                <View style={s.divider} />
-                <AnimatedPressable style={s.statSec} onPress={() => router.push("/(admin)/complaints")}>
-                  <CountUp value={resource.data.openComplaints} style={s.statVal} />
-                  <Text style={s.statKey}>Complaints</Text>
-                  <Text style={s.statSub}>Open</Text>
-                </AnimatedPressable>
+              {/* Inquiry Pipeline */}
+              <Animated.View entering={enter(0)} style={[s.card, { gap: 0 }]}>
+                <View style={s.sectionHeader}>
+                  <Ionicons name="person-add-outline" size={18} color="#7C3AED" />
+                  <Text style={s.cardTitle}>Inquiry Pipeline</Text>
+                  <AnimatedPressable style={{ marginLeft: "auto" }} onPress={() => router.push("/(admin)/inquiries" as any)}>
+                    <Text style={s.seeAllLink}>See all</Text>
+                  </AnimatedPressable>
+                </View>
+                <View style={s.summaryGrid}>
+                  <View style={s.summaryCell}>
+                    <Text style={s.summaryCellLabel}>NEW LEADS</Text>
+                    <Text style={s.summaryCellValue}>{resource.data.inquirySummary.newCount}</Text>
+                  </View>
+                  <View style={s.summaryDivider} />
+                  <View style={s.summaryCell}>
+                    <Text style={s.summaryCellLabel}>DEMO STUDENTS</Text>
+                    <Text style={s.summaryCellValue}>{resource.data.inquirySummary.demoStudents}</Text>
+                  </View>
+                  <View style={s.summaryDivider} />
+                  <View style={s.summaryCell}>
+                    <Text style={s.summaryCellLabel}>ENROLLED (MTH)</Text>
+                    <Text style={s.summaryCellValue}>{resource.data.inquirySummary.enrolledThisMonth}</Text>
+                  </View>
+                </View>
+              </Animated.View>
+
+              {/* Fee Collection Summary */}
+              <Animated.View entering={enter(1)} style={[s.card, { gap: 0 }]}>
+                <View style={s.sectionHeader}>
+                  <Ionicons name="cash-outline" size={18} color="#047857" />
+                  <Text style={s.cardTitle}>Fee Collection</Text>
+                  <AnimatedPressable style={{ marginLeft: "auto" }} onPress={() => router.push("/(admin)/fees" as any)}>
+                    <Text style={s.seeAllLink}>See all</Text>
+                  </AnimatedPressable>
+                </View>
+                <View style={s.feeGrid}>
+                  <View style={s.summaryRow}>
+                    <View style={s.summaryCell}>
+                      <Text style={s.summaryCellLabel}>TODAY</Text>
+                      <Text style={s.summaryCellValue}>{money(resource.data.feeStats.today)}</Text>
+                    </View>
+                    <View style={s.summaryDivider} />
+                    <View style={s.summaryCell}>
+                      <Text style={s.summaryCellLabel}>THIS WEEK</Text>
+                      <Text style={s.summaryCellValue}>{money(resource.data.feeStats.thisWeek)}</Text>
+                    </View>
+                  </View>
+                  <View style={s.summaryRowDivider} />
+                  <View style={s.summaryRow}>
+                    <View style={s.summaryCell}>
+                      <Text style={s.summaryCellLabel}>THIS MONTH</Text>
+                      <Text style={s.summaryCellValue}>{money(resource.data.feeStats.thisMonth)}</Text>
+                    </View>
+                    <View style={s.summaryDivider} />
+                    <View style={s.summaryCell}>
+                      <Text style={s.summaryCellLabel}>OUTSTANDING</Text>
+                      <Text style={[s.summaryCellValue, { color: resource.data.feeStats.totalOutstanding > 0 ? "#B45309" : D.onSurface }]}>
+                        {money(resource.data.feeStats.totalOutstanding)}
+                      </Text>
+                    </View>
+                  </View>
+                </View>
               </Animated.View>
 
               {/* Recent Results */}
-              <Animated.View entering={enter(1)} style={[s.card, { gap: 0 }]}>
+              <Animated.View entering={enter(3)} style={[s.card, { gap: 0 }]}>
                 <View style={s.sectionHeader}>
                   <Ionicons name="trophy-outline" size={18} color={D.success} />
                   <Text style={s.cardTitle}>Recent Results</Text>
@@ -225,7 +286,7 @@ export function AdminOverviewScreen() {
               </Animated.View>
 
               {/* Today's Schedule */}
-              <Animated.View entering={enter(2)} style={[s.card, { gap: 0 }]}>
+              <Animated.View entering={enter(4)} style={[s.card, { gap: 0 }]}>
                 <View style={s.sectionHeader}>
                   <Ionicons name="time-outline" size={18} color={D.primary} />
                   <Text style={s.cardTitle}>Today's Schedule</Text>
@@ -256,7 +317,7 @@ export function AdminOverviewScreen() {
               </Animated.View>
 
               {/* Upcoming Exams */}
-              <Animated.View entering={enter(3)} style={[s.card, { gap: 0 }]}>
+              <Animated.View entering={enter(5)} style={[s.card, { gap: 0 }]}>
                 <View style={s.sectionHeader}>
                   <Ionicons name="document-text-outline" size={18} color="#7C3AED" />
                   <Text style={s.cardTitle}>Upcoming Exams</Text>
@@ -326,7 +387,7 @@ const s = StyleSheet.create({
 
   // Stats card — single card, sections divided
   statsCard: {
-    flexDirection: "row",
+    flexDirection: "column",
     backgroundColor: D.surface,
     borderRadius: 18,
     borderWidth: 1,
@@ -338,11 +399,17 @@ const s = StyleSheet.create({
     shadowRadius: 5,
     elevation: 1,
   },
-  statSec: { flex: 1, alignItems: "center", paddingVertical: 22, paddingHorizontal: 8, gap: 4 },
-  divider: { width: 1, backgroundColor: D.outlineVariant, marginVertical: 18 },
+  statRow2: { flexDirection: "row" },
+  statRowDivider: { height: 1, backgroundColor: D.outlineVariant, marginHorizontal: 16 },
+  statSec: { flex: 1, alignItems: "center", paddingVertical: 14, paddingHorizontal: 8, gap: 3 },
+  divider: { width: 1, backgroundColor: D.outlineVariant, marginVertical: 12 },
   statVal: { fontSize: 20, fontFamily: D.fontBold, color: D.onSurface, letterSpacing: -0.5 },
   statKey: { fontSize: 8.5, fontFamily: D.fontBold, color: D.outline, letterSpacing: 0.5, textTransform: "uppercase" },
   statSub: { fontSize: 9, color: D.onSurfaceVariant },
+  tileGrid: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
+  tile: { width: "31.5%", flexGrow: 1, alignItems: "center", backgroundColor: D.surface, borderRadius: 12, borderWidth: 1, borderColor: D.outlineVariant, paddingVertical: 11, paddingHorizontal: 6, gap: 2 },
+  tileVal: { fontSize: 18, fontFamily: D.fontExtraBold, color: D.onSurface, letterSpacing: -0.5 },
+  tileLabel: { fontSize: 9.5, fontFamily: D.fontSemiBold, color: D.outline, textAlign: "center" },
 
   // Card
   card: {
@@ -359,6 +426,17 @@ const s = StyleSheet.create({
     elevation: 1,
   },
   cardTitle: { fontSize: 13, fontFamily: D.fontBold, color: D.onSurface, letterSpacing: -0.2 },
+
+  // Summary grid (Fee + Inquiry pipeline cards)
+  summaryGrid: { flexDirection: "row" },
+  feeGrid: { flexDirection: "column" },
+  summaryRow: { flexDirection: "row" },
+  summaryRowDivider: { height: 1, backgroundColor: D.outlineVariant, marginHorizontal: 14 },
+  summaryCell: { flex: 1, alignItems: "center", paddingVertical: 12, paddingHorizontal: 8 },
+  summaryDivider: { width: 1, backgroundColor: D.outlineVariant, marginVertical: 12 },
+  summaryCellLabel: { fontSize: 9, fontWeight: "700", fontFamily: D.fontBold, color: D.outline, letterSpacing: 0.5, textAlign: "center" },
+  summaryCellValue: { marginTop: 5, fontSize: 16, fontWeight: "800", fontFamily: D.fontExtraBold, color: D.onSurface, letterSpacing: -0.3, textAlign: "center" },
+  seeAllLink: { fontSize: 11, fontFamily: D.fontSemiBold, color: D.primary },
 
   // Generic section list (Recent Results / Today's Schedule / Upcoming Exams)
   sectionHeader: { flexDirection: "row", alignItems: "center", gap: 8, paddingBottom: 16, borderBottomWidth: 1, borderBottomColor: D.surfaceContainer },

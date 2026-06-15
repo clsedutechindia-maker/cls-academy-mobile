@@ -29,8 +29,10 @@ import type { UserProfileRecord } from "../shared";
 
 // ---------------------------------------------------------------------------
 // Student fee module (EIS-Digital-style). Managed by the employee role only;
-// students/parents can read their own records. Manual payment recording — no
-// payment-gateway integration. See firestore.rules for access enforcement.
+// students/parents can read their own records. Manual (cash/UPI/etc.) payments are
+// recorded here by staff; ONLINE payments (PayU) are settled server-side via the
+// firebase-admin SDK in the web app (lib/server/feeSettle.ts) — clients never write
+// online receipts. See firestore.rules for access enforcement.
 // ---------------------------------------------------------------------------
 
 export const feeStructuresCollectionName = "feeStructures";
@@ -38,7 +40,7 @@ export const studentFeesCollectionName = "studentFees";
 export const feePaymentsCollectionName = "feePayments";
 export const feeCountersCollectionName = "feeCounters";
 
-export type FeeMode = "cash" | "upi" | "card" | "bank" | "cheque" | "pdc";
+export type FeeMode = "cash" | "upi" | "card" | "bank" | "cheque" | "pdc" | "online";
 export type FeeStatus = "pending" | "partial" | "cleared" | "refunded";
 export type FeeInstallmentStatus = "due" | "partial" | "paid" | "overdue";
 
@@ -49,6 +51,7 @@ export const FEE_MODES: { value: FeeMode; label: string }[] = [
   { value: "bank", label: "Bank Transfer" },
   { value: "cheque", label: "Cheque" },
   { value: "pdc", label: "Post-dated Cheque" },
+  { value: "online", label: "Online (PayU)" },
 ];
 
 // Template installment (no payment state).
@@ -150,7 +153,7 @@ function formatReceiptNo(seq: number) {
 }
 
 function normalizeFeeMode(v: unknown): FeeMode {
-  return ["cash", "upi", "card", "bank", "cheque", "pdc"].includes(v as string) ? (v as FeeMode) : "cash";
+  return ["cash", "upi", "card", "bank", "cheque", "pdc", "online"].includes(v as string) ? (v as FeeMode) : "cash";
 }
 
 function normalizeFeeStatus(v: unknown): FeeStatus {
@@ -368,9 +371,24 @@ export async function listFeeStructures(profile: UserProfileRecord): Promise<Fee
     .sort((a, b) => b.createdAtIso.localeCompare(a.createdAtIso));
 }
 
+// Org-wide fee plan list (all centres) — for superadmin, who has no centreId
+// of their own. `isSuperAdmin()` grants unscoped read on feeStructures.
+export async function listAllFeeStructures(): Promise<FeeStructureRecord[]> {
+  if (isDemoMode()) {
+    await hydrateDemoState();
+    return [...getDemoFeeStructures()].sort((a, b) => b.createdAtIso.localeCompare(a.createdAtIso));
+  }
+  const snapshot = await getDocs(collection(firestoreDb, feeStructuresCollectionName));
+  return snapshot.docs
+    .map((d) => normalizeFeeStructure(d.id, d.data() as Record<string, unknown>))
+    .sort((a, b) => b.createdAtIso.localeCompare(a.createdAtIso));
+}
+
 export type FeeStructureInput = {
   classId: string;
   className: string;
+  centreId: string;
+  regionId: string;
   title: string;
   academicYear: string;
   installments: FeeInstallmentPlan[];
@@ -391,8 +409,8 @@ export async function upsertFeeStructure(
     const existing = getDemoFeeStructures().find((s) => s.id === id);
     upsertDemoFeeStructure({
       id,
-      regionId: profile.regionId,
-      centreId: profile.centreId,
+      regionId: input.regionId,
+      centreId: input.centreId,
       classId: input.classId,
       className: input.className,
       title: input.title,
@@ -412,8 +430,8 @@ export async function upsertFeeStructure(
   await setDoc(
     ref,
     {
-      regionId: profile.regionId,
-      centreId: profile.centreId,
+      regionId: input.regionId,
+      centreId: input.centreId,
       classId: input.classId,
       className: input.className,
       title: input.title,
@@ -633,7 +651,13 @@ export async function listOwnStudentFees(profile: UserProfileRecord): Promise<St
     .sort((a, b) => b.createdAtIso.localeCompare(a.createdAtIso));
 }
 
-export async function listPaymentsForFee(studentFeeId: string): Promise<FeePaymentRecord[]> {
+// `scope` adds a second `==` filter so the feePayments security rule (which keys
+// off centreId or studentUserId, not studentFeeId) can be statically verified for
+// non-superadmin queries — without it, Firestore rejects the whole query.
+export async function listPaymentsForFee(
+  studentFeeId: string,
+  scope?: { centreId?: string; studentUserId?: string },
+): Promise<FeePaymentRecord[]> {
   if (!studentFeeId) return [];
   if (isDemoMode()) {
     await hydrateDemoState();
@@ -641,10 +665,40 @@ export async function listPaymentsForFee(studentFeeId: string): Promise<FeePayme
       .filter((p) => p.studentFeeId === studentFeeId)
       .sort((a, b) => b.paidAtIso.localeCompare(a.paidAtIso));
   }
-  const snapshot = await getDocs(
-    query(collection(firestoreDb, feePaymentsCollectionName), where("studentFeeId", "==", studentFeeId)),
-  );
+  const constraints = [where("studentFeeId", "==", studentFeeId)];
+  if (scope?.centreId) constraints.push(where("centreId", "==", scope.centreId));
+  if (scope?.studentUserId) constraints.push(where("studentUserId", "==", scope.studentUserId));
+  const snapshot = await getDocs(query(collection(firestoreDb, feePaymentsCollectionName), ...constraints));
   return snapshot.docs
+    .map((d) => normalizeFeePayment(d.id, d.data() as Record<string, unknown>))
+    .sort((a, b) => b.paidAtIso.localeCompare(a.paidAtIso));
+}
+
+// Every receipt for a centre (the payment ledger). Used by the merged Fees screen.
+export async function listPaymentsForCentre(centreId: string): Promise<FeePaymentRecord[]> {
+  if (isDemoMode()) {
+    await hydrateDemoState();
+    return [...getDemoFeePayments()]
+      .filter((p) => !centreId || p.centreId === centreId)
+      .sort((a, b) => b.paidAtIso.localeCompare(a.paidAtIso));
+  }
+  if (!centreId) return [];
+  const snap = await getDocs(
+    query(collection(firestoreDb, feePaymentsCollectionName), where("centreId", "==", centreId)),
+  );
+  return snap.docs
+    .map((d) => normalizeFeePayment(d.id, d.data() as Record<string, unknown>))
+    .sort((a, b) => b.paidAtIso.localeCompare(a.paidAtIso));
+}
+
+// Org-wide ledger (all centres) — superadmin oversight, mirrors listAllStudentFees.
+export async function listAllPayments(): Promise<FeePaymentRecord[]> {
+  if (isDemoMode()) {
+    await hydrateDemoState();
+    return [...getDemoFeePayments()].sort((a, b) => b.paidAtIso.localeCompare(a.paidAtIso));
+  }
+  const snap = await getDocs(collection(firestoreDb, feePaymentsCollectionName));
+  return snap.docs
     .map((d) => normalizeFeePayment(d.id, d.data() as Record<string, unknown>))
     .sort((a, b) => b.paidAtIso.localeCompare(a.paidAtIso));
 }
@@ -842,6 +896,54 @@ export async function refundFeePayment(
 }
 
 // ---------------------------------------------------------------------------
+// Installment paid/unpaid toggle (binary — no partial amounts). Thin wrappers
+// over recordFeePayment/refundFeePayment so the receipt ledger stays the source
+// of truth and every change is fully reversible + audited.
+// ---------------------------------------------------------------------------
+
+export type MarkInstallmentInput = {
+  studentFee: StudentFeeRecord;
+  installmentLabel: string;
+  collectedByUserId: string;
+  collectedByName: string;
+};
+
+// Mark one installment fully paid → records a receipt for its remaining balance.
+// Returns the receipt no, or null if the installment was already settled.
+export async function markInstallmentPaid(
+  input: MarkInstallmentInput & { mode: FeeMode; note?: string },
+): Promise<string | null> {
+  const inst = input.studentFee.installments.find((i) => i.label === input.installmentLabel);
+  if (!inst) throw new Error("Installment not found.");
+  const remaining = round2(inst.amount - inst.paidAmount);
+  if (remaining <= 0) return null; // already paid
+  return recordFeePayment({
+    studentFee: input.studentFee,
+    amount: remaining,
+    mode: input.mode,
+    installmentLabel: input.installmentLabel,
+    note: input.note,
+    collectedByUserId: input.collectedByUserId,
+    collectedByName: input.collectedByName,
+  });
+}
+
+// Mark one installment unpaid → refunds every live positive receipt tagged to it
+// (each refund offsets via applyDelta, resetting the installment to unpaid).
+// Legacy/auto payments with an empty installmentLabel are not matched here — those
+// remain reversible from the payment-history refund control on the detail screen.
+export async function markInstallmentUnpaid(input: MarkInstallmentInput): Promise<number> {
+  const payments = await listPaymentsForFee(input.studentFee.id, { centreId: input.studentFee.centreId });
+  const toRefund = payments.filter(
+    (p) => p.amount > 0 && !p.refunded && p.installmentLabel === input.installmentLabel,
+  );
+  for (const p of toRefund) {
+    await refundFeePayment(p, input.collectedByUserId, input.collectedByName);
+  }
+  return toRefund.length;
+}
+
+// ---------------------------------------------------------------------------
 // Reports
 // ---------------------------------------------------------------------------
 
@@ -909,6 +1011,74 @@ export function feeRemindersDueOn(fee: StudentFeeRecord, todayIso: string): FeeR
     else if (daysUntil < 0 && (-daysUntil) % 7 === 0) hits.push({ installmentLabel: inst.label, dueDateIso: inst.dueDateIso, amountDue, kind: "overdue" });
   }
   return hits;
+}
+
+// ---------------------------------------------------------------------------
+// Period-based collection stats (for home screen summaries)
+// ---------------------------------------------------------------------------
+
+export type FeeCollectionByPeriod = {
+  today: number;
+  thisWeek: number;
+  thisMonth: number;
+  totalOutstanding: number;
+};
+
+// Compute the ISO date string for the Monday of the current week.
+function getWeekStartIso(): string {
+  const now = new Date();
+  const day = now.getDay(); // 0=Sun
+  const diff = day === 0 ? -6 : 1 - day; // shift so Monday = 0
+  const monday = new Date(now);
+  monday.setDate(now.getDate() + diff);
+  return monday.toISOString().slice(0, 10);
+}
+
+function getMonthStartIso(): string {
+  const now = new Date();
+  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-01`;
+}
+
+export async function getFeeCollectionByPeriod(centreId?: string): Promise<FeeCollectionByPeriod> {
+  const todayIso = new Date().toISOString().slice(0, 10);
+  const weekStartIso = getWeekStartIso();
+  const monthStartIso = getMonthStartIso();
+
+  if (isDemoMode()) {
+    await hydrateDemoState();
+    const payments = getDemoFeePayments();
+    const fees = getDemoStudentFees();
+    const scoped = centreId ? payments.filter((p) => p.centreId === centreId) : payments;
+    const scopedFees = centreId ? fees.filter((f) => f.centreId === centreId) : fees;
+    return {
+      today: round2(scoped.filter((p) => !p.refunded && p.paidAtIso.slice(0, 10) === todayIso).reduce((s, p) => s + Math.max(0, p.amount), 0)),
+      thisWeek: round2(scoped.filter((p) => !p.refunded && p.paidAtIso.slice(0, 10) >= weekStartIso).reduce((s, p) => s + Math.max(0, p.amount), 0)),
+      thisMonth: round2(scoped.filter((p) => !p.refunded && p.paidAtIso.slice(0, 10) >= monthStartIso).reduce((s, p) => s + Math.max(0, p.amount), 0)),
+      totalOutstanding: round2(scopedFees.filter((f) => f.dueAmount > 0).reduce((s, f) => s + f.dueAmount, 0)),
+    };
+  }
+
+  const paymentsCol = collection(firestoreDb, feePaymentsCollectionName);
+  const feesCol = collection(firestoreDb, studentFeesCollectionName);
+
+  const [paymentsSnap, feesSnap] = await Promise.all([
+    centreId
+      ? getDocs(query(paymentsCol, where("centreId", "==", centreId)))
+      : getDocs(paymentsCol),
+    centreId
+      ? getDocs(query(feesCol, where("centreId", "==", centreId)))
+      : getDocs(feesCol),
+  ]);
+
+  const payments = paymentsSnap.docs.map((d) => normalizeFeePayment(d.id, d.data() as Record<string, unknown>));
+  const fees = feesSnap.docs.map((d) => normalizeStudentFee(d.id, d.data() as Record<string, unknown>));
+
+  return {
+    today: round2(payments.filter((p) => !p.refunded && p.paidAtIso.slice(0, 10) === todayIso).reduce((s, p) => s + Math.max(0, p.amount), 0)),
+    thisWeek: round2(payments.filter((p) => !p.refunded && p.paidAtIso.slice(0, 10) >= weekStartIso).reduce((s, p) => s + Math.max(0, p.amount), 0)),
+    thisMonth: round2(payments.filter((p) => !p.refunded && p.paidAtIso.slice(0, 10) >= monthStartIso).reduce((s, p) => s + Math.max(0, p.amount), 0)),
+    totalOutstanding: round2(fees.filter((f) => f.dueAmount > 0).reduce((s, f) => s + f.dueAmount, 0)),
+  };
 }
 
 // Build a CSV string for export (EIS-style fee report).

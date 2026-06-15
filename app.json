@@ -2,6 +2,7 @@
   "expo": {
     "name": "CLS Academy",
     "slug": "cls-academy-mobile",
+    "scheme": "clsacademy",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
@@ -38,7 +39,8 @@
         }
       ],
       "@react-native-community/datetimepicker",
-      "expo-sharing"
+      "expo-sharing",
+      "expo-web-browser"
     ],
     "extra": {
       "router": {},

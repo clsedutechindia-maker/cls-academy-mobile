@@ -5,6 +5,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useCallback, useState } from "react";
 import { D } from "../../components/theme";
 import { AnimatedPressable } from "../../components/motion";
+import { HeaderBackButton } from "../../components/HeaderBackButton";
 import { useSession } from "../../providers/session";
 import { useResource } from "../../hooks/useResource";
 import { listEmployeeClasses, listEmployeeTimetable } from "../../lib/erp";
@@ -138,7 +139,8 @@ export function EmployeeSchedulesScreen() {
   return (
     <View style={{ flex: 1, backgroundColor: D.bg }}>
       <View style={[s.headerSection, { paddingTop: insets.top + 20 }]}>
-        <View style={s.titleRow}>
+        <View style={[s.titleRow, { justifyContent: "flex-start" }]}>
+          <HeaderBackButton />
           <Text style={s.pageTitle}>Schedule</Text>
         </View>
         {classes.length > 0 && (

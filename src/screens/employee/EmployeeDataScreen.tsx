@@ -4,22 +4,25 @@ import { router } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { D } from "../../components/theme";
 import { AnimatedPressable } from "../../components/motion";
+import { useSession } from "../../providers/session";
 
 type IoniconsName = React.ComponentProps<typeof Ionicons>["name"];
 
-const cards: { l: string; sub: string; icon: IoniconsName; color: string; bg: string; route: string }[] = [
-  { l: "Circulars", sub: "Notices & updates", icon: "megaphone-outline", color: "#0369A1", bg: "#E0F2FE", route: "/(employee)/announcements" },
-  { l: "Schedules", sub: "Timetable & exam dates", icon: "calendar-outline", color: D.primary, bg: D.surfaceLow, route: "/(employee)/schedules" },
-  { l: "Materials", sub: "Study resources", icon: "library-outline", color: "#15803D", bg: "#F0FDF4", route: "/(employee)/materials" },
-  { l: "Inquiries", sub: "Admission leads", icon: "person-add-outline", color: "#7C3AED", bg: "#F3E8FF", route: "/(employee)/inquiries" },
-  { l: "Teaching Plans", sub: "View & upload plans", icon: "book-outline", color: "#0369A1", bg: "#E0F2FE", route: "/(employee)/teaching-plans" },
-  { l: "Sessions", sub: "Doubt & remedial slots", icon: "time-outline", color: "#0D9488", bg: "#CCFBF1", route: "/(employee)/sessions" },
-  { l: "Fees", sub: "Collect & track payments", icon: "card-outline", color: "#B45309", bg: "#FEF3C7", route: "/(employee)/fees" },
-  { l: "Fee Plans", sub: "Set up fee structures", icon: "options-outline", color: "#9333EA", bg: "#F3E8FF", route: "/(employee)/fee-structures" },
+const cards: { l: string; sub: string; icon: IoniconsName; color: string; bg: string; route: string; cap?: string }[] = [
+  { l: "Circulars", sub: "Notices & updates", icon: "megaphone-outline", color: "#0369A1", bg: "#E0F2FE", route: "/(employee)/announcements", cap: "circulars" },
+  { l: "Schedules", sub: "Timetable & exam dates", icon: "calendar-outline", color: D.primary, bg: D.surfaceLow, route: "/(employee)/schedules", cap: "schedules" },
+  { l: "Materials", sub: "Study resources", icon: "library-outline", color: "#15803D", bg: "#F0FDF4", route: "/(employee)/materials", cap: "materials" },
+  { l: "Inquiries", sub: "Admission leads", icon: "person-add-outline", color: "#7C3AED", bg: "#F3E8FF", route: "/(employee)/inquiries", cap: "inquiries" },
+  { l: "Teaching Plans", sub: "View & upload plans", icon: "book-outline", color: "#0369A1", bg: "#E0F2FE", route: "/(employee)/teaching-plans", cap: "teaching_plans" },
+  { l: "Sessions", sub: "Doubt & remedial slots", icon: "time-outline", color: "#0D9488", bg: "#CCFBF1", route: "/(employee)/sessions", cap: "sessions" },
+  { l: "Fees", sub: "Collect, dues & receipts", icon: "card-outline", color: "#B45309", bg: "#FEF3C7", route: "/(employee)/fees", cap: "fees" },
+  { l: "Fee Plans", sub: "Set up fee structures", icon: "options-outline", color: "#9333EA", bg: "#F3E8FF", route: "/(employee)/fee-structures", cap: "fee_plans" },
 ];
 
 export function EmployeeDataScreen() {
   const insets = useSafeAreaInsets();
+  const { profile } = useSession();
+  const visibleCards = cards.filter((c) => !c.cap || profile?.permissions?.includes(c.cap));
 
   return (
     <View style={{ flex: 1, backgroundColor: D.bg }}>
@@ -33,7 +36,7 @@ export function EmployeeDataScreen() {
 
         <Text style={s.sectionLabel}>DATA ENTRY TASKS</Text>
         <View style={s.grid}>
-          {cards.map((c) => (
+          {visibleCards.map((c) => (
             <AnimatedPressable key={c.l} style={s.gridCard} onPress={() => router.push(c.route as any)}>
               <View style={[s.cardIcon, { backgroundColor: c.bg }]}>
                 <Ionicons name={c.icon} size={20} color={c.color} />

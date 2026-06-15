@@ -156,10 +156,12 @@ export function EmployeeResultsScreen() {
         </View>
       </ScrollView>
 
-      <TouchableOpacity style={s.fab} activeOpacity={0.85} onPress={() => router.push("/(employee)/upload-result")}>
-        <Ionicons name="add" size={18} color="#fff" />
-        <Text style={s.fabText}>Upload Result</Text>
-      </TouchableOpacity>
+      {profile?.permissions?.includes("upload_results") && (
+        <TouchableOpacity style={s.fab} activeOpacity={0.85} onPress={() => router.push("/(employee)/upload-result")}>
+          <Ionicons name="add" size={18} color="#fff" />
+          <Text style={s.fabText}>Upload Result</Text>
+        </TouchableOpacity>
+      )}
 
       <Modal visible={pickerOpen} transparent animationType="fade" onRequestClose={() => setPickerOpen(false)}>
         <Pressable style={s.modalOverlay} onPress={() => setPickerOpen(false)}>

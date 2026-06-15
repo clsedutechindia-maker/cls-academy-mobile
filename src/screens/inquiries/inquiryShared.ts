@@ -48,16 +48,28 @@ export function isFollowUpDueToday(inquiry: AdmissionInquiryRecord): boolean {
   return inquiry.nextFollowUpDate === getTodayDateValue();
 }
 
-export type InquiryStat = { total: number; active: number; overdue: number; enrolled: number; conversion: number };
+export type InquiryStat = {
+  total: number;
+  active: number;
+  overdue: number;
+  enrolled: number;
+  conversion: number;
+  newCount: number;
+  demo: number; // active demo students (status === "demo")
+  lost: number;
+};
 
 export function computeInquiryStats(list: AdmissionInquiryRecord[]): InquiryStat {
   const total = list.length;
   const enrolled = list.filter((i) => i.status === "enrolled").length;
-  const closed = enrolled + list.filter((i) => i.status === "lost").length;
+  const lost = list.filter((i) => i.status === "lost").length;
+  const closed = enrolled + lost;
   const overdue = list.filter(isInquiryOverdue).length;
   const active = total - closed;
   const conversion = total > 0 ? Math.round((enrolled / total) * 100) : 0;
-  return { total, active, overdue, enrolled, conversion };
+  const newCount = list.filter((i) => i.status === "new").length;
+  const demo = list.filter((i) => i.status === "demo").length;
+  return { total, active, overdue, enrolled, conversion, newCount, demo, lost };
 }
 
 export const inquiryModeIcon = (mode: InquiryMode) => INQUIRY_MODE_META[mode]?.icon ?? "ellipsis-horizontal-outline";

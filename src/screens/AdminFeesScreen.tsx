@@ -1,6 +1,7 @@
 import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
+import { navigateBack } from "../lib/navigation";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useMemo, useState } from "react";
 import { D } from "../components/ui";
@@ -8,8 +9,12 @@ import { AnimatedPressable } from "../components/motion";
 import { useSession } from "../providers/session";
 import { useResource } from "../hooks/useResource";
 import { showAlert } from "../lib/alert";
-import { listAllStudentFees, feeCollectionSummary, type FeeStatus, type StudentFeeRecord } from "../lib/fees";
+import { listAllStudentFees, listAllPayments, feeCollectionSummary, getFeeCollectionByPeriod, type FeeStatus, type StudentFeeRecord } from "../lib/fees";
 import { exportFeeReportPdf } from "./employee/feePdf";
+import { FeeLedgerList } from "./employee/FeeLedgerList";
+import { DropdownButton, OptionSheet } from "./schedule/scheduleEditorKit";
+
+type FeeView = "students" | "receipts";
 
 const money = (n: number) => `₹${Number(n || 0).toLocaleString("en-IN")}`;
 
@@ -28,23 +33,52 @@ export function AdminFeesScreen() {
   const [search, setSearch] = useState("");
   const [searchVisible, setSearchVisible] = useState(false);
   const [statusFilter, setStatusFilter] = useState<"All" | FeeStatus>("All");
+  const [statusSheet, setStatusSheet] = useState(false);
+  const [view, setView] = useState<FeeView>("students");
+  const [selectedClassId, setSelectedClassId] = useState<string | null>(null);
   const [exporting, setExporting] = useState(false);
+
+  const statusLabel = (f: "All" | FeeStatus) => (f === "All" ? "All statuses" : STATUS_TONES[f].label);
 
   const { data: fees, loading, error } = useResource(
     async () => (adminRecord ? listAllStudentFees() : []),
     [adminRecord?.role],
   );
 
+  const { data: payments, loading: paymentsLoading, error: paymentsError } = useResource(
+    async () => (adminRecord ? listAllPayments() : []),
+    [adminRecord?.role],
+  );
+
+  const { data: periodStats, loading: periodLoading } = useResource(
+    async () => getFeeCollectionByPeriod(),
+    [],
+  );
+
   const summary = useMemo(() => feeCollectionSummary(fees ?? []), [fees]);
+
+  const selectedBatchName = useMemo(
+    () => summary.perClass.find((c) => (c.classId || c.className) === selectedClassId)?.className ?? "",
+    [summary.perClass, selectedClassId],
+  );
 
   const filtered = (fees ?? []).filter((f) => {
     if (statusFilter !== "All" && f.status !== statusFilter) return false;
+    if (selectedClassId && (f.classId || f.className) !== selectedClassId) return false;
     if (search.trim()) {
       const term = search.trim().toLowerCase();
       return [f.studentName, f.rollNumber, f.className, f.title, f.centreId].join(" ").toLowerCase().includes(term);
     }
     return true;
   });
+
+  const filteredPayments = useMemo(() => {
+    const term = search.trim().toLowerCase();
+    if (!term) return payments ?? [];
+    return (payments ?? []).filter((p) =>
+      [p.studentName, p.receiptNo, p.rollNumber, p.installmentLabel].join(" ").toLowerCase().includes(term),
+    );
+  }, [payments, search]);
 
   async function handleExport() {
     if (!fees || fees.length === 0) {
@@ -65,7 +99,7 @@ export function AdminFeesScreen() {
     <View style={{ flex: 1, backgroundColor: D.bg }}>
       <ScrollView contentContainerStyle={{ paddingBottom: 140 }} showsVerticalScrollIndicator={false}>
         <View style={[s.header, { paddingTop: insets.top + 16 }]}>
-          <AnimatedPressable style={s.iconBtn} onPress={() => router.back()}>
+          <AnimatedPressable style={s.iconBtn} onPress={() => navigateBack(router)}>
             <Ionicons name="chevron-back" size={22} color={D.onSurface} />
           </AnimatedPressable>
           <Text style={s.headerTitle}>Fees</Text>
@@ -85,7 +119,7 @@ export function AdminFeesScreen() {
               <Ionicons name="search-outline" size={17} color={D.outline} />
               <TextInput
                 style={{ flex: 1, fontSize: 13, fontFamily: D.fontMedium, color: D.onSurface }}
-                placeholder="Search name, roll, batch…"
+                placeholder={view === "receipts" ? "Search by student or receipt…" : "Search name, roll, batch…"}
                 placeholderTextColor={D.outline}
                 value={search}
                 onChangeText={setSearch}
@@ -102,6 +136,26 @@ export function AdminFeesScreen() {
         )}
 
         <View style={{ paddingHorizontal: 18 }}>
+          {/* Period collection stats */}
+          <View style={s.periodCard}>
+            <View style={s.periodRow}>
+              <View style={s.periodStat}>
+                <Text style={s.periodLabel}>TODAY</Text>
+                <Text style={s.periodValue}>{periodLoading ? "—" : money(periodStats?.today ?? 0)}</Text>
+              </View>
+              <View style={s.periodDivider} />
+              <View style={s.periodStat}>
+                <Text style={s.periodLabel}>THIS WEEK</Text>
+                <Text style={s.periodValue}>{periodLoading ? "—" : money(periodStats?.thisWeek ?? 0)}</Text>
+              </View>
+              <View style={s.periodDivider} />
+              <View style={s.periodStat}>
+                <Text style={s.periodLabel}>THIS MONTH</Text>
+                <Text style={s.periodValue}>{periodLoading ? "—" : money(periodStats?.thisMonth ?? 0)}</Text>
+              </View>
+            </View>
+          </View>
+
           <View style={s.grid2}>
             <View style={s.featureCard}>
               <View style={[s.fcIcon, { backgroundColor: "#ECFDF5" }]}>
@@ -121,72 +175,118 @@ export function AdminFeesScreen() {
             </View>
           </View>
 
-          {summary.perClass.length > 0 && (
-            <>
-              <Text style={s.sectionLabel}>BY BATCH</Text>
-              <View style={s.card}>
-                {summary.perClass.map((c, i) => (
-                  <View key={c.classId || c.className} style={[s.batchRow, i < summary.perClass.length - 1 && s.divider]}>
-                    <Text style={s.batchName} numberOfLines={1}>{c.className}</Text>
-                    <View style={{ flexDirection: "row", gap: 14 }}>
-                      <Text style={s.batchCollected}>{money(c.collected)}</Text>
-                      <Text style={[s.batchDue, { color: c.due > 0 ? "#B45309" : D.outline }]}>{money(c.due)} due</Text>
-                    </View>
-                  </View>
-                ))}
-              </View>
-            </>
-          )}
-
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginTop: 18 }} contentContainerStyle={{ gap: 8, paddingRight: 18 }}>
-            {FILTERS.map((f) => {
-              const active = statusFilter === f;
-              const label = f === "All" ? "All" : STATUS_TONES[f].label;
+          {/* Students / Receipts segmented control */}
+          <View style={s.segment}>
+            {(["students", "receipts"] as FeeView[]).map((v) => {
+              const active = view === v;
               return (
-                <AnimatedPressable key={f} style={[s.chip, active && s.chipActive]} onPress={() => setStatusFilter(f)}>
-                  <Text style={[s.chipText, active && s.chipTextActive]}>{label}</Text>
+                <AnimatedPressable key={v} style={[s.segmentBtn, active && s.segmentBtnActive]} onPress={() => setView(v)}>
+                  <Text style={[s.segmentText, active && s.segmentTextActive]}>{v === "students" ? "Students" : "Receipts"}</Text>
                 </AnimatedPressable>
               );
             })}
-          </ScrollView>
-
-          <View style={s.sectionRow}>
-            <Text style={s.sectionTitle}>Student fees</Text>
-            <Text style={s.sectionCount}>{filtered.length} shown</Text>
           </View>
 
-          {loading && <View style={[s.card, { padding: 20, alignItems: "center" }]}><Text style={s.muted}>Loading fees…</Text></View>}
-          {error && <View style={[s.card, { padding: 16 }]}><Text style={{ fontSize: 13, fontFamily: D.font, color: "#B91C1C" }}>{error}</Text></View>}
-          {!loading && !error && filtered.length === 0 && (
-            <View style={[s.card, { padding: 20, alignItems: "center" }]}><Text style={s.muted}>No fee records.</Text></View>
+          {view === "students" && (
+            <>
+              {summary.perClass.length > 0 && (
+                <>
+                  <Text style={s.sectionLabel}>BY BATCH · TAP TO FILTER</Text>
+                  <View style={s.card}>
+                    {summary.perClass.map((c, i) => {
+                      const key = c.classId || c.className;
+                      const selected = selectedClassId === key;
+                      return (
+                        <AnimatedPressable
+                          key={key}
+                          style={[s.batchRow, i < summary.perClass.length - 1 && s.divider, selected && s.batchRowSelected]}
+                          onPress={() => setSelectedClassId(selected ? null : key)}
+                        >
+                          <View style={{ flexDirection: "row", alignItems: "center", gap: 8, flex: 1 }}>
+                            <Ionicons
+                              name={selected ? "checkmark-circle" : "ellipse-outline"}
+                              size={16}
+                              color={selected ? D.primary : D.outline}
+                            />
+                            <Text style={s.batchName} numberOfLines={1}>{c.className}</Text>
+                          </View>
+                          <View style={{ alignItems: "flex-end" }}>
+                            <Text style={s.batchCollected}>{money(c.collected)}</Text>
+                            <Text style={[s.batchDue, { color: c.due > 0 ? "#B45309" : D.outline }]}>{money(c.due)} due</Text>
+                          </View>
+                        </AnimatedPressable>
+                      );
+                    })}
+                  </View>
+                </>
+              )}
+
+              <View style={{ marginTop: 18 }}>
+                <DropdownButton value={statusLabel(statusFilter)} placeholder="Status" onPress={() => setStatusSheet(true)} />
+              </View>
+
+              <View style={s.sectionRow}>
+                <Text style={s.sectionTitle}>Student fees</Text>
+                <Text style={s.sectionCount}>{filtered.length} shown</Text>
+              </View>
+
+              {selectedClassId && (
+                <AnimatedPressable style={s.batchFilterChip} onPress={() => setSelectedClassId(null)}>
+                  <Ionicons name="funnel" size={12} color={D.primary} />
+                  <Text style={s.batchFilterText}>{selectedBatchName || "Selected batch"}</Text>
+                  <Ionicons name="close-circle" size={14} color={D.primary} />
+                </AnimatedPressable>
+              )}
+
+              {loading && <View style={[s.card, { padding: 20, alignItems: "center" }]}><Text style={s.muted}>Loading fees…</Text></View>}
+              {error && <View style={[s.card, { padding: 16 }]}><Text style={{ fontSize: 13, fontFamily: D.font, color: "#B91C1C" }}>{error}</Text></View>}
+              {!loading && !error && filtered.length === 0 && (
+                <View style={[s.card, { padding: 20, alignItems: "center" }]}><Text style={s.muted}>No fee records.</Text></View>
+              )}
+              {!loading && !error && filtered.length > 0 && (
+                <View style={s.card}>
+                  {filtered.map((f: StudentFeeRecord, i) => {
+                    const tone = STATUS_TONES[f.status];
+                    return (
+                      <AnimatedPressable
+                        key={f.id}
+                        style={[s.feeRow, i < filtered.length - 1 && s.divider]}
+                        onPress={() => router.push({ pathname: "/(admin)/fee-detail", params: { feeId: f.id } })}
+                      >
+                        <View style={{ flex: 1 }}>
+                          <Text style={s.feeName}>{f.studentName}</Text>
+                          <Text style={s.feeMeta}>{f.rollNumber ? `Roll ${f.rollNumber} · ` : ""}{f.className} · {f.title}</Text>
+                        </View>
+                        <View style={{ alignItems: "flex-end", gap: 4 }}>
+                          <Text style={s.feeDue}>{f.dueAmount > 0 ? money(f.dueAmount) : "Paid"}</Text>
+                          <View style={[s.badge, { backgroundColor: tone.bg }]}>
+                            <Text style={[s.badgeText, { color: tone.fg }]}>{tone.label}</Text>
+                          </View>
+                        </View>
+                      </AnimatedPressable>
+                    );
+                  })}
+                </View>
+              )}
+            </>
           )}
-          {!loading && !error && filtered.length > 0 && (
-            <View style={s.card}>
-              {filtered.map((f: StudentFeeRecord, i) => {
-                const tone = STATUS_TONES[f.status];
-                return (
-                  <AnimatedPressable
-                    key={f.id}
-                    style={[s.feeRow, i < filtered.length - 1 && s.divider]}
-                    onPress={() => router.push({ pathname: "/(admin)/fee-detail", params: { feeId: f.id } })}
-                  >
-                    <View style={{ flex: 1 }}>
-                      <Text style={s.feeName}>{f.studentName}</Text>
-                      <Text style={s.feeMeta}>{f.rollNumber ? `Roll ${f.rollNumber} · ` : ""}{f.className} · {f.title}</Text>
-                    </View>
-                    <View style={{ alignItems: "flex-end", gap: 4 }}>
-                      <Text style={s.feeDue}>{f.dueAmount > 0 ? money(f.dueAmount) : "Paid"}</Text>
-                      <View style={[s.badge, { backgroundColor: tone.bg }]}>
-                        <Text style={[s.badgeText, { color: tone.fg }]}>{tone.label}</Text>
-                      </View>
-                    </View>
-                  </AnimatedPressable>
-                );
-              })}
+
+          {view === "receipts" && (
+            <View style={{ marginTop: 18 }}>
+              <FeeLedgerList payments={filteredPayments} loading={paymentsLoading} error={paymentsError} />
             </View>
           )}
         </View>
       </ScrollView>
+
+      <OptionSheet
+        visible={statusSheet}
+        title="Filter by status"
+        options={FILTERS.map((f) => ({ key: f, label: statusLabel(f) }))}
+        selectedKey={statusFilter}
+        onSelect={(k) => setStatusFilter(k as "All" | FeeStatus)}
+        onClose={() => setStatusSheet(false)}
+      />
     </View>
   );
 }
@@ -196,6 +296,12 @@ const s = StyleSheet.create({
   headerTitle: { fontSize: 18, fontWeight: "800", fontFamily: D.fontExtraBold, color: D.onSurface, letterSpacing: -0.3 },
   iconBtn: { width: 36, height: 36, borderRadius: 8, alignItems: "center", justifyContent: "center", backgroundColor: D.surface, borderWidth: 1, borderColor: D.outlineVariant },
   searchBox: { flexDirection: "row", alignItems: "center", gap: 10, padding: 12, borderRadius: 12, backgroundColor: D.surface, borderWidth: 1, borderColor: D.outlineVariant },
+  periodCard: { backgroundColor: D.surface, borderRadius: 14, borderWidth: 1, borderColor: D.outlineVariant, marginBottom: 16, overflow: "hidden", shadowColor: D.primary, shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.025, shadowRadius: 4, elevation: 1 },
+  periodRow: { flexDirection: "row" },
+  periodStat: { flex: 1, alignItems: "center", paddingVertical: 14, paddingHorizontal: 4 },
+  periodDivider: { width: 1, backgroundColor: D.outlineVariant, marginVertical: 10 },
+  periodLabel: { fontSize: 8, fontWeight: "700", fontFamily: D.fontBold, color: D.outline, letterSpacing: 0.4, textAlign: "center" },
+  periodValue: { marginTop: 5, fontSize: 13, fontWeight: "800", fontFamily: D.fontExtraBold, color: D.onSurface, letterSpacing: -0.3, textAlign: "center" },
   grid2: { flexDirection: "row", gap: 16 },
   featureCard: { flex: 1, backgroundColor: "#fff", borderRadius: 12, padding: 14, borderWidth: 1, borderColor: D.outlineVariant },
   fcIcon: { width: 24, height: 24, borderRadius: 6, alignItems: "center", justifyContent: "center" },
@@ -205,14 +311,22 @@ const s = StyleSheet.create({
   sectionLabel: { fontSize: 10, fontWeight: "700", fontFamily: D.fontBold, color: D.outline, letterSpacing: 0.6, marginTop: 20, marginBottom: 10 },
   card: { backgroundColor: D.surface, borderRadius: 12, borderWidth: 1, borderColor: D.outlineVariant, overflow: "hidden" },
   divider: { borderBottomWidth: 1, borderBottomColor: D.outlineVariant },
-  batchRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", padding: 14, gap: 12 },
+  batchRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingVertical: 10, paddingHorizontal: 14, gap: 12 },
+  batchRowSelected: { backgroundColor: D.surfaceLow },
+  batchFilterChip: { flexDirection: "row", alignItems: "center", gap: 6, alignSelf: "flex-start", backgroundColor: D.surfaceLow, borderWidth: 1, borderColor: D.primary, borderRadius: 8, paddingHorizontal: 10, paddingVertical: 6, marginBottom: 12 },
+  batchFilterText: { fontSize: 11.5, fontFamily: D.fontBold, color: D.primary },
   batchName: { flex: 1, fontSize: 12.5, fontWeight: "700", fontFamily: D.fontBold, color: D.onSurface },
   batchCollected: { fontSize: 12, fontWeight: "700", fontFamily: D.fontBold, color: "#047857" },
-  batchDue: { fontSize: 12, fontWeight: "700", fontFamily: D.fontBold },
-  chip: { paddingHorizontal: 14, paddingVertical: 8, borderRadius: 99, backgroundColor: D.surface, borderWidth: 1, borderColor: D.outlineVariant },
+  batchDue: { fontSize: 10.5, fontWeight: "700", fontFamily: D.fontSemiBold, marginTop: 1 },
+  chip: { paddingHorizontal: 14, paddingVertical: 8, borderRadius: 8, backgroundColor: D.surface, borderWidth: 1, borderColor: D.outlineVariant },
   chipActive: { backgroundColor: D.primary, borderColor: D.primary },
   chipText: { fontSize: 12, fontFamily: D.fontSemiBold, color: D.onSurfaceVariant },
   chipTextActive: { color: "#fff" },
+  segment: { flexDirection: "row", gap: 4, marginTop: 18, backgroundColor: D.surfaceLow, borderRadius: 10, padding: 3, borderWidth: 1, borderColor: D.outlineVariant },
+  segmentBtn: { flex: 1, alignItems: "center", paddingVertical: 9, borderRadius: 8 },
+  segmentBtnActive: { backgroundColor: D.surface, shadowColor: D.primary, shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.08, shadowRadius: 3, elevation: 1 },
+  segmentText: { fontSize: 12.5, fontFamily: D.fontSemiBold, color: D.onSurfaceVariant },
+  segmentTextActive: { color: D.onSurface, fontFamily: D.fontBold },
   sectionRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginTop: 22, marginBottom: 12, paddingHorizontal: 2 },
   sectionTitle: { fontSize: 12, fontWeight: "700", fontFamily: D.fontBold, color: D.onSurface },
   sectionCount: { fontSize: 11, fontFamily: D.font, color: D.outline },

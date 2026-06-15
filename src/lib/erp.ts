@@ -1434,6 +1434,57 @@ export async function createInquiry(input: {
   return ref.id;
 }
 
+// Staff (employee/team with the `register_students` capability) enrol a new student. The profile
+// lands as approvalStatus="pending" scoped to the staff member's centre, so it surfaces in the web
+// Approvals queue. We mint a fresh userProfiles doc id rather than a Firebase Auth uid here
+// (`provisioningPending`) — the admin provisions the real login on approval. Firestore rules enforce
+// the capability + centre scope; the UI gate is convenience only.
+export async function registerStudent(input: {
+  studentName: string;
+  phone: string;
+  email: string;
+  classId: string;
+  className: string;
+  parentName: string;
+  remark: string;
+  profile: UserProfileRecord;
+}): Promise<string> {
+  const nowIso = new Date().toISOString();
+  const staffName = input.profile.name || input.profile.fullName || "Staff";
+  const ref = doc(collection(firestoreDb, userProfilesCollectionName));
+  await setDoc(ref, {
+    userId: ref.id,
+    name: input.studentName.trim(),
+    fullName: input.studentName.trim(),
+    email: input.email.trim(),
+    role: "student",
+    accountType: "student",
+    regionId: input.profile.regionId,
+    regionName: input.profile.regionName,
+    centreId: input.profile.centreId,
+    centreName: input.profile.centreName,
+    branch: input.profile.centreName,
+    classId: input.classId,
+    className: input.className,
+    studentClass: input.className,
+    phone: input.phone.trim(),
+    parentOneName: input.parentName.trim(),
+    permissions: [],
+    approvalStatus: "pending",
+    active: true,
+    emailVerified: false,
+    provisioningPending: true,
+    registeredByUserId: input.profile.userId,
+    registeredByName: staffName,
+    registrationRemark: input.remark.trim(),
+    createdAtIso: nowIso,
+    updatedAtIso: nowIso,
+    createdAt: serverTimestamp(),
+    updatedAt: serverTimestamp(),
+  });
+  return ref.id;
+}
+
 export async function addInquiryFollowUp(input: {
   inquiry: AdmissionInquiryRecord;
   note: string;
@@ -1517,6 +1568,82 @@ export async function getInquiryById(id: string): Promise<AdmissionInquiryRecord
   }
   const snapshot = await getDoc(inquiryDocRef(id));
   return snapshot.exists() ? normalizeAdmissionInquiryRecord(snapshot.id, snapshot.data() ?? {}) : null;
+}
+
+export type InquirySummary = {
+  newCount: number;
+  demoScheduled: number;
+  demoStudents: number; // currently active demo students (status === "demo")
+  enrolledThisMonth: number;
+};
+
+// Quick status change on an inquiry (e.g. "Mark as Demo", "Convert to Student").
+// Reuses addInquiryFollowUp so the status, timeline entry, and counters stay in
+// sync — just supplies a canned note and no next-follow-up date.
+export async function setInquiryStatus(input: {
+  inquiry: AdmissionInquiryRecord;
+  status: InquiryStatus;
+  note: string;
+  actor: InquiryActor;
+}): Promise<void> {
+  return addInquiryFollowUp({
+    inquiry: input.inquiry,
+    note: input.note,
+    mode: input.inquiry.mode,
+    outcome: input.status,
+    nextFollowUpDate: "",
+    actor: input.actor,
+  });
+}
+
+// Admin-scoped pipeline summary (mirrors getInquirySummary but uses adminRecord
+// scoping, since superadmins have no userProfile/centreId of their own).
+export async function getInquirySummaryForAdmin(admin: AdminRecord): Promise<InquirySummary> {
+  const now = new Date();
+  const monthStartIso = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-01`;
+  const inquiries = await listAdminInquiries(admin);
+  return {
+    newCount: inquiries.filter((i) => i.status === "new").length,
+    demoScheduled: inquiries.filter((i) => i.status === "demo_scheduled").length,
+    demoStudents: inquiries.filter((i) => i.status === "demo").length,
+    enrolledThisMonth: inquiries.filter(
+      (i) => i.status === "enrolled" && (i.updatedAtIso || i.lastContactedAtIso).slice(0, 10) >= monthStartIso,
+    ).length,
+  };
+}
+
+export async function getInquirySummary(profile: UserProfileRecord): Promise<InquirySummary> {
+  const now = new Date();
+  const monthStartIso = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-01`;
+
+  if (isDemoMode()) {
+    await hydrateDemoState();
+    const inquiries = getDemoInquiries().filter((i) => !profile.centreId || i.centreId === profile.centreId);
+    return {
+      newCount: inquiries.filter((i) => i.status === "new").length,
+      demoScheduled: inquiries.filter((i) => i.status === "demo_scheduled").length,
+      demoStudents: inquiries.filter((i) => i.status === "demo").length,
+      enrolledThisMonth: inquiries.filter(
+        (i) => i.status === "enrolled" && (i.updatedAtIso || i.lastContactedAtIso).slice(0, 10) >= monthStartIso,
+      ).length,
+    };
+  }
+
+  const col = collection(firestoreDb, admissionInquiriesCollectionName);
+  // Scope: employees always have a centreId; admins may be global.
+  const snapshot = profile.centreId
+    ? await getDocs(query(col, where("centreId", "==", profile.centreId)))
+    : await getDocs(col);
+
+  const inquiries = snapshot.docs.map((d) => normalizeAdmissionInquiryRecord(d.id, d.data()));
+  return {
+    newCount: inquiries.filter((i) => i.status === "new").length,
+    demoScheduled: inquiries.filter((i) => i.status === "demo_scheduled").length,
+    demoStudents: inquiries.filter((i) => i.status === "demo").length,
+    enrolledThisMonth: inquiries.filter(
+      (i) => i.status === "enrolled" && (i.updatedAtIso || i.lastContactedAtIso).slice(0, 10) >= monthStartIso,
+    ).length,
+  };
 }
 
 export async function listStudentDoubts(profile: UserProfileRecord): Promise<StudentDoubtRecord[]> {
@@ -1959,6 +2086,18 @@ export async function listEmployeeClasses(profile: UserProfileRecord): Promise<C
   const snapshot = await getDocs(
     query(collection(firestoreDb, classesCollectionName), where("centreId", "==", profile.centreId)),
   );
+  return snapshot.docs
+    .map((item) => normalizeClassRecord(item.id, item.data()))
+    .filter((item) => item.active)
+    .sort((left, right) => left.name.localeCompare(right.name));
+}
+
+// Org-wide class list (all centres). `classes` has a public read rule, so this
+// is safe for any signed-in role — used by admin screens that aren't scoped to
+// a single centre (e.g. superadmin has no centreId of their own).
+export async function listAllClasses(): Promise<ClassRecord[]> {
+  if (isDemoMode()) return getDemoClasses();
+  const snapshot = await getDocs(collection(firestoreDb, classesCollectionName));
   return snapshot.docs
     .map((item) => normalizeClassRecord(item.id, item.data()))
     .filter((item) => item.active)
@@ -3033,6 +3172,14 @@ export async function updateTeacherProfileContact(userId: string, fields: { phon
   if (fields.phone !== undefined) update.phone = fields.phone;
   if (fields.email !== undefined) update.email = fields.email;
   await updateDoc(doc(firestoreDb, userProfilesCollectionName, userId), update);
+}
+
+export async function getPendingApprovalsCount(admin: AdminRecord): Promise<number> {
+  if (isDemoMode()) return 0;
+  const col = collection(firestoreDb, userProfilesCollectionName);
+  const constraints = [where("approvalStatus", "==", "pending")];
+  const snap = await getDocs(query(col, ...constraints));
+  return snap.size;
 }
 
 export async function savePushToken(userId: string, token: string): Promise<void> {

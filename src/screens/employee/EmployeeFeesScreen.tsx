@@ -5,11 +5,16 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useMemo, useState } from "react";
 import { D } from "../../components/theme";
 import { AnimatedPressable } from "../../components/motion";
+import { HeaderBackButton } from "../../components/HeaderBackButton";
 import { useSession } from "../../providers/session";
 import { useResource } from "../../hooks/useResource";
-import { listStudentFees, feeCollectionSummary, type FeeStatus, type StudentFeeRecord } from "../../lib/fees";
+import { listStudentFees, listPaymentsForCentre, feeCollectionSummary, getFeeCollectionByPeriod, type FeeStatus, type StudentFeeRecord } from "../../lib/fees";
 import { exportFeeReportPdf } from "./feePdf";
+import { FeeLedgerList } from "./FeeLedgerList";
+import { DropdownButton, OptionSheet } from "../schedule/scheduleEditorKit";
 import { showAlert } from "../../lib/alert";
+
+type FeeView = "students" | "receipts";
 
 const money = (n: number) => `₹${Number(n || 0).toLocaleString("en-IN")}`;
 
@@ -28,11 +33,25 @@ export function EmployeeFeesScreen() {
   const [search, setSearch] = useState("");
   const [searchVisible, setSearchVisible] = useState(false);
   const [statusFilter, setStatusFilter] = useState<"All" | FeeStatus>("All");
+  const [statusSheet, setStatusSheet] = useState(false);
+  const [view, setView] = useState<FeeView>("students");
   const [exporting, setExporting] = useState(false);
+
+  const statusLabel = (f: "All" | FeeStatus) => (f === "All" ? "All statuses" : STATUS_TONES[f].label);
 
   const { data: fees, loading, error } = useResource(
     async () => (profile ? listStudentFees(profile) : []),
     [profile?.userId],
+  );
+
+  const { data: payments, loading: paymentsLoading, error: paymentsError } = useResource(
+    async () => listPaymentsForCentre(profile?.centreId ?? ""),
+    [profile?.centreId],
+  );
+
+  const { data: periodStats, loading: periodLoading } = useResource(
+    async () => getFeeCollectionByPeriod(profile?.centreId),
+    [profile?.centreId],
   );
 
   const summary = useMemo(() => feeCollectionSummary(fees ?? []), [fees]);
@@ -45,6 +64,14 @@ export function EmployeeFeesScreen() {
     }
     return true;
   });
+
+  const filteredPayments = useMemo(() => {
+    const term = search.trim().toLowerCase();
+    if (!term) return payments ?? [];
+    return (payments ?? []).filter((p) =>
+      [p.studentName, p.receiptNo, p.rollNumber, p.installmentLabel].join(" ").toLowerCase().includes(term),
+    );
+  }, [payments, search]);
 
   async function handleExport() {
     if (!fees || fees.length === 0) {
@@ -66,7 +93,10 @@ export function EmployeeFeesScreen() {
       <ScrollView contentContainerStyle={{ paddingBottom: 140 }} showsVerticalScrollIndicator={false}>
         <View style={[s.headerSection, { paddingTop: insets.top + 20 }]}>
           <View style={s.titleRow}>
-            <Text style={s.pageTitle}>Fees</Text>
+            <View style={{ flexDirection: "row", alignItems: "center" }}>
+              <HeaderBackButton />
+              <Text style={s.pageTitle}>Fees</Text>
+            </View>
             <View style={{ flexDirection: "row", gap: 8, alignItems: "center" }}>
               <AnimatedPressable style={s.iconBtn} onPress={handleExport} disabled={exporting}>
                 <Ionicons name="download-outline" size={19} color={D.onSurface} />
@@ -84,7 +114,7 @@ export function EmployeeFeesScreen() {
               <Ionicons name="search-outline" size={17} color={D.outline} />
               <TextInput
                 style={{ flex: 1, fontSize: 13, fontFamily: D.fontMedium, color: D.onSurface }}
-                placeholder="Search by name, roll, or batch…"
+                placeholder={view === "receipts" ? "Search by student or receipt…" : "Search by name, roll, or batch…"}
                 placeholderTextColor={D.outline}
                 value={search}
                 onChangeText={setSearch}
@@ -101,6 +131,26 @@ export function EmployeeFeesScreen() {
         )}
 
         <View style={s.contentArea}>
+          {/* Period stats header */}
+          <View style={s.periodCard}>
+            <View style={s.periodRow}>
+              <View style={s.periodStat}>
+                <Text style={s.periodLabel}>TODAY</Text>
+                <Text style={s.periodValue}>{periodLoading ? "—" : money(periodStats?.today ?? 0)}</Text>
+              </View>
+              <View style={s.periodDivider} />
+              <View style={s.periodStat}>
+                <Text style={s.periodLabel}>THIS WEEK</Text>
+                <Text style={s.periodValue}>{periodLoading ? "—" : money(periodStats?.thisWeek ?? 0)}</Text>
+              </View>
+              <View style={s.periodDivider} />
+              <View style={s.periodStat}>
+                <Text style={s.periodLabel}>THIS MONTH</Text>
+                <Text style={s.periodValue}>{periodLoading ? "—" : money(periodStats?.thisMonth ?? 0)}</Text>
+              </View>
+            </View>
+          </View>
+
           <View style={s.grid2}>
             <View style={s.featureCard}>
               <View style={[s.fcIcon, { backgroundColor: "#ECFDF5" }]}>
@@ -120,71 +170,94 @@ export function EmployeeFeesScreen() {
             </View>
           </View>
 
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginTop: 18 }} contentContainerStyle={{ gap: 8, paddingRight: 18 }}>
-            {FILTERS.map((f) => {
-              const active = statusFilter === f;
-              const label = f === "All" ? "All" : STATUS_TONES[f].label;
+          {/* Students / Receipts segmented control */}
+          <View style={s.segment}>
+            {(["students", "receipts"] as FeeView[]).map((v) => {
+              const active = view === v;
               return (
-                <AnimatedPressable key={f} style={[s.chip, active && s.chipActive]} onPress={() => setStatusFilter(f)}>
-                  <Text style={[s.chipText, active && s.chipTextActive]}>{label}</Text>
+                <AnimatedPressable key={v} style={[s.segmentBtn, active && s.segmentBtnActive]} onPress={() => setView(v)}>
+                  <Text style={[s.segmentText, active && s.segmentTextActive]}>{v === "students" ? "Students" : "Receipts"}</Text>
                 </AnimatedPressable>
               );
             })}
-          </ScrollView>
-
-          <View style={s.sectionHeader}>
-            <Text style={s.sectionTitle}>Student fees</Text>
-            <Text style={s.sectionCount}>{filtered.length} shown</Text>
           </View>
 
-          {loading && (
-            <View style={[s.card, { padding: 20, alignItems: "center" }]}>
-              <Text style={s.muted}>Loading fees…</Text>
-            </View>
-          )}
-          {error && (
-            <View style={[s.card, { padding: 16 }]}>
-              <Text style={{ fontSize: 13, fontFamily: D.font, color: "#B91C1C" }}>{error}</Text>
-            </View>
-          )}
-          {!loading && !error && filtered.length === 0 && (
-            <View style={[s.card, { padding: 20, alignItems: "center" }]}>
-              <Text style={s.muted}>No fee records. Set up a fee plan first.</Text>
-            </View>
-          )}
-          {!loading && !error && filtered.length > 0 && (
-            <View style={s.card}>
-              {filtered.map((f: StudentFeeRecord, i) => {
-                const tone = STATUS_TONES[f.status];
-                return (
-                  <AnimatedPressable
-                    key={f.id}
-                    style={[s.feeRow, i < filtered.length - 1 && s.divider]}
-                    onPress={() => router.push({ pathname: "/(employee)/fee-detail", params: { feeId: f.id } })}
-                  >
-                    <View style={{ flex: 1 }}>
-                      <Text style={s.feeName}>{f.studentName}</Text>
-                      <Text style={s.feeMeta}>{f.rollNumber ? `Roll ${f.rollNumber} · ` : ""}{f.className} · {f.title}</Text>
-                    </View>
-                    <View style={{ alignItems: "flex-end", gap: 4 }}>
-                      <Text style={s.feeDue}>{f.dueAmount > 0 ? money(f.dueAmount) : "Paid"}</Text>
-                      {f.published ? (
-                        <View style={[s.badge, { backgroundColor: tone.bg }]}>
-                          <Text style={[s.badgeText, { color: tone.fg }]}>{tone.label}</Text>
+          {view === "students" && (
+            <>
+              <View style={{ marginTop: 18 }}>
+                <DropdownButton value={statusLabel(statusFilter)} placeholder="Status" onPress={() => setStatusSheet(true)} />
+              </View>
+
+              <View style={s.sectionHeader}>
+                <Text style={s.sectionTitle}>Student fees</Text>
+                <Text style={s.sectionCount}>{filtered.length} shown</Text>
+              </View>
+
+              {loading && (
+                <View style={[s.card, { padding: 20, alignItems: "center" }]}>
+                  <Text style={s.muted}>Loading fees…</Text>
+                </View>
+              )}
+              {error && (
+                <View style={[s.card, { padding: 16 }]}>
+                  <Text style={{ fontSize: 13, fontFamily: D.font, color: "#B91C1C" }}>{error}</Text>
+                </View>
+              )}
+              {!loading && !error && filtered.length === 0 && (
+                <View style={[s.card, { padding: 20, alignItems: "center" }]}>
+                  <Text style={s.muted}>No fee records. Set up a fee plan first.</Text>
+                </View>
+              )}
+              {!loading && !error && filtered.length > 0 && (
+                <View style={s.card}>
+                  {filtered.map((f: StudentFeeRecord, i) => {
+                    const tone = STATUS_TONES[f.status];
+                    return (
+                      <AnimatedPressable
+                        key={f.id}
+                        style={[s.feeRow, i < filtered.length - 1 && s.divider]}
+                        onPress={() => router.push({ pathname: "/(employee)/fee-detail", params: { feeId: f.id } })}
+                      >
+                        <View style={{ flex: 1 }}>
+                          <Text style={s.feeName}>{f.studentName}</Text>
+                          <Text style={s.feeMeta}>{f.rollNumber ? `Roll ${f.rollNumber} · ` : ""}{f.className} · {f.title}</Text>
                         </View>
-                      ) : (
-                        <View style={[s.badge, { backgroundColor: "#FEF3C7" }]}>
-                          <Text style={[s.badgeText, { color: "#B45309" }]}>Draft</Text>
+                        <View style={{ alignItems: "flex-end", gap: 4 }}>
+                          <Text style={s.feeDue}>{f.dueAmount > 0 ? money(f.dueAmount) : "Paid"}</Text>
+                          {f.published ? (
+                            <View style={[s.badge, { backgroundColor: tone.bg }]}>
+                              <Text style={[s.badgeText, { color: tone.fg }]}>{tone.label}</Text>
+                            </View>
+                          ) : (
+                            <View style={[s.badge, { backgroundColor: "#FEF3C7" }]}>
+                              <Text style={[s.badgeText, { color: "#B45309" }]}>Draft</Text>
+                            </View>
+                          )}
                         </View>
-                      )}
-                    </View>
-                  </AnimatedPressable>
-                );
-              })}
+                      </AnimatedPressable>
+                    );
+                  })}
+                </View>
+              )}
+            </>
+          )}
+
+          {view === "receipts" && (
+            <View style={{ marginTop: 18 }}>
+              <FeeLedgerList payments={filteredPayments} loading={paymentsLoading} error={paymentsError} />
             </View>
           )}
         </View>
       </ScrollView>
+
+      <OptionSheet
+        visible={statusSheet}
+        title="Filter by status"
+        options={FILTERS.map((f) => ({ key: f, label: statusLabel(f) }))}
+        selectedKey={statusFilter}
+        onSelect={(k) => setStatusFilter(k as "All" | FeeStatus)}
+        onClose={() => setStatusSheet(false)}
+      />
     </View>
   );
 }
@@ -202,10 +275,21 @@ const s = StyleSheet.create({
   fcLabel: { marginTop: 10, fontSize: 9, fontWeight: "700", fontFamily: D.fontBold, color: D.outline, letterSpacing: 0.5 },
   fcValue: { marginTop: 4, fontSize: 16, fontWeight: "800", fontFamily: D.fontExtraBold, color: D.onSurface, letterSpacing: -0.35 },
   fcSub: { marginTop: 3, fontSize: 9.5, color: D.onSurfaceVariant, fontFamily: D.font },
-  chip: { paddingHorizontal: 14, paddingVertical: 8, borderRadius: 99, backgroundColor: D.surface, borderWidth: 1, borderColor: D.outlineVariant },
+  periodCard: { backgroundColor: D.surface, borderRadius: 14, borderWidth: 1, borderColor: D.outlineVariant, marginBottom: 16, overflow: "hidden", shadowColor: D.primary, shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.025, shadowRadius: 4, elevation: 1 },
+  periodRow: { flexDirection: "row" },
+  periodStat: { flex: 1, alignItems: "center", paddingVertical: 14, paddingHorizontal: 4 },
+  periodDivider: { width: 1, backgroundColor: D.outlineVariant, marginVertical: 10 },
+  periodLabel: { fontSize: 8, fontWeight: "700", fontFamily: D.fontBold, color: D.outline, letterSpacing: 0.4, textAlign: "center" },
+  periodValue: { marginTop: 5, fontSize: 13, fontWeight: "800", fontFamily: D.fontExtraBold, color: D.onSurface, letterSpacing: -0.3, textAlign: "center" },
+  chip: { paddingHorizontal: 14, paddingVertical: 8, borderRadius: 8, backgroundColor: D.surface, borderWidth: 1, borderColor: D.outlineVariant },
   chipActive: { backgroundColor: D.primary, borderColor: D.primary },
   chipText: { fontSize: 12, fontFamily: D.fontSemiBold, color: D.onSurfaceVariant },
   chipTextActive: { color: "#fff" },
+  segment: { flexDirection: "row", gap: 4, marginTop: 18, backgroundColor: D.surfaceLow, borderRadius: 10, padding: 3, borderWidth: 1, borderColor: D.outlineVariant },
+  segmentBtn: { flex: 1, alignItems: "center", paddingVertical: 9, borderRadius: 8 },
+  segmentBtnActive: { backgroundColor: D.surface, shadowColor: D.primary, shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.08, shadowRadius: 3, elevation: 1 },
+  segmentText: { fontSize: 12.5, fontFamily: D.fontSemiBold, color: D.onSurfaceVariant },
+  segmentTextActive: { color: D.onSurface, fontFamily: D.fontBold },
   sectionHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginTop: 22, marginBottom: 12, paddingHorizontal: 2 },
   sectionTitle: { fontSize: 12, fontWeight: "700", fontFamily: D.fontBold, color: D.onSurface },
   sectionCount: { fontSize: 11, fontFamily: D.font, color: D.outline },

@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { ActivityIndicator, Linking, Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import { router, useFocusEffect, useLocalSearchParams } from "expo-router";
+import { router, useFocusEffect, useLocalSearchParams, useSegments } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { navigateBack } from "../../lib/navigation";
 import { showAlert } from "../../lib/alert";
@@ -9,7 +9,8 @@ import { D } from "../../components/theme";
 import { AnimatedPressable } from "../../components/motion";
 import { useSession } from "../../providers/session";
 import { useResource } from "../../hooks/useResource";
-import { addInquiryFollowUp, getInquiryById, listInquiryFollowUps } from "../../lib/erp";
+import { addInquiryFollowUp, getInquiryById, listInquiryFollowUps, setInquiryStatus } from "../../lib/erp";
+import { isTerminalInquiryStatus } from "../../shared";
 import type { AdmissionInquiryRecord, InquiryFollowUpRecord, InquiryMode, InquiryStatus } from "../../shared";
 import { DateField, DropdownButton, FieldLabel, OptionSheet } from "../schedule/scheduleEditorKit";
 import {
@@ -24,9 +25,18 @@ import {
 
 export function InquiryDetailScreen() {
   const insets = useSafeAreaInsets();
-  const { profile } = useSession();
+  const { profile, adminRecord, authUser } = useSession();
   const params = useLocalSearchParams<{ inquiryId?: string; addFollowUp?: string }>();
   const inquiryId = typeof params.inquiryId === "string" ? params.inquiryId : "";
+
+  // This screen is shared across (employee)/(team)/(admin) — route the convert
+  // flow within the active group so it doesn't bounce to another group's redirect.
+  const segments = useSegments();
+  const group = segments[0] === "(employee)" ? "(employee)" : segments[0] === "(admin)" ? "(admin)" : "(team)";
+  // Admins have no userProfile, so fall back to adminRecord for follow-up attribution.
+  const actor = profile
+    ? { userId: profile.userId, name: profile.name || profile.fullName || "Staff" }
+    : { userId: authUser?.uid ?? adminRecord?.email ?? "admin", name: "Admin" };
 
   const inquiryRes = useResource(async () => (inquiryId ? getInquiryById(inquiryId) : null), [inquiryId]);
   const followUpsRes = useResource(async () => (inquiryId ? listInquiryFollowUps(inquiryId) : []), [inquiryId]);
@@ -46,6 +56,7 @@ export function InquiryDetailScreen() {
   const [modeSheet, setModeSheet] = useState(false);
   const [statusSheet, setStatusSheet] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [actionBusy, setActionBusy] = useState(false);
 
   const openFollowUp = useCallback(() => {
     if (!inquiry) return;
@@ -82,6 +93,47 @@ export function InquiryDetailScreen() {
     } finally {
       setBusy(false);
     }
+  }
+
+  function handleMarkDemo() {
+    if (!inquiry) return;
+    showAlert("Mark as demo student", `Mark ${inquiry.studentName} as a demo student? They're taking demo classes at the centre.`, [
+      { text: "Cancel", style: "cancel" },
+      {
+        text: "Mark as Demo",
+        onPress: async () => {
+          setActionBusy(true);
+          try {
+            await setInquiryStatus({ inquiry, status: "demo", note: "Marked as demo student", actor });
+            await reloadAll();
+          } catch {
+            showAlert("Error", "Could not update the inquiry. Try again.");
+          } finally {
+            setActionBusy(false);
+          }
+        },
+      },
+    ]);
+  }
+
+  // Opens the Register Student form prefilled from the inquiry. On submit there,
+  // the inquiry is marked "enrolled" (see RegisterStudentScreen).
+  function handleConvert() {
+    if (!inquiry) return;
+    router.push({
+      pathname: `/${group}/register-student` as any,
+      params: {
+        inquiryId: inquiry.id,
+        studentName: inquiry.studentName,
+        phone: inquiry.phone,
+        email: inquiry.email,
+        course: inquiry.course,
+        centreId: inquiry.centreId,
+        centreName: inquiry.centreName,
+        regionId: inquiry.regionId,
+        regionName: inquiry.regionName,
+      },
+    });
   }
 
   const loading = inquiryRes.loading || followUpsRes.loading;
@@ -128,6 +180,21 @@ export function InquiryDetailScreen() {
                 <Meta label="Owner" value={inquiry.assignedToName || "—"} />
               </View>
             </View>
+
+            {!isTerminalInquiryStatus(inquiry.status) && (
+              <View style={s.actionRow}>
+                <AnimatedPressable style={[s.convertBtn, actionBusy && { opacity: 0.6 }]} onPress={handleConvert} disabled={actionBusy}>
+                  <Ionicons name="person-add-outline" size={16} color="#fff" />
+                  <Text style={s.convertText}>Convert to Student</Text>
+                </AnimatedPressable>
+                {inquiry.status !== "demo" && (
+                  <AnimatedPressable style={[s.demoBtn, actionBusy && { opacity: 0.6 }]} onPress={handleMarkDemo} disabled={actionBusy}>
+                    <Ionicons name="school-outline" size={16} color="#4338CA" />
+                    <Text style={s.demoText}>Mark as Demo</Text>
+                  </AnimatedPressable>
+                )}
+              </View>
+            )}
 
             <Text style={s.sectionLabel}>CONTACT</Text>
             <View style={s.contactCard}>
@@ -264,6 +331,11 @@ const s = StyleSheet.create({
   contactLabel: { fontSize: 10, fontFamily: D.fontSemiBold, color: D.outline, textTransform: "uppercase", letterSpacing: 0.3 },
   contactValue: { fontSize: 13.5, fontFamily: D.fontBold, color: D.onSurface, marginTop: 1 },
   contactDivider: { height: 1, backgroundColor: D.outlineVariant },
+  actionRow: { flexDirection: "row", gap: 10, marginBottom: 18 },
+  convertBtn: { flex: 1, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 7, height: 48, borderRadius: 12, backgroundColor: D.primary },
+  convertText: { fontSize: 13, fontFamily: D.fontBold, color: "#fff" },
+  demoBtn: { flex: 1, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 7, height: 48, borderRadius: 12, backgroundColor: "#E0E7FF", borderWidth: 1, borderColor: "#C7D2FE" },
+  demoText: { fontSize: 13, fontFamily: D.fontBold, color: "#4338CA" },
   logBtn: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 7, height: 46, borderRadius: 12, backgroundColor: D.surfaceLow, borderWidth: 1, borderColor: "#DDD6FE", marginBottom: 18 },
   logBtnText: { fontSize: 13, fontFamily: D.fontBold, color: D.primary },
   sectionLabel: { fontSize: 10.5, fontFamily: D.fontBold, color: D.outline, letterSpacing: 0.6, marginBottom: 10 },

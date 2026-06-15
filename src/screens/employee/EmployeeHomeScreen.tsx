@@ -11,10 +11,10 @@ import { listEmployeeResults, listEmployeeClasses, listEmployeeStudents } from "
 import { getTodayDateValue } from "../../lib/date";
 
 const quickActions = [
-  { label: "Upload\nResult", icon: "bar-chart-outline" as const, color: D.primary, route: "/(employee)/upload-result" as const },
-  { label: "Mark\nAttendance", icon: "checkmark-circle-outline" as const, color: "#0369A1", route: "/(employee)/attendance" as const },
-  { label: "Log\nInquiry", icon: "person-add-outline" as const, color: "#15803D", route: "/(employee)/log-inquiry" as const },
-  { label: "View\nSchedule", icon: "calendar-outline" as const, color: "#B45309", route: "/(employee)/schedules" as const },
+  { label: "Upload\nResult", icon: "bar-chart-outline" as const, color: D.primary, route: "/(employee)/upload-result" as const, cap: "upload_results" },
+  { label: "Mark\nAttendance", icon: "checkmark-circle-outline" as const, color: "#0369A1", route: "/(employee)/attendance" as const, cap: "attendance" },
+  { label: "Log\nInquiry", icon: "person-add-outline" as const, color: "#15803D", route: "/(employee)/log-inquiry" as const, cap: "inquiries" },
+  { label: "View\nSchedule", icon: "calendar-outline" as const, color: "#B45309", route: "/(employee)/schedules" as const, cap: "schedules" },
 ];
 
 export function EmployeeHomeScreen() {
@@ -51,6 +51,7 @@ export function EmployeeHomeScreen() {
 
   const todayResults = (results ?? []).filter((r) => r.publishedAtIso?.startsWith(today));
   const recentResults = (results ?? []).slice(0, 5);
+  const visibleQuickActions = quickActions.filter((a) => !a.cap || profile?.permissions?.includes(a.cap));
 
   const summaryCards = [
     {
@@ -119,7 +120,7 @@ export function EmployeeHomeScreen() {
 
           <Text style={s.sectionLabel}>QUICK ACTIONS</Text>
           <View style={s.qaGrid}>
-            {quickActions.map((a) => (
+            {visibleQuickActions.map((a) => (
               <AnimatedPressable key={a.label} style={s.qaCard} onPress={() => router.push(a.route as any)}>
                 <View style={[s.qaIcon, { backgroundColor: `${a.color}18` }]}>
                   <Ionicons name={a.icon} size={20} color={a.color} />
@@ -184,7 +185,7 @@ const s = StyleSheet.create({
   fcIcon: { width: 32, height: 32, borderRadius: 8, alignItems: "center", justifyContent: "center" },
   fcLabel: { marginTop: 12, fontSize: 9, fontWeight: "700", fontFamily: D.fontBold, color: D.outline, letterSpacing: 0.5 },
   fcValue: { marginTop: 4, fontSize: 22, fontWeight: "800", fontFamily: D.fontExtraBold, color: D.onSurface, letterSpacing: -0.5 },
-  fcSub: { marginTop: 2, fontSize: 9.5, color: D.onSurfaceVariant, fontFamily: D.font },
+  fcSub: { marginTop: 2, fontSize: 12, color: D.onSurfaceVariant, fontFamily: D.font },
   sectionLabel: { fontSize: 11, fontWeight: "700", fontFamily: D.fontBold, color: D.outline, letterSpacing: 0.5, marginBottom: 12 },
   sectionRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 12 },
   seeAll: { fontSize: 11, fontWeight: "600", fontFamily: D.fontSemiBold, color: D.primary },

@@ -76,7 +76,7 @@ export function AdminComplaintsScreen() {
         </View>
 
         {/* Filter chips */}
-        <View style={s.chipRow}>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.chipRow}>
           {FILTER_OPTIONS.map((opt) => (
             <AnimatedPressable
               key={opt.key}
@@ -86,7 +86,7 @@ export function AdminComplaintsScreen() {
               <Text style={[s.chipText, filter === opt.key && s.chipTextActive]}>{opt.label}</Text>
             </AnimatedPressable>
           ))}
-        </View>
+        </ScrollView>
 
         {resource.loading ? (
           <LoadingCard label="Loading complaints..." />
@@ -142,7 +142,7 @@ const s = StyleSheet.create({
 
   content: { paddingHorizontal: 18, gap: 14, paddingBottom: MOBILE_BOTTOM_SPACING },
 
-  chipRow: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
+  chipRow: { flexDirection: "row", gap: 8, paddingRight: 18 },
   chip: {
     borderRadius: 10, paddingHorizontal: 12, paddingVertical: 7,
     backgroundColor: D.surface, borderWidth: 1, borderColor: D.outlineVariant,

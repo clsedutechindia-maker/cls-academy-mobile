@@ -12,7 +12,7 @@ import { listDoubtsForTeacher, listPendingStudentsForTeacher, listTeacherTimetab
 const quickActions = [
   { label: "Post\nCircular", icon: "megaphone-outline" as const, color: "#0369A1", route: "/(team)/post-circular" as const },
   { label: "Leave\nRequests", icon: "document-text-outline" as const, color: "#15803D", route: "/(team)/leave" as const },
-  { label: "Answer\nDoubts", icon: "help-circle-outline" as const, color: "#EC4899", route: "/(team)/doubts" as const },
+  { label: "Answer\nDoubts", icon: "help-circle-outline" as const, color: "#EC4899", route: "/(team)/doubts" as const, cap: "doubts" },
 ];
 
 const subjectColors: Record<string, string> = {
@@ -63,15 +63,21 @@ export function HTHomeScreen() {
   const pendingCount = pendingStudents?.length ?? 0;
   const classNames: string[] = Array.from(new Set(profile?.teacherClassNames ?? [])).filter(Boolean) as string[];
 
+  const canHandleDoubts = profile?.permissions?.includes("doubts");
+
   const summaryCards = [
-    {
-      label: "Open Doubts",
-      value: String(openDoubtsCount),
-      sub: "unanswered",
-      icon: "help-circle-outline" as const,
-      tone: { bg: "#FDF2F8", fg: "#EC4899" },
-      onPress: () => router.push("/(team)/doubts"),
-    },
+    ...(canHandleDoubts
+      ? [
+          {
+            label: "Open Doubts",
+            value: String(openDoubtsCount),
+            sub: "unanswered",
+            icon: "help-circle-outline" as const,
+            tone: { bg: "#FDF2F8", fg: "#EC4899" },
+            onPress: () => router.push("/(team)/doubts"),
+          },
+        ]
+      : []),
     {
       label: "Pending Approvals",
       value: pendingCount > 0 ? String(pendingCount) : "—",
@@ -81,6 +87,8 @@ export function HTHomeScreen() {
       onPress: () => router.push("/(team)/approve-student"),
     },
   ];
+
+  const visibleQuickActions = quickActions.filter((a) => !a.cap || profile?.permissions?.includes(a.cap));
 
   const initials = profile?.name?.split(" ").map((n) => n[0]).join("").substring(0, 2).toUpperCase() || "HT";
   const subjects = (profile as any)?.teacherSubjectNames?.join(", ") || "Physics, Chemistry";
@@ -184,7 +192,7 @@ export function HTHomeScreen() {
           {/* Quick links — 4 cols style */}
           <SectionHeader title="Quick links" />
           <View style={s.grid4}>
-            {quickActions.map((q) => (
+            {visibleQuickActions.map((q) => (
               <QuickLink key={q.label} icon={q.icon} label={q.label} color={q.color} onPress={() => router.push(q.route as any)} />
             ))}
           </View>
@@ -309,7 +317,7 @@ const s = StyleSheet.create({
   fcIcon: { width: 26, height: 26, borderRadius: 8, alignItems: "center", justifyContent: "center" },
   fcLabel: { marginTop: 10, fontSize: 9.5, fontWeight: "700", fontFamily: D.fontBold, color: D.outline, letterSpacing: 0.5 },
   fcValue: { marginTop: 4, fontSize: 16, fontWeight: "800", fontFamily: D.fontExtraBold, color: D.onSurface, letterSpacing: -0.35 },
-  fcSub: { marginTop: 4, fontSize: 9.5, color: D.onSurfaceVariant, letterSpacing: -0.05, fontFamily: D.font, lineHeight: 14 },
+  fcSub: { marginTop: 4, fontSize: 12, color: D.onSurfaceVariant, letterSpacing: -0.05, fontFamily: D.font, lineHeight: 16 },
   sectionHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginTop: 22, marginBottom: 12, paddingHorizontal: 2 },
   sectionTitle: { fontSize: 13, fontWeight: "700", fontFamily: D.fontBold, color: D.onSurface, letterSpacing: -0.15 },
   sectionAction: { fontSize: 11, fontWeight: "600", fontFamily: D.fontSemiBold, color: D.primary },
