@@ -12,6 +12,15 @@ export const studentAnnouncementsCollectionName = "studentAnnouncements";
 export const studentComplaintsCollectionName = "studentComplaints";
 export const studentResultsCollectionName = "studentResults";
 
+// Students log in with their roll number; Firebase Auth needs an email, so the roll maps to a
+// deterministic synthetic address (same mapping at creation and login → no Firestore lookup).
+// Keep this domain in sync with the web (lib/server/enroll.ts, components/AccountAccess.tsx).
+export const STUDENT_SYNTHETIC_EMAIL_DOMAIN = "students.cls-edutech.app";
+
+export function buildStudentLoginEmail(rollNumber: string): string {
+  return `${rollNumber.toLowerCase().replace(/[^a-z0-9]/g, "")}@${STUDENT_SYNTHETIC_EMAIL_DOMAIN}`;
+}
+
 export type RegionRecord = {
   id: string;
   name: string;

@@ -134,16 +134,17 @@ export default function SignInRoute() {
               <>
                 {/* Email */}
                 <View style={s.inputWrap}>
-                  <Ionicons name="mail-outline" size={20} color={D.outline} style={s.inputIcon} />
+                  <Ionicons name="person-outline" size={20} color={D.outline} style={s.inputIcon} />
                   <TextInput
                     style={s.input}
-                    placeholder="Email address"
+                    placeholder="Roll number or email"
                     placeholderTextColor={D.outlineVariant}
                     value={email}
                     onChangeText={(v) => { setEmail(v); setLocalError(null); }}
                     autoCapitalize="none"
-                    keyboardType="email-address"
-                    autoComplete="email"
+                    autoCorrect={false}
+                    keyboardType="default"
+                    autoComplete="username"
                   />
                 </View>
 

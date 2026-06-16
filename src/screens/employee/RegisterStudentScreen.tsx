@@ -9,6 +9,8 @@ import { D } from "../../components/theme";
 import { AnimatedPressable } from "../../components/motion";
 import { useSession } from "../../providers/session";
 import { listEmployeeClasses, registerStudent, getInquiryById, setInquiryStatus } from "../../lib/erp";
+import { enrollStudent, type IssuedCredentials } from "../../lib/enroll";
+import { isDemoMode } from "../../lib/demoMode";
 import { normalizeUserProfileRecord } from "../../shared";
 import { DropdownButton, FieldLabel, OptionSheet, type SheetOption } from "../schedule/scheduleEditorKit";
 
@@ -54,6 +56,7 @@ export function RegisterStudentScreen() {
   const [classSheet, setClassSheet] = useState(false);
   const [classOptions, setClassOptions] = useState<SheetOption[]>([]);
   const [busy, setBusy] = useState(false);
+  const [credentials, setCredentials] = useState<IssuedCredentials | null>(null);
 
   useEffect(() => {
     let alive = true;
@@ -85,7 +88,26 @@ export function RegisterStudentScreen() {
     const className = classOptions.find((c) => c.key === classId)?.label ?? "";
     setBusy(true);
     try {
-      await registerStudent({ studentName, phone, email, classId, className, parentName, remark, profile: effectiveProfile });
+      if (isDemoMode()) {
+        // Demo mode has no server to mint a real login — keep the legacy pending write.
+        await registerStudent({ studentName, phone, email, classId, className, parentName, remark, profile: effectiveProfile });
+        setBusy(false);
+        showAlert("Submitted", "Student registered (demo mode — no live credentials).", [
+          { text: "Done", onPress: () => navigateBack(router) },
+        ]);
+        return;
+      }
+
+      const issued = await enrollStudent({
+        studentName,
+        classId,
+        phone,
+        email,
+        parentName,
+        remark,
+        staffName: effectiveProfile.name || effectiveProfile.fullName || "Staff",
+      });
+
       // Converting from an inquiry → close the lead as enrolled.
       if (inquiryId) {
         const inquiry = await getInquiryById(inquiryId);
@@ -93,20 +115,54 @@ export function RegisterStudentScreen() {
           await setInquiryStatus({
             inquiry,
             status: "enrolled",
-            note: `Converted to student${className ? ` — ${className}` : ""}`,
+            note: `Converted to student${className ? ` — ${className}` : ""} · ${issued.rollNumber}`,
             actor: { userId: effectiveProfile.userId, name: effectiveProfile.name || "Staff" },
           });
         }
       }
+
+      setBusy(false);
+      setCredentials(issued);
     } catch (e) {
       setBusy(false);
       showAlert("Error", e instanceof Error ? e.message : "Could not register the student. Try again.");
-      return;
     }
-    setBusy(false);
-    showAlert("Submitted", "Student registered. Awaiting admin approval.", [
-      { text: "Done", onPress: () => navigateBack(router) },
-    ]);
+  }
+
+  if (credentials) {
+    return (
+      <View style={{ flex: 1, backgroundColor: D.bg }}>
+        <View style={[s.header, { paddingTop: insets.top + 20 }]}>
+          <Text style={s.title}>Student Registered</Text>
+        </View>
+        <ScrollView contentContainerStyle={{ paddingHorizontal: 18, paddingBottom: 160 }} showsVerticalScrollIndicator={false}>
+          <View style={s.successCard}>
+            <Ionicons name="checkmark-circle" size={44} color={D.primary} />
+            <Text style={s.successName}>{studentName.trim()}</Text>
+            <Text style={s.successHint}>Share these with the student. The password is shown only once — long-press to copy.</Text>
+
+            <View style={s.credRow}>
+              <Text style={s.credLabel}>Roll Number (username)</Text>
+              <Text style={s.credValue} selectable>{credentials.rollNumber}</Text>
+            </View>
+            <View style={s.credRow}>
+              <Text style={s.credLabel}>Temporary Password</Text>
+              <Text style={s.credValue} selectable>{credentials.password}</Text>
+            </View>
+          </View>
+
+          <View style={s.noteCard}>
+            <Ionicons name="information-circle-outline" size={16} color={D.primary} />
+            <Text style={s.noteText}>The student signs in with the roll number and this password — no admin approval needed.</Text>
+          </View>
+
+          <AnimatedPressable style={s.submitBtn} onPress={() => navigateBack(router)}>
+            <Ionicons name="checkmark" size={17} color="#fff" />
+            <Text style={s.submitText}>Done</Text>
+          </AnimatedPressable>
+        </ScrollView>
+      </View>
+    );
   }
 
   return (
@@ -121,7 +177,7 @@ export function RegisterStudentScreen() {
       <ScrollView contentContainerStyle={{ paddingHorizontal: 18, paddingBottom: 160 }} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
         <View style={s.noteCard}>
           <Ionicons name="information-circle-outline" size={16} color={D.primary} />
-          <Text style={s.noteText}>New students are submitted for admin approval before they can sign in.</Text>
+          <Text style={s.noteText}>A login (roll number + password) is created instantly — no approval needed. You'll get the credentials to share.</Text>
         </View>
 
         <FieldLabel>Student Name</FieldLabel>
@@ -181,7 +237,7 @@ export function RegisterStudentScreen() {
 
         <AnimatedPressable style={[s.submitBtn, busy && { opacity: 0.6 }]} onPress={() => void submit()} disabled={busy}>
           <Ionicons name="checkmark" size={17} color="#fff" />
-          <Text style={s.submitText}>{busy ? "Submitting…" : "Submit for Approval"}</Text>
+          <Text style={s.submitText}>{busy ? "Creating…" : "Create Student Login"}</Text>
         </AnimatedPressable>
       </ScrollView>
 
@@ -207,4 +263,10 @@ const s = StyleSheet.create({
   inputMulti: { minHeight: 84, textAlignVertical: "top", marginBottom: 20 },
   submitBtn: { height: 52, borderRadius: 16, backgroundColor: D.primary, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 7 },
   submitText: { fontSize: 14, fontFamily: D.fontBold, color: "#fff" },
+  successCard: { padding: 18, borderRadius: 14, borderWidth: 1, borderColor: D.outlineVariant, backgroundColor: D.surface, alignItems: "center", gap: 10, marginBottom: 16 },
+  successName: { fontSize: 18, fontFamily: D.fontExtraBold, color: D.onSurface, letterSpacing: -0.3 },
+  successHint: { fontSize: 12, fontFamily: D.font, color: D.onSurfaceVariant, textAlign: "center", lineHeight: 17, marginBottom: 4 },
+  credRow: { width: "100%", padding: 13, borderRadius: 12, borderWidth: 1, borderColor: D.outlineVariant, backgroundColor: D.surfaceLow, gap: 5 },
+  credLabel: { fontSize: 10.5, fontFamily: D.fontMedium, color: D.onSurfaceVariant, textTransform: "uppercase", letterSpacing: 0.5 },
+  credValue: { fontSize: 22, fontFamily: D.fontExtraBold, color: D.primary, letterSpacing: 1 },
 });

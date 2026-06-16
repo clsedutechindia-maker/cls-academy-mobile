@@ -14,6 +14,7 @@ try {
 }
 import {
   adminCollectionName,
+  buildStudentLoginEmail,
   formatAdminRoleLabel,
   normalizeAdminRecord,
   normalizeUserProfileRecord,
@@ -272,7 +273,11 @@ export function SessionProvider({ children }: PropsWithChildren) {
   const signIn = useCallback(async (email: string, password: string) => {
     setError(null);
     try {
-      await signInWithEmailAndPassword(firebaseAuth, email.trim(), password);
+      // Students sign in with just their roll number; map it to the synthetic email. Anything with
+      // an "@" (staff/admin real emails) is used as-is.
+      const identifier = email.trim();
+      const loginEmail = identifier.includes("@") ? identifier : buildStudentLoginEmail(identifier);
+      await signInWithEmailAndPassword(firebaseAuth, loginEmail, password);
     } catch (signInError) {
       throw new Error(formatAuthError(signInError));
     }
