@@ -69,7 +69,8 @@ export function getNotificationRoute(data: Record<string, unknown> | undefined):
       case "announcement": return "/(admin)/circulars";
       case "inquiry": return "/(admin)/inquiries";
       case "plan": return "/(admin)/teaching-plans";
-      case "approval": return "/(admin)/students";
+      case "approval": return "/(admin)/approvals";
+      case "fee": return "/(admin)/fees";
       default: return "/(admin)/overview";
     }
   }
@@ -78,9 +79,11 @@ export function getNotificationRoute(data: Record<string, unknown> | undefined):
     switch (type) {
       case "leave": return "/(team)/leave";
       case "inquiry": return "/(team)/inquiries";
+      case "circular": return "/(team)/circulars";
       case "approval": return "/(team)/approve-student";
       case "doubt": return "/(team)/doubts";
       case "plan": return "/(team)/teaching-plans";
+      case "salary": return "/(team)/account";
       default: return "/(team)/home";
     }
   }
@@ -88,9 +91,21 @@ export function getNotificationRoute(data: Record<string, unknown> | undefined):
   if (role === "teacher") {
     switch (type) {
       case "doubt": return "/(teacher)/doubts";
+      case "circular": return "/(teacher)/announcements";
       case "schedule": return "/(teacher)/sessions";
       case "plan": return "/(teacher)/teaching-plans";
+      case "leave": return "/(teacher)/leave";
+      case "salary": return "/(teacher)/account";
       default: return "/(teacher)/notifications";
+    }
+  }
+
+  if (role === "employee") {
+    switch (type) {
+      case "fee": return "/(employee)/fees";
+      case "leave": return "/(employee)/notifications";
+      case "salary": return "/(employee)/account";
+      default: return "/(employee)/notifications";
     }
   }
 

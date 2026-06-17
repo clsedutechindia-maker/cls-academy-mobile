@@ -13,6 +13,7 @@ import {
 import { firestoreDb } from "./firebase";
 import { isDemoMode } from "./demoMode";
 import { listEmployeeStudents } from "./erp";
+import { notifyEvent } from "./notify";
 import {
   hydrateDemoState,
   getDemoFeeStructures,
@@ -591,6 +592,8 @@ export async function publishStudentFee(fee: StudentFeeRecord): Promise<void> {
     return;
   }
   await updateDoc(doc(firestoreDb, studentFeesCollectionName, fee.id), patch);
+  // Published → now visible/payable for the student, so alert them.
+  notifyEvent("fee.assigned", { studentUserId: fee.studentUserId, title: fee.title });
 }
 
 // ---------------------------------------------------------------------------
@@ -756,7 +759,7 @@ export async function recordFeePayment(input: RecordPaymentInput): Promise<strin
     return receiptNo;
   }
 
-  return runTransaction(firestoreDb, async (tx) => {
+  const receiptNo = await runTransaction(firestoreDb, async (tx) => {
     const counterRef = doc(firestoreDb, feeCountersCollectionName, fee.centreId);
     const feeRef = doc(firestoreDb, studentFeesCollectionName, fee.id);
     const counterSnap = await tx.get(counterRef);
@@ -766,13 +769,13 @@ export async function recordFeePayment(input: RecordPaymentInput): Promise<strin
     const current = normalizeStudentFee(feeSnap.id, feeSnap.data() as Record<string, unknown>);
     const lastSeq = counterSnap.exists() ? num(counterSnap.data().lastSeq) : 0;
     const nextSeq = lastSeq + 1;
-    const receiptNo = formatReceiptNo(nextSeq);
+    const newReceiptNo = formatReceiptNo(nextSeq);
 
     const recomputed = applyDelta(current.installments, amount, input.installmentLabel || "");
     const paymentRef = doc(collection(firestoreDb, feePaymentsCollectionName));
 
     tx.set(paymentRef, {
-      receiptNo,
+      receiptNo: newReceiptNo,
       studentFeeId: fee.id,
       studentUserId: fee.studentUserId,
       studentName: fee.studentName,
@@ -797,8 +800,19 @@ export async function recordFeePayment(input: RecordPaymentInput): Promise<strin
       status: recomputed.status,
       updatedAtIso: nowIso,
     });
-    return receiptNo;
+    return newReceiptNo;
   });
+  // Receipt to the student + collection alert to admins (markInstallmentPaid routes
+  // through here too, so this is the single manual-payment notification site).
+  notifyEvent("fee.paid", {
+    studentUserId: fee.studentUserId,
+    studentName: fee.studentName,
+    centreId: fee.centreId,
+    regionId: fee.regionId,
+    amount: String(amount),
+    receiptNo,
+  });
+  return receiptNo;
 }
 
 // Refund a prior payment: writes a negative offsetting receipt, marks the original
@@ -848,7 +862,7 @@ export async function refundFeePayment(
     return receiptNo;
   }
 
-  return runTransaction(firestoreDb, async (tx) => {
+  const receiptNo = await runTransaction(firestoreDb, async (tx) => {
     const counterRef = doc(firestoreDb, feeCountersCollectionName, payment.centreId);
     const feeRef = doc(firestoreDb, studentFeesCollectionName, payment.studentFeeId);
     const origRef = doc(firestoreDb, feePaymentsCollectionName, payment.id);
@@ -859,13 +873,13 @@ export async function refundFeePayment(
     const current = normalizeStudentFee(feeSnap.id, feeSnap.data() as Record<string, unknown>);
     const lastSeq = counterSnap.exists() ? num(counterSnap.data().lastSeq) : 0;
     const nextSeq = lastSeq + 1;
-    const receiptNo = formatReceiptNo(nextSeq);
+    const newReceiptNo = formatReceiptNo(nextSeq);
 
     const recomputed = applyDelta(current.installments, -payment.amount, payment.installmentLabel || "");
     const refundRef = doc(collection(firestoreDb, feePaymentsCollectionName));
 
     tx.set(refundRef, {
-      receiptNo,
+      receiptNo: newReceiptNo,
       studentFeeId: payment.studentFeeId,
       studentUserId: payment.studentUserId,
       studentName: payment.studentName,
@@ -891,8 +905,14 @@ export async function refundFeePayment(
       status: recomputed.dueAmount >= current.totalAmount && recomputed.paidAmount <= 0 ? "refunded" : recomputed.status,
       updatedAtIso: nowIso,
     });
-    return receiptNo;
+    return newReceiptNo;
   });
+  notifyEvent("fee.refunded", {
+    studentUserId: payment.studentUserId,
+    amount: String(payment.amount),
+    receiptNo,
+  });
+  return receiptNo;
 }
 
 // ---------------------------------------------------------------------------

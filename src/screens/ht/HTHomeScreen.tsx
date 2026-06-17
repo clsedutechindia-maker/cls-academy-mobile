@@ -10,7 +10,7 @@ import { useCachedResource } from "../../hooks/useResource";
 import { listDoubtsForTeacher, listPendingStudentsForTeacher, listTeacherTimetable } from "../../lib/erp";
 
 const quickActions = [
-  { label: "Post\nCircular", icon: "megaphone-outline" as const, color: "#0369A1", route: "/(team)/post-circular" as const },
+  // Circular creation is admin/employee-only — head-teachers view circulars, not post them.
   { label: "Leave\nRequests", icon: "document-text-outline" as const, color: "#15803D", route: "/(team)/leave" as const },
   { label: "Answer\nDoubts", icon: "help-circle-outline" as const, color: "#EC4899", route: "/(team)/doubts" as const, cap: "doubts" },
 ];

@@ -11,62 +11,36 @@ import {
   TextInput,
   View,
 } from "react-native";
+import Animated, { FadeInDown } from "react-native-reanimated";
 import { LinearGradient } from "expo-linear-gradient";
 import { Ionicons } from "@expo/vector-icons";
 import { useSession } from "../../src/providers/session";
-
-// Design tokens matching login HTML
-const D = {
-  bg: "#faf8ff",
-  surface: "#ffffff",
-  surfaceLow: "#f2f3ff",
-  surfaceContainer: "#eaedff",
-  primary: "#3525cd",
-  onSurface: "#131b2e",
-  onSurfaceVariant: "#464555",
-  outlineVariant: "#c7c4d8",
-  outline: "#777587",
-  error: "#ba1a1a",
-  errorBg: "#ffdad6",
-  tertiary: "#6b00b8",
-};
-
-type Tab = "login" | "signup";
+import { D } from "../../src/components/theme";
 
 export default function SignInRoute() {
-  const { role, signIn, signInWithGoogle, error, isReady } = useSession();
-  const [activeTab, setActiveTab] = useState<Tab>("login");
-  const [email, setEmail] = useState("");
+  const { role, signIn, error, isReady } = useSession();
+  const [identifier, setIdentifier] = useState("");
   const [password, setPassword] = useState("");
-  const [loading, setLoading] = useState<"email" | "google" | null>(null);
+  const [showPassword, setShowPassword] = useState(false);
+  const [loading, setLoading] = useState(false);
   const [localError, setLocalError] = useState<string | null>(null);
+  const [focused, setFocused] = useState<"id" | "pw" | null>(null);
 
   if (isReady && role !== "guest" && role !== "loading") {
     return <Redirect href="/" />;
   }
 
-  const handleEmailSubmit = async () => {
-    if (!email.trim()) { setLocalError("Enter your email address."); return; }
+  const handleSubmit = async () => {
+    if (!identifier.trim()) { setLocalError("Enter your roll number or email."); return; }
     if (!password) { setLocalError("Enter your password."); return; }
-    setLoading("email");
+    setLoading(true);
     setLocalError(null);
     try {
-      await signIn(email, password);
+      await signIn(identifier, password);
     } catch (e) {
       setLocalError(e instanceof Error ? e.message : "Unable to sign in.");
     } finally {
-      setLoading(null);
-    }
-  };
-
-  const handleGoogle = async () => {
-    setLoading("google");
-    setLocalError(null);
-    try {
-      await signInWithGoogle();
-    } catch (e) {
-      setLocalError(e instanceof Error ? e.message : "Unable to sign in with Google.");
-      setLoading(null);
+      setLoading(false);
     }
   };
 
@@ -74,162 +48,117 @@ export default function SignInRoute() {
 
   return (
     <View style={s.root}>
-      {/* Wave background — same palette as welcome screen */}
-      <View style={s.waveTopA} pointerEvents="none" />
-      <View style={s.waveTopB} pointerEvents="none" />
-      <View style={s.waveBotA} pointerEvents="none" />
-      <View style={s.waveBotB} pointerEvents="none" />
+      {/* Soft brand blobs — match welcome screen */}
+      <View style={s.blobTopA} pointerEvents="none" />
+      <View style={s.blobTopB} pointerEvents="none" />
+      <View style={s.blobBot} pointerEvents="none" />
       <View style={s.glow} pointerEvents="none" />
-    <SafeAreaView style={s.safe}>
-
-
-      <KeyboardAvoidingView
-        style={{ flex: 1 }}
-        behavior={Platform.OS === "ios" ? "padding" : "height"}
-      >
-        <ScrollView
-          contentContainerStyle={s.scroll}
-          keyboardShouldPersistTaps="handled"
-          showsVerticalScrollIndicator={false}
-        >
-          {/* Glass card */}
-          <View style={s.card}>
-            {/* Brand */}
-            <View style={s.brandRow}>
-              <View style={s.brandIcon}>
-                <Ionicons name="school" size={26} color={D.primary} />
+      <SafeAreaView style={s.safe}>
+        <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === "ios" ? "padding" : "height"}>
+          <ScrollView contentContainerStyle={s.scroll} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
+            <Animated.View entering={FadeInDown.duration(450)} style={s.card}>
+              {/* Brand */}
+              <View style={s.brandRow}>
+                <LinearGradient
+                  colors={[D.primary, D.primaryBtn]}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 1 }}
+                  style={s.brandIcon}
+                >
+                  <Ionicons name="school" size={24} color="#fff" />
+                </LinearGradient>
+                <Text style={s.brandText}>CLS Academy</Text>
               </View>
-              <Text style={s.brandText}>CLS Academy</Text>
-            </View>
 
-            {/* Title */}
-            <View style={s.titleBlock}>
-              <Text style={s.title}>
-                {activeTab === "login" ? "Welcome Back" : "Join Us"}
-              </Text>
-              <Text style={s.titleSub}>
-                {activeTab === "login"
-                  ? "Log in to continue your learning journey."
-                  : "Account creation is managed by your institute."}
-              </Text>
-            </View>
+              {/* Title */}
+              <View style={s.titleBlock}>
+                <Text style={s.title}>Welcome Back</Text>
+                <Text style={s.titleSub}>Sign in with the credentials issued by your institute.</Text>
+              </View>
 
-            {/* Tabs */}
-            <View style={s.tabBar}>
-              <Pressable
-                style={[s.tab, activeTab === "login" && s.tabActive]}
-                onPress={() => { setActiveTab("login"); setLocalError(null); }}
-              >
-                <Text style={[s.tabText, activeTab === "login" && s.tabTextActive]}>Log In</Text>
-              </Pressable>
-              <Pressable
-                style={[s.tab, activeTab === "signup" && s.tabActive]}
-                onPress={() => { setActiveTab("signup"); setLocalError(null); }}
-              >
-                <Text style={[s.tabText, activeTab === "signup" && s.tabTextActive]}>Sign Up</Text>
-              </Pressable>
-            </View>
-
-            {activeTab === "login" ? (
-              <>
-                {/* Email */}
-                <View style={s.inputWrap}>
-                  <Ionicons name="person-outline" size={20} color={D.outline} style={s.inputIcon} />
+              {/* Identifier */}
+              <View style={s.field}>
+                <Text style={s.label}>Roll number or email</Text>
+                <View style={[s.inputWrap, focused === "id" && s.inputWrapFocused]}>
+                  <Ionicons name="person-outline" size={20} color={focused === "id" ? D.primary : D.outline} style={s.inputIcon} />
                   <TextInput
                     style={s.input}
-                    placeholder="Roll number or email"
-                    placeholderTextColor={D.outlineVariant}
-                    value={email}
-                    onChangeText={(v) => { setEmail(v); setLocalError(null); }}
-                    autoCapitalize="none"
+                    placeholder="e.g. JS26001"
+                    placeholderTextColor={D.outline}
+                    value={identifier}
+                    onChangeText={(v) => { setIdentifier(v); setLocalError(null); }}
+                    onFocus={() => setFocused("id")}
+                    onBlur={() => setFocused(null)}
+                    autoCapitalize="characters"
                     autoCorrect={false}
                     keyboardType="default"
                     autoComplete="username"
+                    returnKeyType="next"
                   />
                 </View>
+              </View>
 
-                {/* Password */}
-                <View style={s.inputWrap}>
-                  <Ionicons name="lock-closed-outline" size={20} color={D.outline} style={s.inputIcon} />
+              {/* Password */}
+              <View style={s.field}>
+                <Text style={s.label}>Password</Text>
+                <View style={[s.inputWrap, focused === "pw" && s.inputWrapFocused]}>
+                  <Ionicons name="lock-closed-outline" size={20} color={focused === "pw" ? D.primary : D.outline} style={s.inputIcon} />
                   <TextInput
                     style={s.input}
-                    placeholder="Password"
-                    placeholderTextColor={D.outlineVariant}
+                    placeholder="Your password"
+                    placeholderTextColor={D.outline}
                     value={password}
                     onChangeText={(v) => { setPassword(v); setLocalError(null); }}
-                    secureTextEntry
+                    onFocus={() => setFocused("pw")}
+                    onBlur={() => setFocused(null)}
+                    secureTextEntry={!showPassword}
                     autoComplete="current-password"
+                    returnKeyType="go"
+                    onSubmitEditing={() => void handleSubmit()}
                   />
+                  <Pressable onPress={() => setShowPassword((v) => !v)} hitSlop={10} style={s.eyeBtn}>
+                    <Ionicons name={showPassword ? "eye-off-outline" : "eye-outline"} size={20} color={D.outline} />
+                  </Pressable>
                 </View>
+              </View>
 
-                {/* Error */}
-                {displayError ? (
-                  <View style={s.errorRow}>
-                    <Ionicons name="alert-circle-outline" size={15} color={D.error} />
-                    <Text style={s.errorText}>{displayError}</Text>
-                  </View>
-                ) : null}
-
-                {/* Primary CTA */}
-                <Pressable
-                  style={({ pressed }) => [
-                    loading !== null && { opacity: 0.55 },
-                    pressed && loading === null && { opacity: 0.88 },
-                  ]}
-                  onPress={() => void handleEmailSubmit()}
-                  disabled={loading !== null}
-                >
-                  <LinearGradient
-                    colors={["#3525cd", "#6b00b8"]}
-                    start={{ x: 0, y: 0 }}
-                    end={{ x: 1, y: 0 }}
-                    style={s.btnPrimary}
-                  >
-                    <Ionicons name="send-outline" size={16} color="#fff" />
-                    <Text style={s.btnPrimaryText}>
-                      {loading === "email" ? "Signing In…" : "Continue with Email"}
-                    </Text>
-                  </LinearGradient>
-                </Pressable>
-
-                {/* Divider */}
-                <View style={s.divider}>
-                  <View style={s.dividerLine} />
-                  <Text style={s.dividerLabel}>Or continue with</Text>
-                  <View style={s.dividerLine} />
+              {/* Error */}
+              {displayError ? (
+                <View style={s.errorRow}>
+                  <Ionicons name="alert-circle-outline" size={15} color={D.errorFg} />
+                  <Text style={s.errorText}>{displayError}</Text>
                 </View>
+              ) : null}
 
-                {/* Google */}
-                <Pressable
-                  style={({ pressed }) => [
-                    s.btnOutline,
-                    loading !== null && { opacity: 0.55 },
-                    pressed && loading === null && { opacity: 0.88 },
-                  ]}
-                  onPress={() => void handleGoogle()}
-                  disabled={loading !== null}
+              {/* Primary CTA */}
+              <Pressable
+                style={({ pressed }) => [loading && { opacity: 0.55 }, pressed && !loading && { opacity: 0.9 }]}
+                onPress={() => void handleSubmit()}
+                disabled={loading}
+              >
+                <LinearGradient
+                  colors={[D.primary, D.primaryBtn]}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 0 }}
+                  style={s.btnPrimary}
                 >
-                  <Ionicons name="logo-google" size={18} color={D.onSurface} />
-                  <Text style={s.btnOutlineText}>
-                    {loading === "google" ? "Redirecting…" : "Continue with Google"}
-                  </Text>
-                </Pressable>
+                  <Ionicons name="log-in-outline" size={18} color="#fff" />
+                  <Text style={s.btnPrimaryText}>{loading ? "Signing In…" : "Sign In"}</Text>
+                </LinearGradient>
+              </Pressable>
 
-
-              </>
-            ) : (
-              <View style={s.signupInfo}>
-                <Ionicons name="information-circle-outline" size={40} color={D.outline} />
-                <Text style={s.signupTitle}>Admin-created accounts only</Text>
-                <Text style={s.signupBody}>
-                  Student and staff accounts are created by your CLS Academy administrator. Contact your institute to get access, then log in using the Log In tab.
+              {/* Helper note */}
+              <View style={s.note}>
+                <Ionicons name="information-circle-outline" size={18} color={D.primary} />
+                <Text style={s.noteText}>
+                  Accounts are created by CLS Academy. Students sign in with their roll number. Lost your password? Contact your
+                  institute.
                 </Text>
               </View>
-            )}
-          </View>
-        </ScrollView>
-      </KeyboardAvoidingView>
-    </SafeAreaView>
+            </Animated.View>
+          </ScrollView>
+        </KeyboardAvoidingView>
+      </SafeAreaView>
     </View>
   );
 }
@@ -237,45 +166,35 @@ export default function SignInRoute() {
 const s = StyleSheet.create({
   root: { flex: 1, backgroundColor: D.bg },
   safe: { flex: 1 },
-  waveTopA: {
+  blobTopA: {
     position: "absolute",
-    top: -120,
+    top: -130,
     left: -80,
     width: 360,
     height: 360,
     borderRadius: 180,
-    backgroundColor: "#93c5fd",
-    opacity: 0.35,
+    backgroundColor: D.surfaceHigh,
+    opacity: 0.55,
   },
-  waveTopB: {
+  blobTopB: {
     position: "absolute",
-    top: -60,
-    left: 60,
-    width: 280,
-    height: 280,
-    borderRadius: 140,
-    backgroundColor: "#5eead4",
-    opacity: 0.28,
+    top: -40,
+    right: -70,
+    width: 260,
+    height: 260,
+    borderRadius: 130,
+    backgroundColor: "#C4B5FD",
+    opacity: 0.38,
   },
-  waveBotA: {
+  blobBot: {
     position: "absolute",
-    bottom: -120,
-    right: -80,
+    bottom: -140,
+    right: -60,
     width: 360,
     height: 360,
     borderRadius: 180,
-    backgroundColor: "#f9a8d4",
-    opacity: 0.32,
-  },
-  waveBotB: {
-    position: "absolute",
-    bottom: -60,
-    right: 60,
-    width: 280,
-    height: 280,
-    borderRadius: 140,
-    backgroundColor: "#8822df",
-    opacity: 0.12,
+    backgroundColor: "#DDD6FE",
+    opacity: 0.5,
   },
   glow: {
     position: "absolute",
@@ -284,133 +203,78 @@ const s = StyleSheet.create({
     width: "90%",
     height: "50%",
     borderRadius: 9999,
-    backgroundColor: "#faf8ff",
+    backgroundColor: D.bg,
     opacity: 0.55,
   },
-  scroll: {
-    flexGrow: 1,
-    justifyContent: "center",
-    padding: 20,
-  },
+  scroll: { flexGrow: 1, justifyContent: "center", padding: 20 },
   card: {
-    backgroundColor: "rgba(255,255,255,0.96)",
-    borderRadius: 20,
+    backgroundColor: "rgba(255,255,255,0.94)",
+    borderRadius: 24,
     padding: 24,
     gap: 16,
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.5)",
-    shadowColor: "#3525cd",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.06,
-    shadowRadius: 20,
-    elevation: 4,
+    borderColor: "rgba(255,255,255,0.6)",
+    shadowColor: D.primary,
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.1,
+    shadowRadius: 24,
+    elevation: 5,
   },
-  brandRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 10,
-  },
+  brandRow: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 10 },
   brandIcon: {
-    width: 42,
-    height: 42,
-    borderRadius: 10,
-    backgroundColor: "#e2dfff",
+    width: 44,
+    height: 44,
+    borderRadius: 13,
     alignItems: "center",
     justifyContent: "center",
+    shadowColor: D.primary,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 10,
+    elevation: 5,
   },
-  brandText: { fontSize: 20, fontWeight: "800", color: D.primary },
+  brandText: { fontSize: 20, fontFamily: D.fontExtraBold, color: D.primary, letterSpacing: -0.3 },
   titleBlock: { alignItems: "center", gap: 6 },
-  title: { fontSize: 26, fontWeight: "800", color: D.onSurface, textAlign: "center" },
-  titleSub: { fontSize: 14, color: D.onSurfaceVariant, textAlign: "center", lineHeight: 20 },
-  tabBar: {
-    flexDirection: "row",
-    backgroundColor: D.surfaceContainer,
-    borderRadius: 10,
-    padding: 4,
-  },
-  tab: {
-    flex: 1,
-    alignItems: "center",
-    paddingVertical: 9,
-    borderRadius: 8,
-  },
-  tabActive: {
-    backgroundColor: D.surface,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.08,
-    shadowRadius: 2,
-    elevation: 2,
-  },
-  tabText: { fontSize: 14, fontWeight: "600", color: D.onSurfaceVariant },
-  tabTextActive: { color: D.primary },
+  title: { fontSize: 26, fontFamily: D.fontExtraBold, color: D.onSurface, textAlign: "center", letterSpacing: -0.5 },
+  titleSub: { fontSize: 14, fontFamily: D.font, color: D.onSurfaceVariant, textAlign: "center", lineHeight: 20 },
+  field: { gap: 6 },
+  label: { fontSize: 13, fontFamily: D.fontSemiBold, color: D.onSurfaceVariant, marginLeft: 2 },
   inputWrap: {
     flexDirection: "row",
     alignItems: "center",
     backgroundColor: D.surfaceLow,
-    borderRadius: 10,
+    borderRadius: 12,
     paddingHorizontal: 14,
-    borderWidth: 1,
+    borderWidth: 1.5,
     borderColor: "transparent",
   },
+  inputWrapFocused: { borderColor: D.primaryBtn, backgroundColor: "#fff" },
   inputIcon: { marginRight: 10 },
-  input: {
-    flex: 1,
-    paddingVertical: 14,
-    fontSize: 15,
-    color: D.onSurface,
-  },
+  input: { flex: 1, paddingVertical: 14, fontSize: 15, fontFamily: D.fontMedium, color: D.onSurface },
+  eyeBtn: { paddingLeft: 8, paddingVertical: 4 },
   errorRow: {
     flexDirection: "row",
     alignItems: "center",
     gap: 8,
-    backgroundColor: "#ffdad6",
-    borderRadius: 8,
+    backgroundColor: D.errorBg,
+    borderRadius: 10,
     padding: 10,
   },
-  errorText: { flex: 1, color: D.error, fontSize: 13, lineHeight: 18 },
+  errorText: { flex: 1, color: D.errorFg, fontSize: 13, fontFamily: D.fontMedium, lineHeight: 18 },
   btnPrimary: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
     gap: 8,
-    borderRadius: 10,
-    paddingVertical: 15,
-    shadowColor: "#3525cd",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.22,
-    shadowRadius: 12,
-    elevation: 4,
+    borderRadius: 14,
+    paddingVertical: 16,
+    shadowColor: D.primary,
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.28,
+    shadowRadius: 14,
+    elevation: 5,
   },
-  btnPrimaryText: { color: "#fff", fontWeight: "700", fontSize: 14 },
-  divider: { flexDirection: "row", alignItems: "center", gap: 10 },
-  dividerLine: { flex: 1, height: 1, backgroundColor: D.outlineVariant + "80" },
-  dividerLabel: {
-    fontSize: 11,
-    fontWeight: "500",
-    color: D.onSurfaceVariant,
-    textTransform: "uppercase",
-    letterSpacing: 0.5,
-  },
-  btnOutline: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 10,
-    backgroundColor: D.surface,
-    borderWidth: 1,
-    borderColor: D.outlineVariant,
-    borderRadius: 10,
-    paddingVertical: 13,
-  },
-  btnOutlineText: { color: D.onSurface, fontWeight: "600", fontSize: 14 },
-  signupInfo: { alignItems: "center", gap: 12, paddingVertical: 24 },
-  signupTitle: { fontSize: 16, fontWeight: "700", color: D.onSurface },
-  signupBody: {
-    fontSize: 13,
-    color: D.onSurfaceVariant,
-    textAlign: "center",
-    lineHeight: 20,
-  },
+  btnPrimaryText: { color: "#fff", fontFamily: D.fontBold, fontSize: 15 },
+  note: { flexDirection: "row", alignItems: "flex-start", gap: 8, backgroundColor: D.surfaceLow, borderRadius: 12, padding: 12 },
+  noteText: { flex: 1, fontSize: 12, fontFamily: D.font, color: D.onSurfaceVariant, lineHeight: 18 },
 });

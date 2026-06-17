@@ -4,13 +4,32 @@
   },
   "build": {
     "preview": {
+      "distribution": "internal",
       "android": {
         "buildType": "apk"
+      },
+      "ios": {
+        "simulator": true
       }
     },
     "production": {
+      "autoIncrement": true,
       "android": {
         "buildType": "app-bundle"
+      },
+      "ios": {}
+    }
+  },
+  "submit": {
+    "production": {
+      "ios": {
+        "appleId": "clsedutech.india@gmail.com",
+        "ascAppId": "FILL_AFTER_ASC_LISTING_CREATED",
+        "appleTeamId": "FILL_AFTER_APPLE_ENROLLMENT"
+      },
+      "android": {
+        "serviceAccountKeyPath": "./google-play-service-account.json",
+        "track": "internal"
       }
     }
   }

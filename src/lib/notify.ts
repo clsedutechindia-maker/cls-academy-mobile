@@ -11,6 +11,7 @@ export type NotifyEvent =
   | "material.posted"
   | "doubt.answered"
   | "doubt.created"
+  | "doubt.studentReplied"
   | "complaint.created"
   | "complaint.updated"
   | "leave.decided"
@@ -21,11 +22,17 @@ export type NotifyEvent =
   | "plan.submitted"
   | "plan.decided"
   | "inquiry.created"
+  | "inquiry.statusChanged"
   | "staffLeave.submitted"
+  | "staffLeave.decided"
+  | "salary.published"
   | "announcement.submitted"
   | "enrollment.decided"
   | "signup.pending"
-  | "attendance.absent";
+  | "attendance.absent"
+  | "fee.assigned"
+  | "fee.paid"
+  | "fee.refunded";
 
 // Fire-and-forget push trigger. Resolves recipients server-side; the client only
 // declares the event + the IDs needed to look them up. NEVER blocks or throws into

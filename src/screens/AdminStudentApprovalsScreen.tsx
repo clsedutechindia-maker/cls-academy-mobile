@@ -5,6 +5,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { router } from "expo-router";
 import { collection, doc, getDocs, query, updateDoc, where } from "firebase/firestore";
 import { firestoreDb } from "../lib/firebase";
+import { notifyEvent } from "../lib/notify";
 import { navigateBack } from "../lib/navigation";
 import { D, MOBILE_BOTTOM_SPACING } from "../components/ui";
 import { AnimatedPressable } from "../components/motion";
@@ -77,6 +78,7 @@ export function AdminStudentApprovalsScreen({ embedded = false }: { embedded?: b
         approvalStatus: nextStatus,
         ...(nextStatus === "approved" ? { permissions: [] } : {}),
       });
+      notifyEvent("enrollment.decided", { userId: profile.userId, status: nextStatus });
       setFeedback({
         kind: "success",
         text:

@@ -3,6 +3,7 @@ import type { AccountRole, TeacherRole } from "./education";
 export const userProfilesCollectionName = "userProfiles";
 export const classesCollectionName = "classes";
 export const classSubjectsCollectionName = "class_subjects";
+export const coursesCollectionName = "courses";
 export const studentAttendanceCollectionName = "studentAttendance";
 export const classTimetablesCollectionName = "classTimetables";
 export const testSchedulesCollectionName = "testSchedules";
@@ -52,6 +53,15 @@ export type ClassRecord = {
 };
 
 export type SubjectRecord = {
+  id: string;
+  name: string;
+  code: string;
+  active: boolean;
+};
+
+// A "course" is a program a student enrols in (e.g. JEE, NEET, Foundation) —
+// distinct from a class/batch. Admin-managed, global (not centre-scoped).
+export type CourseRecord = {
   id: string;
   name: string;
   code: string;
@@ -115,14 +125,19 @@ export type UserProfileRecord = {
   dateOfBirth: string;
   gender: string;
   phone: string;
+  // Personal contact email — separate from `email` (roll-number students log in
+  // with a synthetic email, so we must not overwrite that login identifier).
+  personalEmail: string;
   address: string;
   passportPhotoDataUrl: string;
   passportPhotoName: string;
   parentOneName: string;
   parentOneAge: string;
+  parentOnePhone: string;
   parentOneEmail: string;
   parentTwoName: string;
   parentTwoAge: string;
+  parentTwoPhone: string;
   parentTwoEmail: string;
   salaryAccountHolderName: string;
   salaryBankName: string;
@@ -135,6 +150,11 @@ export type UserProfileRecord = {
   emailVerified: boolean;
   active: boolean;
   permissions: string[];
+  // "" = legacy/unset, which firestore.rules treats as approved. Only "pending"/"rejected" gate access.
+  approvalStatus: "pending" | "approved" | "rejected" | "";
+  // Students must finish the profile-completion form before reaching the dashboard.
+  // Anything but `true` (incl. legacy/unset) is gated — see (student) routing.
+  profileCompleted: boolean;
 };
 
 function normalizeTeacherRole(value: unknown): TeacherRole | "" {
@@ -254,6 +274,18 @@ export function normalizeSubjectRecord(
   };
 }
 
+export function normalizeCourseRecord(
+  id: string,
+  data: Partial<Omit<CourseRecord, "id">> | undefined,
+): CourseRecord {
+  return {
+    id,
+    name: data?.name?.trim() || id,
+    code: data?.code?.trim() || "",
+    active: data?.active ?? true,
+  };
+}
+
 export function normalizeClassSubjectRecord(
   id: string,
   data: Partial<Omit<ClassSubjectRecord, "id">> | undefined,
@@ -343,14 +375,17 @@ export function normalizeUserProfileRecord(
     dateOfBirth: data?.dateOfBirth?.trim() || "",
     gender: data?.gender?.trim() || "",
     phone: data?.phone?.trim() || "",
+    personalEmail: data?.personalEmail?.trim() || "",
     address: data?.address?.trim() || "",
     passportPhotoDataUrl: data?.passportPhotoDataUrl?.trim() || "",
     passportPhotoName: data?.passportPhotoName?.trim() || "",
     parentOneName: data?.parentOneName?.trim() || "",
     parentOneAge: data?.parentOneAge?.trim() || "",
+    parentOnePhone: data?.parentOnePhone?.trim() || "",
     parentOneEmail: data?.parentOneEmail?.trim() || "",
     parentTwoName: data?.parentTwoName?.trim() || "",
     parentTwoAge: data?.parentTwoAge?.trim() || "",
+    parentTwoPhone: data?.parentTwoPhone?.trim() || "",
     parentTwoEmail: data?.parentTwoEmail?.trim() || "",
     salaryAccountHolderName: data?.salaryAccountHolderName?.trim() || "",
     salaryBankName: data?.salaryBankName?.trim() || "",
@@ -365,5 +400,11 @@ export function normalizeUserProfileRecord(
     permissions: Array.isArray(data?.permissions)
       ? data.permissions.filter((value): value is string => typeof value === "string")
       : [],
+    approvalStatus:
+      data?.approvalStatus === "pending" || data?.approvalStatus === "rejected" || data?.approvalStatus === "approved"
+        ? data.approvalStatus
+        : "",
+    // Only an explicit `true` clears the profile gate; undefined/legacy → false.
+    profileCompleted: data?.profileCompleted === true,
   };
 }

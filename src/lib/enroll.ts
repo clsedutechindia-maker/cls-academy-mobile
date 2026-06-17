@@ -14,6 +14,8 @@ export function isStudentEnrollmentAvailable(): boolean {
 export async function enrollStudent(input: {
   studentName: string;
   classId: string;
+  courseId: string;
+  courseName?: string;
   phone?: string;
   email?: string;
   parentName?: string;
@@ -34,6 +36,8 @@ export async function enrollStudent(input: {
     body: JSON.stringify({
       studentName: input.studentName,
       classId: input.classId,
+      courseId: input.courseId,
+      courseName: input.courseName || "",
       phone: input.phone || "",
       email: input.email || "",
       parentName: input.parentName || "",

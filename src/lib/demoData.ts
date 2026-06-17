@@ -61,6 +61,7 @@ export const DEMO_PROFILES: Record<DemoRole, UserProfileRecord> = {
     rollNumber: "001",
     classId: CLASS_ID_11B,
     className: CLASS_NAME_11B,
+    profileCompleted: true,
   } as unknown as UserProfileRecord,
 
   teacher: {
@@ -1204,6 +1205,7 @@ function makeStudent(
     passwordHash: "",
     password_hash: "",
     emailVerified: false,
+    profileCompleted: true,
   } as unknown as UserProfileRecord;
 }
 

@@ -56,7 +56,9 @@ import {
   classSubjectsCollectionName,
   classTimetablesCollectionName,
   classesCollectionName,
+  coursesCollectionName,
   normalizeClassRecord,
+  normalizeCourseRecord,
   normalizeClassSubjectRecord,
   normalizeClassTimetableRecord,
   normalizeStudentAnnouncementRecord,
@@ -87,6 +89,7 @@ import {
   type AdminRecord,
   type AttendanceStatus,
   type ClassRecord,
+  type CourseRecord,
   type ClassSubjectRecord,
   type ClassTimetableRecord,
   type ResultAssessmentCategory,
@@ -1445,6 +1448,8 @@ export async function registerStudent(input: {
   email: string;
   classId: string;
   className: string;
+  courseId?: string;
+  courseName?: string;
   parentName: string;
   remark: string;
   profile: UserProfileRecord;
@@ -1467,10 +1472,13 @@ export async function registerStudent(input: {
     classId: input.classId,
     className: input.className,
     studentClass: input.className,
+    courseId: input.courseId || "",
+    courseName: input.courseName || "",
     phone: input.phone.trim(),
     parentOneName: input.parentName.trim(),
     permissions: [],
     approvalStatus: "pending",
+    profileCompleted: false,
     active: true,
     emailVerified: false,
     provisioningPending: true,
@@ -1481,6 +1489,12 @@ export async function registerStudent(input: {
     updatedAtIso: nowIso,
     createdAt: serverTimestamp(),
     updatedAt: serverTimestamp(),
+  });
+  // New pending account → alert the centre team + admins to approve it.
+  notifyEvent("signup.pending", {
+    studentName: input.studentName.trim(),
+    centreId: input.profile.centreId,
+    regionId: input.profile.regionId,
   });
   return ref.id;
 }
@@ -1520,6 +1534,15 @@ export async function addInquiryFollowUp(input: {
   }
   await addDoc(inquiryFollowUpsCol(input.inquiry.id), followUpFields);
   await updateDoc(inquiryDocRef(input.inquiry.id), patch);
+  // Alert team + admins on every follow-up: a stage change (demo / enrolled / lost)
+  // or just a logged note (status unchanged). The route case picks the wording.
+  notifyEvent("inquiry.statusChanged", {
+    status: input.outcome,
+    prevStatus: input.inquiry.status,
+    studentName: input.inquiry.studentName,
+    centreId: input.inquiry.centreId,
+    regionId: input.inquiry.regionId,
+  });
 }
 
 export async function listHeadTeacherInquiries(profile: UserProfileRecord): Promise<AdmissionInquiryRecord[]> {
@@ -1752,6 +1775,7 @@ export async function createStudentDoubtReply({
     studentSeen: true,
     updatedAtIso: nowIso,
   });
+  notifyEvent("doubt.studentReplied", { doubtId });
 }
 
 export async function listStudentLeaveRequests(profile: UserProfileRecord): Promise<StudentLeaveRequestRecord[]> {
@@ -2092,6 +2116,24 @@ export async function listEmployeeClasses(profile: UserProfileRecord): Promise<C
     .sort((left, right) => left.name.localeCompare(right.name));
 }
 
+// Org-wide course list (programs like JEE/NEET/Foundation). Courses are global
+// (not centre-scoped) with a public read rule, so any signed-in staff can load
+// them when registering a student.
+export async function listCourses(): Promise<CourseRecord[]> {
+  if (isDemoMode()) {
+    return [
+      { id: "jee", name: "JEE", code: "JEE", active: true },
+      { id: "neet", name: "NEET", code: "NEET", active: true },
+      { id: "foundation", name: "Foundation", code: "FND", active: true },
+    ];
+  }
+  const snapshot = await getDocs(collection(firestoreDb, coursesCollectionName));
+  return snapshot.docs
+    .map((item) => normalizeCourseRecord(item.id, item.data()))
+    .filter((item) => item.active)
+    .sort((left, right) => left.name.localeCompare(right.name));
+}
+
 // Org-wide class list (all centres). `classes` has a public read rule, so this
 // is safe for any signed-in role — used by admin screens that aren't scoped to
 // a single centre (e.g. superadmin has no centreId of their own).
@@ -2313,6 +2355,10 @@ export async function saveAttendanceBatch({
       setDoc(doc(firestoreDb, studentAttendanceCollectionName, buildStudentAttendanceId(student.userId, attendanceDate)), build(student, status)),
     ),
   );
+  // Push only the students marked absent (present/leave are not alerted).
+  for (const { student, status } of entries) {
+    if (status === "absent") notifyEvent("attendance.absent", { studentUserId: student.userId, attendanceDate });
+  }
 }
 
 export async function saveTeacherAttendance({
@@ -2340,6 +2386,7 @@ export async function saveTeacherAttendance({
   };
   if (isDemoMode()) { await hydrateDemoState(); setDemoAttendance({ id: recordId, ...fields }); return; }
   await setDoc(doc(firestoreDb, studentAttendanceCollectionName, recordId), fields);
+  if (status === "absent") notifyEvent("attendance.absent", { studentUserId: studentProfile.userId, attendanceDate });
 }
 
 function calculateGrade(score: number, maxScore: number) {
@@ -2693,6 +2740,7 @@ export async function approveLeaveRequest(requestId: string): Promise<void> {
     reviewedAtIso: nowIso,
     updatedAtIso: nowIso,
   });
+  notifyEvent("staffLeave.decided", { leaveRequestId: requestId, status: "approved" });
 }
 
 export async function rejectLeaveRequest(requestId: string): Promise<void> {
@@ -2703,6 +2751,7 @@ export async function rejectLeaveRequest(requestId: string): Promise<void> {
     reviewedAtIso: nowIso,
     updatedAtIso: nowIso,
   });
+  notifyEvent("staffLeave.decided", { leaveRequestId: requestId, status: "rejected" });
 }
 
 export async function listAdminSchedule(admin: AdminRecord): Promise<{ timetableEntries: ClassTimetableRecord[]; tests: TestScheduleRecord[] }> {

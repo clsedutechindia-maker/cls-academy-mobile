@@ -23,7 +23,7 @@ import {
   type UserProfileRecord,
 } from "../shared";
 
-type SessionRole = "loading" | "guest" | "student" | "teacher" | "team" | "employee" | "admin" | "unsupported";
+type SessionRole = "loading" | "guest" | "pending" | "student" | "teacher" | "team" | "employee" | "admin" | "unsupported";
 
 type SessionContextValue = {
   authUser: User | null;
@@ -356,6 +356,12 @@ export function SessionProvider({ children }: PropsWithChildren) {
       return "admin";
     }
 
+    // Gate any non-admin account until a superadmin approves it (covers self-signed-up teachers and
+    // staff-registered students). "" (legacy/unset) is treated as approved.
+    if (profile && (profile.approvalStatus === "pending" || profile.approvalStatus === "rejected")) {
+      return "pending";
+    }
+
     if (profile?.role === "student") {
       return "student";
     }
@@ -373,7 +379,7 @@ export function SessionProvider({ children }: PropsWithChildren) {
     }
 
     return "unsupported";
-  }, [adminRecord?.active, authUser, isReady, pendingGoogleRedirect, profile?.role]);
+  }, [adminRecord?.active, authUser, isReady, pendingGoogleRedirect, profile?.role, profile?.approvalStatus]);
 
   const roleLabel = useMemo(() => {
     if (role === "admin") {

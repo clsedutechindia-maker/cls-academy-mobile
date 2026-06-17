@@ -16,7 +16,7 @@ const TEST_EMAIL_ROLE_MAP: Record<string, { demoRole: import("../src/lib/demoMod
 };
 
 export default function IndexRoute() {
-  const { role, authUser, isReady } = useSession();
+  const { role, authUser, isReady, profile } = useSession();
 
   useEffect(() => {
     if (!__DEV__) return;
@@ -41,7 +41,15 @@ export default function IndexRoute() {
     return <Redirect href="/(auth)/welcome" />;
   }
 
+  if (role === "pending") {
+    return <Redirect href="/(auth)/pending" />;
+  }
+
   if (role === "student") {
+    // Approved students must finish their profile before the dashboard unlocks.
+    if (profile && profile.profileCompleted !== true) {
+      return <Redirect href="/(student)/complete-profile" />;
+    }
     return <Redirect href="/(student)/home" />;
   }
 

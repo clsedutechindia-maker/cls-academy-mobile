@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
+import * as Clipboard from "expo-clipboard";
 import { router, useLocalSearchParams } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { navigateBack } from "../../lib/navigation";
@@ -8,7 +9,7 @@ import { showAlert } from "../../lib/alert";
 import { D } from "../../components/theme";
 import { AnimatedPressable } from "../../components/motion";
 import { useSession } from "../../providers/session";
-import { listEmployeeClasses, registerStudent, getInquiryById, setInquiryStatus } from "../../lib/erp";
+import { listEmployeeClasses, listCourses, registerStudent, getInquiryById, setInquiryStatus } from "../../lib/erp";
 import { enrollStudent, type IssuedCredentials } from "../../lib/enroll";
 import { isDemoMode } from "../../lib/demoMode";
 import { normalizeUserProfileRecord } from "../../shared";
@@ -55,8 +56,18 @@ export function RegisterStudentScreen() {
   const [classId, setClassId] = useState("");
   const [classSheet, setClassSheet] = useState(false);
   const [classOptions, setClassOptions] = useState<SheetOption[]>([]);
+  const [courseId, setCourseId] = useState("");
+  const [courseSheet, setCourseSheet] = useState(false);
+  const [courseOptions, setCourseOptions] = useState<SheetOption[]>([]);
   const [busy, setBusy] = useState(false);
   const [credentials, setCredentials] = useState<IssuedCredentials | null>(null);
+  const [copiedField, setCopiedField] = useState<"roll" | "password" | null>(null);
+
+  async function copyValue(field: "roll" | "password", value: string) {
+    await Clipboard.setStringAsync(value);
+    setCopiedField(field);
+    setTimeout(() => setCopiedField((c) => (c === field ? null : c)), 1500);
+  }
 
   useEffect(() => {
     let alive = true;
@@ -73,7 +84,22 @@ export function RegisterStudentScreen() {
     };
   }, [effectiveProfile?.userId, effectiveProfile?.centreId]);
 
-  const classLabel = classOptions.find((c) => c.key === classId)?.label ?? "Select batch";
+  useEffect(() => {
+    let alive = true;
+    void listCourses()
+      .then((courses) => {
+        if (alive) setCourseOptions(courses.map((c) => ({ key: c.id, label: c.name })));
+      })
+      .catch(() => {
+        if (alive) setCourseOptions([]);
+      });
+    return () => {
+      alive = false;
+    };
+  }, []);
+
+  const classLabel = classOptions.find((c) => c.key === classId)?.label ?? "Select class";
+  const courseLabel = courseOptions.find((c) => c.key === courseId)?.label ?? "Select course";
 
   async function submit() {
     if (!effectiveProfile) return;
@@ -82,15 +108,24 @@ export function RegisterStudentScreen() {
       return;
     }
     if (!classId) {
-      showAlert("Missing Info", "Select a batch for the student.");
+      showAlert("Missing Info", "Select a class for the student.");
+      return;
+    }
+    if (!courseId) {
+      showAlert("Missing Info", "Select a course for the student.");
+      return;
+    }
+    if (phone.replace(/\D/g, "").length < 10) {
+      showAlert("Missing Info", "Enter a valid 10-digit phone number — it's used to set the student's password.");
       return;
     }
     const className = classOptions.find((c) => c.key === classId)?.label ?? "";
+    const courseName = courseOptions.find((c) => c.key === courseId)?.label ?? "";
     setBusy(true);
     try {
       if (isDemoMode()) {
         // Demo mode has no server to mint a real login — keep the legacy pending write.
-        await registerStudent({ studentName, phone, email, classId, className, parentName, remark, profile: effectiveProfile });
+        await registerStudent({ studentName, phone, email, classId, className, courseId, courseName, parentName, remark, profile: effectiveProfile });
         setBusy(false);
         showAlert("Submitted", "Student registered (demo mode — no live credentials).", [
           { text: "Done", onPress: () => navigateBack(router) },
@@ -101,6 +136,8 @@ export function RegisterStudentScreen() {
       const issued = await enrollStudent({
         studentName,
         classId,
+        courseId,
+        courseName,
         phone,
         email,
         parentName,
@@ -139,21 +176,47 @@ export function RegisterStudentScreen() {
           <View style={s.successCard}>
             <Ionicons name="checkmark-circle" size={44} color={D.primary} />
             <Text style={s.successName}>{studentName.trim()}</Text>
-            <Text style={s.successHint}>Share these with the student. The password is shown only once — long-press to copy.</Text>
+            <Text style={s.successHint}>Share these with the student. The password is shown only once — tap the copy icon to copy.</Text>
 
             <View style={s.credRow}>
-              <Text style={s.credLabel}>Roll Number (username)</Text>
-              <Text style={s.credValue} selectable>{credentials.rollNumber}</Text>
+              <View style={s.credText}>
+                <Text style={s.credLabel}>Roll Number (username)</Text>
+                <Text style={s.credValue} selectable>{credentials.rollNumber}</Text>
+              </View>
+              <AnimatedPressable
+                style={s.copyBtn}
+                onPress={() => void copyValue("roll", credentials.rollNumber)}
+                hitSlop={8}
+              >
+                <Ionicons
+                  name={copiedField === "roll" ? "checkmark" : "copy-outline"}
+                  size={18}
+                  color={D.primary}
+                />
+              </AnimatedPressable>
             </View>
             <View style={s.credRow}>
-              <Text style={s.credLabel}>Temporary Password</Text>
-              <Text style={s.credValue} selectable>{credentials.password}</Text>
+              <View style={s.credText}>
+                <Text style={s.credLabel}>Temporary Password</Text>
+                <Text style={s.credValue} selectable>{credentials.password}</Text>
+              </View>
+              <AnimatedPressable
+                style={s.copyBtn}
+                onPress={() => void copyValue("password", credentials.password)}
+                hitSlop={8}
+              >
+                <Ionicons
+                  name={copiedField === "password" ? "checkmark" : "copy-outline"}
+                  size={18}
+                  color={D.primary}
+                />
+              </AnimatedPressable>
             </View>
           </View>
 
           <View style={s.noteCard}>
             <Ionicons name="information-circle-outline" size={16} color={D.primary} />
-            <Text style={s.noteText}>The student signs in with the roll number and this password — no admin approval needed.</Text>
+            <Text style={s.noteText}>This account needs admin approval before the student can sign in. An admin must approve it in Student Approvals.</Text>
           </View>
 
           <AnimatedPressable style={s.submitBtn} onPress={() => navigateBack(router)}>
@@ -177,7 +240,7 @@ export function RegisterStudentScreen() {
       <ScrollView contentContainerStyle={{ paddingHorizontal: 18, paddingBottom: 160 }} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
         <View style={s.noteCard}>
           <Ionicons name="information-circle-outline" size={16} color={D.primary} />
-          <Text style={s.noteText}>A login (roll number + password) is created instantly — no approval needed. You'll get the credentials to share.</Text>
+          <Text style={s.noteText}>A login (roll number + password) is created instantly. The student can sign in once an admin approves the account. You'll get the credentials to share.</Text>
         </View>
 
         <FieldLabel>Student Name</FieldLabel>
@@ -189,12 +252,17 @@ export function RegisterStudentScreen() {
           placeholderTextColor={D.outline}
         />
 
-        <FieldLabel>Batch</FieldLabel>
+        <FieldLabel>Class</FieldLabel>
         <View style={{ marginBottom: 14 }}>
-          <DropdownButton value={classLabel} placeholder="Select batch" onPress={() => setClassSheet(true)} />
+          <DropdownButton value={classLabel} placeholder="Select class" onPress={() => setClassSheet(true)} />
         </View>
 
-        <FieldLabel>Phone (optional)</FieldLabel>
+        <FieldLabel>Course</FieldLabel>
+        <View style={{ marginBottom: 14 }}>
+          <DropdownButton value={courseLabel} placeholder="Select course" onPress={() => setCourseSheet(true)} />
+        </View>
+
+        <FieldLabel>Phone</FieldLabel>
         <TextInput
           style={[s.input, { marginBottom: 14 }]}
           value={phone}
@@ -243,11 +311,20 @@ export function RegisterStudentScreen() {
 
       <OptionSheet
         visible={classSheet}
-        title="Select Batch"
+        title="Select Class"
         options={classOptions}
         selectedKey={classId}
         onSelect={(k) => setClassId(k)}
         onClose={() => setClassSheet(false)}
+      />
+
+      <OptionSheet
+        visible={courseSheet}
+        title="Select Course"
+        options={courseOptions}
+        selectedKey={courseId}
+        onSelect={(k) => setCourseId(k)}
+        onClose={() => setCourseSheet(false)}
       />
     </KeyboardAvoidingView>
   );
@@ -266,7 +343,9 @@ const s = StyleSheet.create({
   successCard: { padding: 18, borderRadius: 14, borderWidth: 1, borderColor: D.outlineVariant, backgroundColor: D.surface, alignItems: "center", gap: 10, marginBottom: 16 },
   successName: { fontSize: 18, fontFamily: D.fontExtraBold, color: D.onSurface, letterSpacing: -0.3 },
   successHint: { fontSize: 12, fontFamily: D.font, color: D.onSurfaceVariant, textAlign: "center", lineHeight: 17, marginBottom: 4 },
-  credRow: { width: "100%", padding: 13, borderRadius: 12, borderWidth: 1, borderColor: D.outlineVariant, backgroundColor: D.surfaceLow, gap: 5 },
+  credRow: { width: "100%", flexDirection: "row", alignItems: "center", padding: 13, borderRadius: 12, borderWidth: 1, borderColor: D.outlineVariant, backgroundColor: D.surfaceLow },
+  credText: { flex: 1, gap: 5 },
+  copyBtn: { width: 38, height: 38, borderRadius: 10, alignItems: "center", justifyContent: "center", backgroundColor: D.primaryFixed, marginLeft: 10 },
   credLabel: { fontSize: 10.5, fontFamily: D.fontMedium, color: D.onSurfaceVariant, textTransform: "uppercase", letterSpacing: 0.5 },
   credValue: { fontSize: 22, fontFamily: D.fontExtraBold, color: D.primary, letterSpacing: 1 },
 });
