@@ -57,8 +57,10 @@ import {
   classTimetablesCollectionName,
   classesCollectionName,
   coursesCollectionName,
+  subjectsCollectionName,
   normalizeClassRecord,
   normalizeCourseRecord,
+  normalizeSubjectRecord,
   normalizeClassSubjectRecord,
   normalizeClassTimetableRecord,
   normalizeStudentAnnouncementRecord,
@@ -90,6 +92,7 @@ import {
   type AttendanceStatus,
   type ClassRecord,
   type CourseRecord,
+  type SubjectRecord,
   type ClassSubjectRecord,
   type ClassTimetableRecord,
   type ResultAssessmentCategory,
@@ -2142,6 +2145,24 @@ export async function listAllClasses(): Promise<ClassRecord[]> {
   const snapshot = await getDocs(collection(firestoreDb, classesCollectionName));
   return snapshot.docs
     .map((item) => normalizeClassRecord(item.id, item.data()))
+    .filter((item) => item.active)
+    .sort((left, right) => left.name.localeCompare(right.name));
+}
+
+// Org-wide subject list. `subjects` has a public read rule, so any signed-in
+// role can load it — used by the teacher profile-completion gate to pick subjects.
+export async function listAllSubjects(): Promise<SubjectRecord[]> {
+  if (isDemoMode()) {
+    return [
+      { id: "demo-sub-physics", name: "Physics", code: "PHY", active: true },
+      { id: "demo-sub-chemistry", name: "Chemistry", code: "CHE", active: true },
+      { id: "demo-sub-biology", name: "Biology", code: "BIO", active: true },
+      { id: "demo-sub-math", name: "Mathematics", code: "MAT", active: true },
+    ];
+  }
+  const snapshot = await getDocs(collection(firestoreDb, subjectsCollectionName));
+  return snapshot.docs
+    .map((item) => normalizeSubjectRecord(item.id, item.data()))
     .filter((item) => item.active)
     .sort((left, right) => left.name.localeCompare(right.name));
 }

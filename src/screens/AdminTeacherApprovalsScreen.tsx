@@ -3,7 +3,7 @@ import { ScrollView, StyleSheet, Text, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { router } from "expo-router";
-import { collection, doc, getDocs, query, updateDoc, where } from "firebase/firestore";
+import { collection, doc, getDocs, query, setDoc, updateDoc, where } from "firebase/firestore";
 import { firestoreDb } from "../lib/firebase";
 import { notifyEvent } from "../lib/notify";
 import { navigateBack } from "../lib/navigation";
@@ -12,7 +12,7 @@ import { AnimatedPressable } from "../components/motion";
 import { AvatarCircle } from "../components/ui";
 import { useResource } from "../hooks/useResource";
 import { useSession } from "../providers/session";
-import { normalizeUserProfileRecord, userProfilesCollectionName, type UserProfileRecord } from "../shared";
+import { adminCollectionName, normalizeUserProfileRecord, userProfilesCollectionName, type UserProfileRecord } from "../shared";
 
 // Role-default capabilities (mirrors packages/shared/src/permissions.ts)
 const DEFAULT_CAPABILITIES_BY_ROLE: Record<string, string[]> = {
@@ -25,6 +25,7 @@ const ROLE_LABEL: Record<string, string> = {
   teacher: "Teacher",
   team: "Team / Head Teacher",
   employee: "Employee",
+  admin: "Admin",
 };
 
 type ApprovalProfile = UserProfileRecord & { approvalStatus: "pending" | "rejected"; createdAtIso?: string };
@@ -38,8 +39,9 @@ async function loadPendingStaff(adminRole: string, centreId: string, regionId: s
         ? [where("regionId", "==", regionId)]
         : [];
 
-  // Firestore doesn't allow combining `in` on two different fields, so run three queries.
-  const staffRoles = ["teacher", "team", "employee"];
+  // Firestore doesn't allow combining `in` on two different fields, so run one query per role.
+  // Self-signed-up admins land here too; approving one provisions its admins/{uid} record.
+  const staffRoles = ["teacher", "team", "employee", "admin"];
   const snapshots = await Promise.all(
     staffRoles.map((role) =>
       getDocs(
@@ -56,18 +58,22 @@ async function loadPendingStaff(adminRole: string, centreId: string, regionId: s
   const seen = new Set<string>();
   const result: ApprovalProfile[] = [];
 
-  for (const snapshot of snapshots) {
+  snapshots.forEach((snapshot, index) => {
+    const queriedRole = staffRoles[index];
     for (const d of snapshot.docs) {
       if (seen.has(d.id)) continue;
       seen.add(d.id);
       const data = d.data();
       const profile = normalizeUserProfileRecord(d.id, data, data.email || "") as ApprovalProfile;
+      // normalizeAccountRole collapses unknown roles (e.g. "admin") to "student"; restore the
+      // role this query matched so the label + admins/{uid} provisioning branch are correct.
+      (profile as any).role = queriedRole;
       const rawStatus = data.approvalStatus;
       profile.approvalStatus = rawStatus === "rejected" ? "rejected" : "pending";
       (profile as any).createdAtIso = typeof data.createdAtIso === "string" ? data.createdAtIso : "";
       result.push(profile);
     }
-  }
+  });
 
   return result.sort((a, b) => {
     if (a.approvalStatus !== b.approvalStatus) {
@@ -106,6 +112,23 @@ export function AdminTeacherApprovalsScreen({ embedded = false }: { embedded?: b
         approvalStatus: nextStatus,
         ...(defaultPermissions !== undefined ? { permissions: defaultPermissions } : {}),
       });
+      // Admin profiles only grant admin access through an admins/{uid} record (superadmin-write).
+      // Provision it on approval; deactivate it on reject. Requires the approver to be a superadmin.
+      if ((profile.role as string) === "admin") {
+        await setDoc(
+          doc(firestoreDb, adminCollectionName, profile.userId),
+          {
+            email: profile.email || "",
+            role: "admin",
+            active: nextStatus === "approved",
+            regionId: profile.regionId || "",
+            regionName: profile.regionName || "",
+            centreId: profile.centreId || "",
+            centreName: profile.centreName || "",
+          },
+          { merge: true },
+        );
+      }
       notifyEvent("enrollment.decided", { userId: profile.userId, status: nextStatus, role: profile.role });
       setFeedback({
         kind: "success",

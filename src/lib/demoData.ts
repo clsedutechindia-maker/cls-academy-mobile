@@ -97,6 +97,7 @@ export const DEMO_PROFILES: Record<DemoRole, UserProfileRecord> = {
     rollNumber: "",
     classId: "",
     className: "",
+    profileCompleted: true,
   } as unknown as UserProfileRecord,
 
   team: {

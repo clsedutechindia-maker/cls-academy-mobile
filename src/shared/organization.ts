@@ -2,6 +2,7 @@ import type { AccountRole, TeacherRole } from "./education";
 
 export const userProfilesCollectionName = "userProfiles";
 export const classesCollectionName = "classes";
+export const subjectsCollectionName = "subjects";
 export const classSubjectsCollectionName = "class_subjects";
 export const coursesCollectionName = "courses";
 export const studentAttendanceCollectionName = "studentAttendance";

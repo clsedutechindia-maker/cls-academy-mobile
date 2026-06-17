@@ -58,6 +58,10 @@ export default function IndexRoute() {
   }
 
   if (role === "teacher") {
+    // Approved teachers must pick their batches + subjects before the dashboard unlocks.
+    if (profile && profile.profileCompleted !== true) {
+      return <Redirect href="/(teacher)/complete-profile" />;
+    }
     return <Redirect href="/(teacher)/home" />;
   }
 
