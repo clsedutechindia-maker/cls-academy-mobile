@@ -98,7 +98,7 @@ export default function RootLayout() {
         <Stack.Screen name="(employee)" />
         <Stack.Screen name="unsupported" />
       </Stack>
-      <DevSwitcher />
+      {__DEV__ && <DevSwitcher />}
     </SessionProvider>
   );
 }
