@@ -14,8 +14,9 @@
     },
     "android": {
       "package": "com.clsacademy.mobile",
-      "versionCode": 1,
+      "versionCode": 3,
       "googleServicesFile": "./google-services.json",
+      "newArchEnabled": false,
       "adaptiveIcon": {
         "backgroundColor": "#E6F4FE",
         "foregroundImage": "./assets/android-icon-foreground.png",
