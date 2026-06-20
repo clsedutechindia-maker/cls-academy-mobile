@@ -1,0 +1,74 @@
+name: Android build (EAS local)
+
+# Builds the Android app on GitHub's runners using `eas build --local`.
+# Local builds do NOT consume EAS cloud build quota, and the runner has enough
+# RAM to avoid the OOM that kills builds on low-memory machines. Credentials
+# (the signing keystore) are pulled from the EAS account via EXPO_TOKEN, so the
+# output is signed with the same key as cloud builds (Play Store safe).
+#
+# Trigger manually: Actions tab -> "Android build (EAS local)" -> Run workflow.
+# Pick profile:
+#   production -> .aab  (upload to Play Console)
+#   preview    -> .apk  (sideload to a device for testing)
+
+on:
+  workflow_dispatch:
+    inputs:
+      profile:
+        description: EAS build profile
+        type: choice
+        options:
+          - production
+          - preview
+        default: production
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install EAS CLI
+        run: npm install -g eas-cli
+
+      - name: Build (.aab for production, .apk for preview)
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+        run: |
+          set -euo pipefail
+          PROFILE="${{ inputs.profile }}"
+          if [ "$PROFILE" = "production" ]; then EXT=aab; else EXT=apk; fi
+          OUT="$RUNNER_TEMP/cls-${PROFILE}.${EXT}"
+          eas build --local --non-interactive \
+            --platform android --profile "$PROFILE" \
+            --output "$OUT"
+          echo "ARTIFACT_PATH=$OUT" >> "$GITHUB_ENV"
+          echo "ARTIFACT_NAME=cls-${PROFILE}-${EXT}" >> "$GITHUB_ENV"
+
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ env.ARTIFACT_NAME }}
+          path: ${{ env.ARTIFACT_PATH }}
+          retention-days: 14
+          if-no-files-found: error
