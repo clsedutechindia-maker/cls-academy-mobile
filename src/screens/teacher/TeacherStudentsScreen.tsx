@@ -5,9 +5,9 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useState } from "react";
 import { D } from "../../components/theme";
 import { AnimatedPressable } from "../../components/motion";
-import { AvatarCircle, ThemedRefresh } from "../../components/ui";
+import { AvatarCircle } from "../../components/ui";
 import { useSession } from "../../providers/session";
-import { useResource, useRefresh } from "../../hooks/useResource";
+import { useResource } from "../../hooks/useResource";
 import { listTeacherStudents } from "../../lib/erp";
 
 export function TeacherStudentsScreen() {
@@ -25,7 +25,6 @@ export function TeacherStudentsScreen() {
     },
     [profile?.userId],
   );
-  const { refreshing, onRefresh } = useRefresh(reload);
 
   const classNames: string[] = Array.from(new Set(profile?.teacherClassNames ?? [])).filter(Boolean) as string[];
   const batches = ["All", ...classNames];
@@ -44,7 +43,6 @@ export function TeacherStudentsScreen() {
       <ScrollView
         contentContainerStyle={{ paddingBottom: 140 }}
         showsVerticalScrollIndicator={false}
-        refreshControl={<ThemedRefresh refreshing={refreshing} onRefresh={onRefresh} />}
       >
         {/* Heading */}
         <View style={[s.headerSection, { paddingTop: insets.top + 20 }]}>

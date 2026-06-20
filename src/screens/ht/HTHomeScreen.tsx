@@ -5,9 +5,8 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useSession } from "../../providers/session";
 import { D } from "../../components/theme";
 import { AnimatedPressable, Stagger } from "../../components/motion";
-import { ThemedRefresh } from "../../components/ui";
 import { LinearGradient } from "expo-linear-gradient";
-import { useCachedResource, useRefresh } from "../../hooks/useResource";
+import { useCachedResource } from "../../hooks/useResource";
 import { listDoubtsForTeacher, listPendingStudentsForTeacher, listTeacherTimetable } from "../../lib/erp";
 
 const quickActions = [
@@ -60,9 +59,6 @@ export function HTHomeScreen() {
     [profile?.userId],
   );
 
-  const { refreshing, onRefresh } = useRefresh(() =>
-    Promise.all([reloadDoubts(), reloadPending(), reloadTimetable()]),
-  );
 
   const openDoubtsCount = (doubts ?? []).filter((d) => d.status === "open").length;
   const pendingCount = pendingStudents?.length ?? 0;
@@ -145,7 +141,6 @@ export function HTHomeScreen() {
       <ScrollView
         contentContainerStyle={{ paddingBottom: 100 }}
         showsVerticalScrollIndicator={false}
-        refreshControl={<ThemedRefresh refreshing={refreshing} onRefresh={onRefresh} />}
       >
         {/* Purple gradient header */}
         <LinearGradient

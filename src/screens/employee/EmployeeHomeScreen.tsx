@@ -5,9 +5,8 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useSession } from "../../providers/session";
 import { D } from "../../components/theme";
 import { AnimatedPressable, Stagger } from "../../components/motion";
-import { ThemedRefresh } from "../../components/ui";
 import { LinearGradient } from "expo-linear-gradient";
-import { useCachedResource, useRefresh } from "../../hooks/useResource";
+import { useCachedResource } from "../../hooks/useResource";
 import { listEmployeeResults, listEmployeeClasses, listEmployeeStudents } from "../../lib/erp";
 import { getTodayDateValue } from "../../lib/date";
 
@@ -50,9 +49,6 @@ export function EmployeeHomeScreen() {
     [profile?.userId],
   );
 
-  const { refreshing, onRefresh } = useRefresh(() =>
-    Promise.all([reloadResults(), reloadStudents()]),
-  );
 
   const todayResults = (results ?? []).filter((r) => r.publishedAtIso?.startsWith(today));
   const recentResults = (results ?? []).slice(0, 5);
@@ -82,7 +78,6 @@ export function EmployeeHomeScreen() {
       <ScrollView
         contentContainerStyle={{ paddingBottom: 140 }}
         showsVerticalScrollIndicator={false}
-        refreshControl={<ThemedRefresh refreshing={refreshing} onRefresh={onRefresh} />}
       >
         <LinearGradient
           colors={[D.primary, D.primaryBtn, "#8B5CF6"]}

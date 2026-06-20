@@ -5,9 +5,9 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useState } from "react";
 import { D } from "../../components/theme";
 import { AnimatedPressable } from "../../components/motion";
-import { AvatarCircle, ThemedRefresh } from "../../components/ui";
+import { AvatarCircle } from "../../components/ui";
 import { useSession } from "../../providers/session";
-import { useResource, useRefresh } from "../../hooks/useResource";
+import { useResource } from "../../hooks/useResource";
 import { listTeacherStudents, listPendingStudentsForTeacher } from "../../lib/erp";
 
 export function HTStudentsScreen() {
@@ -34,9 +34,6 @@ export function HTStudentsScreen() {
     [profile?.userId],
   );
   const pendingCount = pendingStudents?.length ?? 0;
-  const { refreshing, onRefresh } = useRefresh(() =>
-    Promise.all([reloadStudents(), reloadPending()]),
-  );
 
   const classNames: string[] = Array.from(
     new Set(profile?.teacherClassNames ?? [])
@@ -58,7 +55,6 @@ export function HTStudentsScreen() {
       <ScrollView
         contentContainerStyle={{ paddingBottom: 140 }}
         showsVerticalScrollIndicator={false}
-        refreshControl={<ThemedRefresh refreshing={refreshing} onRefresh={onRefresh} />}
       >
 
         {/* Heading Section */}

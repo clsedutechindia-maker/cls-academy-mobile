@@ -4,10 +4,10 @@ import { router } from "expo-router";
 import { navigateBack } from "../lib/navigation";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useState } from "react";
-import { D, ThemedRefresh } from "../components/ui";
+import { D } from "../components/ui";
 import { AnimatedPressable } from "../components/motion";
 import { useSession } from "../providers/session";
-import { useResource, useRefresh } from "../hooks/useResource";
+import { useResource } from "../hooks/useResource";
 import { showAlert } from "../lib/alert";
 import { listOwnStudentFees, listPaymentsForFee, feeRemindersDueOn, type StudentFeeRecord, type FeePaymentRecord } from "../lib/fees";
 import { startFeeCheckout, isOnlinePaymentAvailable } from "../lib/payu";
@@ -36,7 +36,6 @@ export function StudentFeesScreen() {
     [profile?.userId],
   );
 
-  const { refreshing, onRefresh } = useRefresh(reload);
   const groups = data ?? [];
   const canPayOnline = isOnlinePaymentAvailable();
   const [payingKey, setPayingKey] = useState<string | null>(null);
@@ -89,7 +88,6 @@ export function StudentFeesScreen() {
       <ScrollView
         contentContainerStyle={{ paddingBottom: 140 }}
         showsVerticalScrollIndicator={false}
-        refreshControl={<ThemedRefresh refreshing={refreshing} onRefresh={onRefresh} />}
       >
         <View style={[s.header, { paddingTop: insets.top + 16 }]}>
           <AnimatedPressable style={s.backBtn} onPress={() => navigateBack(router)}>

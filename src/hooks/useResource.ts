@@ -1,22 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { readCache, writeCache } from "../lib/cache";
 
-// Pull-to-refresh helper. Wrap one or more resource `reload` calls; exposes a
-// `refreshing` flag (drives RefreshControl) kept independent of the initial-load
-// `loading` state so the spinner only shows on a user-driven pull.
-export function useRefresh(reload: () => Promise<unknown>) {
-  const [refreshing, setRefreshing] = useState(false);
-  const onRefresh = useCallback(async () => {
-    setRefreshing(true);
-    try {
-      await reload();
-    } finally {
-      setRefreshing(false);
-    }
-  }, [reload]);
-  return { refreshing, onRefresh };
-}
-
 export function useResource<T>(loader: () => Promise<T>, deps: unknown[] = []) {
   const [data, setData] = useState<T | null>(null);
   const [loading, setLoading] = useState(true);

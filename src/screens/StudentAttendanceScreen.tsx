@@ -3,12 +3,12 @@ import { navigateBack } from "../lib/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
-import { EmptyCard, ErrorCard, InfoNote, LoadingCard, MOBILE_BOTTOM_SPACING, ThemedRefresh, uiStyles, D } from "../components/ui";
+import { EmptyCard, ErrorCard, InfoNote, LoadingCard, MOBILE_BOTTOM_SPACING, uiStyles, D } from "../components/ui";
 import { Ionicons } from "@expo/vector-icons";
 import { AnimatedPressable } from "../components/motion";
 import { formatDateLabel, getTodayDateValue } from "../lib/date";
 import { createStudentLeaveRequest, listStudentAttendance, listStudentLeaveRequests, type StudentLeaveRequestRecord } from "../lib/erp";
-import { useResource, useRefresh } from "../hooks/useResource";
+import { useResource } from "../hooks/useResource";
 import { useSession } from "../providers/session";
 import type { AttendanceStatus, StudentAttendanceRecord } from "../shared";
 import { attendancePercent, attendanceStatusLabel, daysBetweenInclusive, monthKey, monthLabel } from "./studentUtils";
@@ -109,14 +109,12 @@ export function StudentAttendanceScreen() {
     setMonthIndex(next.getMonth());
   };
 
-  const { refreshing, onRefresh } = useRefresh(resource.reload);
 
   return (
     <View style={styles.page}>
       <ScrollView
         contentContainerStyle={[styles.pageContent, { paddingTop: Math.max(insets.top + 24, 56) }]}
         showsVerticalScrollIndicator={false}
-        refreshControl={<ThemedRefresh refreshing={refreshing} onRefresh={onRefresh} />}
       >
         <Text style={styles.pageTitle}>Attendance</Text>
 

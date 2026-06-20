@@ -5,9 +5,9 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useState } from "react";
 import { D } from "../../components/theme";
 import { AnimatedPressable } from "../../components/motion";
-import { AvatarCircle, ThemedRefresh } from "../../components/ui";
+import { AvatarCircle } from "../../components/ui";
 import { useSession } from "../../providers/session";
-import { useResource, useRefresh } from "../../hooks/useResource";
+import { useResource } from "../../hooks/useResource";
 import { listEmployeeStudents } from "../../lib/erp";
 import { listStudentFees } from "../../lib/fees";
 
@@ -35,7 +35,6 @@ export function EmployeeStudentsScreen() {
     [profile?.userId],
   );
 
-  const { refreshing, onRefresh } = useRefresh(reload);
   const students = data?.students ?? [];
   const dueByStudent = data?.dueByStudent ?? {};
   const canRegisterStudents = profile?.permissions?.includes("register_students");
@@ -60,7 +59,6 @@ export function EmployeeStudentsScreen() {
       <ScrollView
         contentContainerStyle={{ paddingBottom: 140 }}
         showsVerticalScrollIndicator={false}
-        refreshControl={<ThemedRefresh refreshing={refreshing} onRefresh={onRefresh} />}
       >
         <View style={[s.headerSection, { paddingTop: insets.top + 20 }]}>
           <View style={s.titleRow}>

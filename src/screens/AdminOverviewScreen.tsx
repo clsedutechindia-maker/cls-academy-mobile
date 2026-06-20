@@ -3,7 +3,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
 import { LinearGradient } from "expo-linear-gradient";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { useCachedResource, useRefresh } from "../hooks/useResource";
+import { useCachedResource } from "../hooks/useResource";
 import {
   listAdminAttendanceOverview,
   listStaffAttendanceForAdmin,
@@ -19,7 +19,7 @@ import {
 import { getFeeCollectionByPeriod } from "../lib/fees";
 import { getTodayDateValue } from "../lib/date";
 import { useSession } from "../providers/session";
-import { D, EmptyCard, ErrorCard, LoadingCard, MOBILE_BOTTOM_SPACING, ThemedRefresh } from "../components/ui";
+import { D, EmptyCard, ErrorCard, LoadingCard, MOBILE_BOTTOM_SPACING } from "../components/ui";
 import { Animated, AnimatedPressable, CountUp, enter } from "../components/motion";
 
 const money = (n: number) => `₹${Number(n || 0).toLocaleString("en-IN")}`;
@@ -133,14 +133,12 @@ export function AdminOverviewScreen() {
     [adminRecord?.role, adminRecord?.centreId, adminRecord?.regionId],
   );
 
-  const { refreshing, onRefresh } = useRefresh(resource.reload);
 
   return (
     <View style={s.container}>
       <ScrollView
         contentContainerStyle={s.scroll}
         showsVerticalScrollIndicator={false}
-        refreshControl={<ThemedRefresh refreshing={refreshing} onRefresh={onRefresh} />}
       >
         {/* Personalized gradient header — matches Student / Head Teacher home */}
         <LinearGradient

@@ -4,11 +4,11 @@ import { useEffect, useMemo, useState } from "react";
 import { Linking, StyleSheet, Text, View, ScrollView } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
-import { ErrorCard, LoadingCard, D, MOBILE_BOTTOM_SPACING, ThemedRefresh } from "../components/ui";
+import { ErrorCard, LoadingCard, D, MOBILE_BOTTOM_SPACING } from "../components/ui";
 import { AnimatedPressable } from "../components/motion";
 import { formatDateTimeLabel } from "../lib/date";
 import { listAnnouncementsForProfile } from "../lib/erp";
-import { useResource, useRefresh } from "../hooks/useResource";
+import { useResource } from "../hooks/useResource";
 import { useSession } from "../providers/session";
 import { getReadCircularIds, markCircularRead } from "../lib/readStore";
 import type { StudentAnnouncementRecord } from "../shared";
@@ -44,7 +44,6 @@ function getCircularTag(title: string) {
 export function StudentCircularsScreen() {
   const { resource } = useCircularsResource();
   const insets = useSafeAreaInsets();
-  const { refreshing, onRefresh } = useRefresh(resource.reload);
   const [filter, setFilter] = useState<"All" | "Unread">("All");
   const [readIds, setReadIds] = useState<Set<string>>(new Set());
   const segments = useSegments();
@@ -84,7 +83,6 @@ export function StudentCircularsScreen() {
     <ScrollView
       style={styles.container}
       contentContainerStyle={[styles.content, { paddingTop: insets.top + 16 }]}
-      refreshControl={<ThemedRefresh refreshing={refreshing} onRefresh={onRefresh} />}
     >
       {/* Header */}
       <View style={styles.header}>

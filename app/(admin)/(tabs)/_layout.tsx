@@ -23,7 +23,7 @@ function TabIcon(name: IoniconsName, activeName: IoniconsName) {
     }));
 
     return (
-      <View style={{ paddingHorizontal: 12, paddingVertical: 4, alignItems: "center", marginBottom: 4, justifyContent: "center" }}>
+      <View style={{ paddingHorizontal: 12, paddingVertical: 2, alignItems: "center", justifyContent: "center" }}>
         <Animated.View
           style={[
             { position: "absolute", top: 0, left: 0, right: 0, bottom: 0, backgroundColor: D.primaryFixed, borderRadius: 10 },

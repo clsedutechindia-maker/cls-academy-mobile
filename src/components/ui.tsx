@@ -1,6 +1,5 @@
 import {
   ActivityIndicator,
-  RefreshControl,
   ScrollView,
   StyleSheet,
   Text,
@@ -18,19 +17,6 @@ import { AnimatedPressable, SkeletonList } from "./motion";
 
 export { D };
 export const MOBILE_BOTTOM_SPACING = 156;
-
-// Themed pull-to-refresh control. Pass to a ScrollView/FlatList `refreshControl`
-// prop together with the `useRefresh` hook.
-export function ThemedRefresh({ refreshing, onRefresh }: { refreshing: boolean; onRefresh: () => void }) {
-  return (
-    <RefreshControl
-      refreshing={refreshing}
-      onRefresh={onRefresh}
-      tintColor={D.primary}
-      colors={[D.primary]}
-    />
-  );
-}
 
 type IoniconsName = React.ComponentProps<typeof Ionicons>["name"];
 

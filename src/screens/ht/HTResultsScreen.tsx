@@ -5,9 +5,8 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useState } from "react";
 import { D } from "../../components/theme";
 import { AnimatedPressable } from "../../components/motion";
-import { ThemedRefresh } from "../../components/ui";
 import { useSession } from "../../providers/session";
-import { useResource, useRefresh } from "../../hooks/useResource";
+import { useResource } from "../../hooks/useResource";
 import { listTeacherResults } from "../../lib/erp";
 
 const subjectColor: Record<string, { text: string; bg: string }> = {
@@ -38,7 +37,6 @@ export function HTResultsScreen() {
     },
     [profile?.userId],
   );
-  const { refreshing, onRefresh } = useRefresh(reload);
 
   // Deduplicate results to unique test entries (same assessmentTitle + classId)
   const seen = new Set<string>();
@@ -78,7 +76,6 @@ export function HTResultsScreen() {
       <ScrollView
         contentContainerStyle={{ paddingBottom: 160 }}
         showsVerticalScrollIndicator={false}
-        refreshControl={<ThemedRefresh refreshing={refreshing} onRefresh={onRefresh} />}
       >
 
         {/* Heading Section */}
