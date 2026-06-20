@@ -1,19 +1,34 @@
-name: Android build (EAS local)
+name: App build (EAS local)
 
-# Builds the Android app on GitHub's runners using `eas build --local`.
-# Local builds do NOT consume EAS cloud build quota, and the runner has enough
-# RAM to avoid the OOM that kills builds on low-memory machines. Credentials
-# (the signing keystore) are pulled from the EAS account via EXPO_TOKEN, so the
-# output is signed with the same key as cloud builds (Play Store safe).
+# Builds the app on GitHub's runners using `eas build --local`. Local builds do
+# NOT consume EAS cloud build quota, and the runner has enough RAM to avoid the
+# OOM that kills builds on low-memory machines. Credentials are pulled from the
+# EAS account via EXPO_TOKEN, so output is signed with the same keys as cloud
+# builds (store-safe).
 #
-# Trigger manually: Actions tab -> "Android build (EAS local)" -> Run workflow.
-# Pick profile:
-#   production -> .aab  (upload to Play Console)
-#   preview    -> .apk  (sideload to a device for testing)
+# Trigger manually: Actions tab -> "App build (EAS local)" -> Run workflow.
+#   platform=android, profile=production -> .aab  (upload to Play Console)
+#   platform=android, profile=preview    -> .apk  (sideload to a device)
+#   platform=ios,     profile=production -> .ipa  (App Store / TestFlight)
+#
+# iOS PREREQUISITES (one-time, before an iOS run will succeed):
+#   1. Apple Developer Program enrollment ($99/yr) complete.
+#   2. iOS credentials registered in EAS: run `eas credentials` (platform iOS)
+#      to create/upload the distribution cert + provisioning profile. They are
+#      then pulled automatically here via EXPO_TOKEN.
+#   3. Fill appleTeamId / ascAppId in eas.json submit.ios (only needed for submit).
+# iOS runs on macOS (Xcode required); macOS runner minutes bill ~10x on GitHub.
 
 on:
   workflow_dispatch:
     inputs:
+      platform:
+        description: Target platform
+        type: choice
+        options:
+          - android
+          - ios
+        default: android
       profile:
         description: EAS build profile
         type: choice
@@ -24,8 +39,9 @@ on:
 
 jobs:
   build:
-    runs-on: ubuntu-latest
-    timeout-minutes: 90
+    # iOS must build on macOS (Xcode); Android builds on Linux.
+    runs-on: ${{ inputs.platform == 'ios' && 'macos-latest' || 'ubuntu-latest' }}
+    timeout-minutes: 120
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -37,17 +53,20 @@ jobs:
           cache: npm
 
       - name: Set up JDK 17
+        if: inputs.platform == 'android'
         uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: 17
 
       - name: Set up Android SDK
+        if: inputs.platform == 'android'
         uses: android-actions/setup-android@v3
 
       # Cache Gradle deps + wrapper across runs so native deps don't re-download
       # every build — biggest repeat-run speedup.
       - name: Cache Gradle
+        if: inputs.platform == 'android'
         uses: actions/cache@v4
         with:
           path: |
@@ -62,25 +81,32 @@ jobs:
       - name: Install EAS CLI
         run: npm install -g eas-cli
 
-      - name: Build (.aab for production, .apk for preview)
+      - name: Build
         env:
           EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
         run: |
           set -euo pipefail
+          PLATFORM="${{ inputs.platform }}"
           PROFILE="${{ inputs.profile }}"
-          if [ "$PROFILE" = "production" ]; then EXT=aab; else EXT=apk; fi
-          OUT="$RUNNER_TEMP/cls-${PROFILE}.${EXT}"
-          # Preview is for sideloading onto an arm64 test device, so build only
-          # that ABI — ~3-4x faster native compile. Production builds all ABIs
-          # for broad Play Store device support.
-          if [ "$PROFILE" = "preview" ]; then
+          if [ "$PLATFORM" = "ios" ]; then
+            EXT=ipa
+          elif [ "$PROFILE" = "production" ]; then
+            EXT=aab
+          else
+            EXT=apk
+          fi
+          OUT="$RUNNER_TEMP/cls-${PLATFORM}-${PROFILE}.${EXT}"
+          # Android preview is for sideloading onto an arm64 test device, so build
+          # only that ABI — ~3-4x faster native compile. Production builds all
+          # ABIs for broad Play Store device support.
+          if [ "$PLATFORM" = "android" ] && [ "$PROFILE" = "preview" ]; then
             export ORG_GRADLE_PROJECT_reactNativeArchitectures=arm64-v8a
           fi
           eas build --local --non-interactive \
-            --platform android --profile "$PROFILE" \
+            --platform "$PLATFORM" --profile "$PROFILE" \
             --output "$OUT"
           echo "ARTIFACT_PATH=$OUT" >> "$GITHUB_ENV"
-          echo "ARTIFACT_NAME=cls-${PROFILE}-${EXT}" >> "$GITHUB_ENV"
+          echo "ARTIFACT_NAME=cls-${PLATFORM}-${PROFILE}-${EXT}" >> "$GITHUB_ENV"
 
       - name: Upload build artifact
         uses: actions/upload-artifact@v4
