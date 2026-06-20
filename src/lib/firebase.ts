@@ -1,8 +1,17 @@
 import { initializeApp, getApp, getApps } from "firebase/app";
 import { browserLocalPersistence, getAuth, GoogleAuthProvider, initializeAuth } from "firebase/auth";
+import * as firebaseAuthNS from "firebase/auth";
 import { getFirestore, initializeFirestore, memoryLocalCache, persistentLocalCache, persistentSingleTabManager } from "firebase/firestore";
 import { getStorage } from "firebase/storage";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Platform } from "react-native";
+
+// `getReactNativePersistence` is only exported by firebase/auth's React Native
+// build (resolved by Metro via the "react-native" condition). The default
+// Node/web types don't declare it, so reach it through the namespace with a cast.
+const getReactNativePersistence = (firebaseAuthNS as unknown as {
+  getReactNativePersistence?: (storage: unknown) => import("firebase/auth").Persistence;
+}).getReactNativePersistence;
 
 const firebaseConfig = {
   apiKey: process.env.EXPO_PUBLIC_FIREBASE_API_KEY || "AIzaSyD1uSdF6Q41zr-TvpWG2tRezM4Fb9wCPgc",
@@ -23,8 +32,12 @@ function createAuth() {
       // Pass the resolver explicitly at the signInWithRedirect / getRedirectResult call sites instead.
       return initializeAuth(app, { persistence: browserLocalPersistence });
     }
-    // Native: no getReactNativePersistence in firebase v12 JS SDK.
-    // Users need to re-login after app restart until @react-native-firebase is adopted.
+    // Native: persist auth state to AsyncStorage so users stay logged in across
+    // app restarts. The RN build of firebase/auth supplies getReactNativePersistence;
+    // fall back to memory only if it's somehow unavailable.
+    if (getReactNativePersistence) {
+      return initializeAuth(app, { persistence: getReactNativePersistence(AsyncStorage) });
+    }
     return initializeAuth(app);
   } catch {
     // Auth already initialized (hot reload / module re-evaluation) — return existing instance.
