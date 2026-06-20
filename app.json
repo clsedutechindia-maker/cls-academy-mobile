@@ -14,7 +14,7 @@
     },
     "android": {
       "package": "com.clsacademy.mobile",
-      "versionCode": 7,
+      "versionCode": 8,
       "googleServicesFile": "./google-services.json",
       "newArchEnabled": false,
       "adaptiveIcon": {
