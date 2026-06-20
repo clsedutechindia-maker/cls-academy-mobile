@@ -1,11 +1,12 @@
 import { router, useSegments } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { StyleSheet, Text, View, ScrollView } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useEffect, useState } from "react";
-import { D, MOBILE_BOTTOM_SPACING } from "../components/ui";
+import { D, MOBILE_BOTTOM_SPACING, ThemedRefresh } from "../components/ui";
 import { AnimatedPressable } from "../components/motion";
 import { useSession } from "../providers/session";
-import { useResource } from "../hooks/useResource";
+import { useResource, useRefresh } from "../hooks/useResource";
 import { listStudentDoubts, listAnnouncementsForProfile } from "../lib/erp";
 import { getReadCircularIds } from "../lib/readStore";
 
@@ -93,6 +94,7 @@ function isRecentCircular(createdAtIso: string) {
 
 export function StudentOtherScreen() {
   const { profile } = useSession();
+  const insets = useSafeAreaInsets();
   const segments = useSegments();
   const [readIds, setReadIds] = useState<Set<string>>(new Set());
 
@@ -122,8 +124,14 @@ export function StudentOtherScreen() {
     return count > 0 ? count : undefined;
   };
 
+  const { refreshing, onRefresh } = useRefresh(resource.reload);
+
   return (
-    <ScrollView style={styles.container} contentContainerStyle={styles.content}>
+    <ScrollView
+      style={styles.container}
+      contentContainerStyle={[styles.content, { paddingTop: insets.top + 16 }]}
+      refreshControl={<ThemedRefresh refreshing={refreshing} onRefresh={onRefresh} />}
+    >
       <Text style={styles.headerTitle}>Other</Text>
       <Text style={styles.headerSubtitle}>Quick access to all features</Text>
 

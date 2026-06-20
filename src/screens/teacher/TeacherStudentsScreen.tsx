@@ -5,9 +5,9 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useState } from "react";
 import { D } from "../../components/theme";
 import { AnimatedPressable } from "../../components/motion";
-import { AvatarCircle } from "../../components/ui";
+import { AvatarCircle, ThemedRefresh } from "../../components/ui";
 import { useSession } from "../../providers/session";
-import { useResource } from "../../hooks/useResource";
+import { useResource, useRefresh } from "../../hooks/useResource";
 import { listTeacherStudents } from "../../lib/erp";
 
 export function TeacherStudentsScreen() {
@@ -18,13 +18,14 @@ export function TeacherStudentsScreen() {
   const [search, setSearch] = useState("");
   const [searchVisible, setSearchVisible] = useState(false);
 
-  const { data: students, loading, error } = useResource(
+  const { data: students, loading, error, reload } = useResource(
     async () => {
       if (!profile) return [];
       return listTeacherStudents(profile);
     },
     [profile?.userId],
   );
+  const { refreshing, onRefresh } = useRefresh(reload);
 
   const classNames: string[] = Array.from(new Set(profile?.teacherClassNames ?? [])).filter(Boolean) as string[];
   const batches = ["All", ...classNames];
@@ -40,7 +41,11 @@ export function TeacherStudentsScreen() {
 
   return (
     <View style={{ flex: 1, backgroundColor: D.bg }}>
-      <ScrollView contentContainerStyle={{ paddingBottom: 140 }} showsVerticalScrollIndicator={false}>
+      <ScrollView
+        contentContainerStyle={{ paddingBottom: 140 }}
+        showsVerticalScrollIndicator={false}
+        refreshControl={<ThemedRefresh refreshing={refreshing} onRefresh={onRefresh} />}
+      >
         {/* Heading */}
         <View style={[s.headerSection, { paddingTop: insets.top + 20 }]}>
           <View style={s.titleRow}>

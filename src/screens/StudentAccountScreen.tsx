@@ -4,6 +4,7 @@ import { router } from "expo-router";
 import { navigateBack } from "../lib/navigation";
 import { useState } from "react";
 import { StyleSheet, Text, TextInput, View, ScrollView } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { LinearGradient } from "expo-linear-gradient";
 import { Ionicons } from "@expo/vector-icons";
 import { D, MOBILE_BOTTOM_SPACING } from "../components/ui";
@@ -58,6 +59,7 @@ const PUSH_NOTIF_KEY = "cls_push_notifications_enabled";
 
 export function StudentAccountScreen() {
   const { authUser, profile, signOutUser, refresh } = useSession();
+  const insets = useSafeAreaInsets();
   const [pushEnabled, setPushEnabled] = useState(true);
   const name = profile?.name || authUser?.displayName || "Student";
 
@@ -76,7 +78,7 @@ export function StudentAccountScreen() {
   const initials = name.split(" ").map((n) => n[0]).join("").substring(0, 2).toUpperCase();
 
   return (
-    <ScrollView style={styles.container} contentContainerStyle={styles.content}>
+    <ScrollView style={styles.container} contentContainerStyle={[styles.content, { paddingTop: insets.top + 16 }]}>
       <Text style={styles.headerTitle}>Account</Text>
 
       {/* Profile block */}
@@ -161,6 +163,7 @@ export function StudentAccountScreen() {
 
 export function StudentEditDetailsScreen() {
   const { authUser, profile, refresh } = useSession();
+  const insets = useSafeAreaInsets();
   const [phone, setPhone] = useState(profile?.phone || "");
   const [email, setEmail] = useState(profile?.email || authUser?.email || "");
   const [address, setAddress] = useState(profile?.address || "");
@@ -224,7 +227,7 @@ export function StudentEditDetailsScreen() {
   );
 
   return (
-    <ScrollView style={styles.container} contentContainerStyle={styles.contentEdit}>
+    <ScrollView style={styles.container} contentContainerStyle={[styles.contentEdit, { paddingTop: insets.top + 16 }]}>
       {/* Header */}
       <View style={styles.editHeader}>
         <AnimatedPressable onPress={() => navigateBack(router)} style={styles.backBtn}>

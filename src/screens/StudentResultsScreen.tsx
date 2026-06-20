@@ -2,11 +2,11 @@ import { router, useLocalSearchParams } from "expo-router";
 import { navigateBack } from "../lib/navigation";
 import { useMemo, useState } from "react";
 import { ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
-import { EmptyCard, ErrorCard, LoadingCard, MOBILE_BOTTOM_SPACING, SegmentedToggle, SubjectChip, uiStyles, D } from "../components/ui";
+import { EmptyCard, ErrorCard, LoadingCard, MOBILE_BOTTOM_SPACING, SegmentedToggle, SubjectChip, ThemedRefresh, uiStyles, D } from "../components/ui";
 import { AnimatedPressable } from "../components/motion";
 import { formatDateLabel } from "../lib/date";
 import { listStudentResults } from "../lib/erp";
-import { useResource } from "../hooks/useResource";
+import { useResource, useRefresh } from "../hooks/useResource";
 import { useSession } from "../providers/session";
 import { groupResultsBySubject, percent, resultDate, resultDelta, subjectColor, subjectBgColor } from "./studentUtils";
 import { Ionicons } from "@expo/vector-icons";
@@ -50,6 +50,7 @@ export function StudentResultsScreen() {
   const SORT_LABELS: Record<SortMode, string> = { recent: "Most recent", highest: "Highest score", lowest: "Lowest score" };
   const cycleSortMode = () => setSortMode(prev => SORT_CYCLE[(SORT_CYCLE.indexOf(prev) + 1) % SORT_CYCLE.length]);
   const insets = useSafeAreaInsets();
+  const { refreshing, onRefresh } = useRefresh(resource.reload);
   const normalizedSearch = search.trim().toLowerCase();
 
   const filtered = useMemo(() => {
@@ -103,7 +104,10 @@ export function StudentResultsScreen() {
 
   return (
     <View style={{ flex: 1, backgroundColor: D.bg }}>
-      <ScrollView contentContainerStyle={[uiStyles.screenContent, { paddingTop: Math.max(insets.top + 18, 46), paddingBottom: MOBILE_BOTTOM_SPACING, gap: 8 }]}>
+      <ScrollView
+        contentContainerStyle={[uiStyles.screenContent, { paddingTop: Math.max(insets.top + 18, 46), paddingBottom: MOBILE_BOTTOM_SPACING, gap: 8 }]}
+        refreshControl={<ThemedRefresh refreshing={refreshing} onRefresh={onRefresh} />}
+      >
         <View style={styles.resultsHeader}>
           <Text style={{ fontSize: 24, fontWeight: "700", fontFamily: D.fontBold, color: D.onSurface, letterSpacing: -0.45 }}>Results</Text>
           <AnimatedPressable onPress={hasActiveSearch ? closeSearch : () => setSearchOpen(true)} style={styles.searchBtn}>

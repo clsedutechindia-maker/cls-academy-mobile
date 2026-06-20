@@ -3,11 +3,11 @@ import { Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 
 import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { useResource } from "../hooks/useResource";
+import { useResource, useRefresh } from "../hooks/useResource";
 import { listVisibleProfilesForAdmin } from "../lib/erp";
 import { useSession } from "../providers/session";
 import { AnimatedPressable } from "../components/motion";
-import { AvatarCircle, D } from "../components/ui";
+import { AvatarCircle, D, ThemedRefresh } from "../components/ui";
 
 export function AdminStudentsScreen() {
   const insets = useSafeAreaInsets();
@@ -18,7 +18,7 @@ export function AdminStudentsScreen() {
   const [searchVisible, setSearchVisible] = useState(false);
   const [pendingOnly, setPendingOnly] = useState(false);
 
-  const { data: students, loading, error } = useResource(
+  const { data: students, loading, error, reload } = useResource(
     async () => {
       if (!adminRecord) return [];
       const profiles = await listVisibleProfilesForAdmin(adminRecord);
@@ -26,6 +26,7 @@ export function AdminStudentsScreen() {
     },
     [adminRecord?.role, adminRecord?.centreId, adminRecord?.regionId],
   );
+  const { refreshing, onRefresh } = useRefresh(reload);
 
   const classNames = useMemo(() => {
     const seen = new Set<string>();
@@ -55,7 +56,11 @@ export function AdminStudentsScreen() {
 
   return (
     <View style={{ flex: 1, backgroundColor: D.bg }}>
-      <ScrollView contentContainerStyle={{ paddingBottom: 140 }} showsVerticalScrollIndicator={false}>
+      <ScrollView
+        contentContainerStyle={{ paddingBottom: 140 }}
+        showsVerticalScrollIndicator={false}
+        refreshControl={<ThemedRefresh refreshing={refreshing} onRefresh={onRefresh} />}
+      >
 
         {/* Heading Section */}
         <View style={[s.headerSection, { paddingTop: insets.top + 20 }]}>

@@ -11,6 +11,7 @@ import {
   PlusJakartaSans_700Bold,
   PlusJakartaSans_800ExtraBold,
 } from "@expo-google-fonts/plus-jakarta-sans";
+import { SafeAreaProvider } from "react-native-safe-area-context";
 import { SessionProvider, useSession } from "../src/providers/session";
 import { DevSwitcher } from "../src/components/DevSwitcher";
 import { NavigationHistoryTracker } from "../src/lib/navigation";
@@ -85,20 +86,22 @@ export default function RootLayout() {
   }
 
   return (
-    <SessionProvider>
-      <NavigationHistoryTracker />
-      <NotificationManager />
-      <Stack screenOptions={{ headerShown: false, animation: "slide_from_right" }}>
-        <Stack.Screen name="index" />
-        <Stack.Screen name="(auth)" />
-        <Stack.Screen name="(student)" />
-        <Stack.Screen name="(teacher)" />
-        <Stack.Screen name="(admin)" />
-        <Stack.Screen name="(team)" />
-        <Stack.Screen name="(employee)" />
-        <Stack.Screen name="unsupported" />
-      </Stack>
-      {__DEV__ && <DevSwitcher />}
-    </SessionProvider>
+    <SafeAreaProvider>
+      <SessionProvider>
+        <NavigationHistoryTracker />
+        <NotificationManager />
+        <Stack screenOptions={{ headerShown: false, animation: "slide_from_right" }}>
+          <Stack.Screen name="index" />
+          <Stack.Screen name="(auth)" />
+          <Stack.Screen name="(student)" />
+          <Stack.Screen name="(teacher)" />
+          <Stack.Screen name="(admin)" />
+          <Stack.Screen name="(team)" />
+          <Stack.Screen name="(employee)" />
+          <Stack.Screen name="unsupported" />
+        </Stack>
+        {__DEV__ && <DevSwitcher />}
+      </SessionProvider>
+    </SafeAreaProvider>
   );
 }

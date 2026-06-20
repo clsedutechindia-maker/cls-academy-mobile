@@ -5,8 +5,9 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useState } from "react";
 import { D } from "../../components/theme";
 import { AnimatedPressable } from "../../components/motion";
+import { ThemedRefresh } from "../../components/ui";
 import { useSession } from "../../providers/session";
-import { useResource } from "../../hooks/useResource";
+import { useResource, useRefresh } from "../../hooks/useResource";
 import { listTeacherResults } from "../../lib/erp";
 
 const subjectColor: Record<string, { text: string; bg: string }> = {
@@ -30,13 +31,14 @@ export function HTResultsScreen() {
   const [search, setSearch] = useState("");
   const [searchVisible, setSearchVisible] = useState(false);
 
-  const { data: results, loading, error } = useResource(
+  const { data: results, loading, error, reload } = useResource(
     async () => {
       if (!profile) return [];
       return listTeacherResults(profile);
     },
     [profile?.userId],
   );
+  const { refreshing, onRefresh } = useRefresh(reload);
 
   // Deduplicate results to unique test entries (same assessmentTitle + classId)
   const seen = new Set<string>();
@@ -73,7 +75,11 @@ export function HTResultsScreen() {
 
   return (
     <View style={{ flex: 1, backgroundColor: D.bg }}>
-      <ScrollView contentContainerStyle={{ paddingBottom: 160 }} showsVerticalScrollIndicator={false}>
+      <ScrollView
+        contentContainerStyle={{ paddingBottom: 160 }}
+        showsVerticalScrollIndicator={false}
+        refreshControl={<ThemedRefresh refreshing={refreshing} onRefresh={onRefresh} />}
+      >
 
         {/* Heading Section */}
         <View style={[s.headerSection, { paddingTop: insets.top + 20 }]}>

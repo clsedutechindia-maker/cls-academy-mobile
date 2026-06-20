@@ -5,9 +5,9 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useState } from "react";
 import { D } from "../../components/theme";
 import { AnimatedPressable } from "../../components/motion";
-import { AvatarCircle } from "../../components/ui";
+import { AvatarCircle, ThemedRefresh } from "../../components/ui";
 import { useSession } from "../../providers/session";
-import { useResource } from "../../hooks/useResource";
+import { useResource, useRefresh } from "../../hooks/useResource";
 import { listTeacherStudents, listPendingStudentsForTeacher } from "../../lib/erp";
 
 export function HTStudentsScreen() {
@@ -18,7 +18,7 @@ export function HTStudentsScreen() {
   const [search, setSearch] = useState("");
   const [searchVisible, setSearchVisible] = useState(false);
 
-  const { data: students, loading, error } = useResource(
+  const { data: students, loading, error, reload: reloadStudents } = useResource(
     async () => {
       if (!profile) return [];
       return listTeacherStudents(profile);
@@ -26,7 +26,7 @@ export function HTStudentsScreen() {
     [profile?.userId],
   );
 
-  const { data: pendingStudents } = useResource(
+  const { data: pendingStudents, reload: reloadPending } = useResource(
     async () => {
       if (!profile) return [];
       return listPendingStudentsForTeacher(profile);
@@ -34,6 +34,9 @@ export function HTStudentsScreen() {
     [profile?.userId],
   );
   const pendingCount = pendingStudents?.length ?? 0;
+  const { refreshing, onRefresh } = useRefresh(() =>
+    Promise.all([reloadStudents(), reloadPending()]),
+  );
 
   const classNames: string[] = Array.from(
     new Set(profile?.teacherClassNames ?? [])
@@ -52,7 +55,11 @@ export function HTStudentsScreen() {
 
   return (
     <View style={{ flex: 1, backgroundColor: D.bg }}>
-      <ScrollView contentContainerStyle={{ paddingBottom: 140 }} showsVerticalScrollIndicator={false}>
+      <ScrollView
+        contentContainerStyle={{ paddingBottom: 140 }}
+        showsVerticalScrollIndicator={false}
+        refreshControl={<ThemedRefresh refreshing={refreshing} onRefresh={onRefresh} />}
+      >
 
         {/* Heading Section */}
         <View style={[s.headerSection, { paddingTop: insets.top + 20 }]}>

@@ -2,12 +2,13 @@ import { router, useLocalSearchParams } from "expo-router";
 import { navigateBack } from "../lib/navigation";
 import { useMemo, useState } from "react";
 import { Linking, StyleSheet, Text, View, ScrollView } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
-import { ErrorCard, LoadingCard, D, MOBILE_BOTTOM_SPACING } from "../components/ui";
+import { ErrorCard, LoadingCard, D, MOBILE_BOTTOM_SPACING, ThemedRefresh } from "../components/ui";
 import { AnimatedPressable } from "../components/motion";
 import { formatDateLabel } from "../lib/date";
 import { listLearningResourcesForProfile, type AttachmentMeta } from "../lib/erp";
-import { useResource } from "../hooks/useResource";
+import { useResource, useRefresh } from "../hooks/useResource";
 import { useSession } from "../providers/session";
 import { subjectColor, subjectBgColor } from "./studentUtils";
 
@@ -35,6 +36,8 @@ function SubjectBadge({ subject }: { subject: string }) {
 
 export function StudentMaterialsScreen() {
   const { resource } = useMaterialsResource();
+  const insets = useSafeAreaInsets();
+  const { refreshing, onRefresh } = useRefresh(resource.reload);
   const [subject, setSubject] = useState("All");
 
   const subjects = useMemo(() => {
@@ -55,7 +58,11 @@ export function StudentMaterialsScreen() {
   }, [resource.data, subject]);
 
   return (
-    <ScrollView style={styles.container} contentContainerStyle={styles.content}>
+    <ScrollView
+      style={styles.container}
+      contentContainerStyle={[styles.content, { paddingTop: insets.top + 16 }]}
+      refreshControl={<ThemedRefresh refreshing={refreshing} onRefresh={onRefresh} />}
+    >
       {/* Header */}
       <View style={styles.header}>
         <AnimatedPressable onPress={() => navigateBack(router)} style={styles.iconBtn}>

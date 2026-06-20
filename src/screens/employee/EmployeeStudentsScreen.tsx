@@ -5,9 +5,9 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useState } from "react";
 import { D } from "../../components/theme";
 import { AnimatedPressable } from "../../components/motion";
-import { AvatarCircle } from "../../components/ui";
+import { AvatarCircle, ThemedRefresh } from "../../components/ui";
 import { useSession } from "../../providers/session";
-import { useResource } from "../../hooks/useResource";
+import { useResource, useRefresh } from "../../hooks/useResource";
 import { listEmployeeStudents } from "../../lib/erp";
 import { listStudentFees } from "../../lib/fees";
 
@@ -21,7 +21,7 @@ export function EmployeeStudentsScreen() {
   const [search, setSearch] = useState("");
   const [searchVisible, setSearchVisible] = useState(false);
 
-  const { data, loading, error } = useResource(
+  const { data, loading, error, reload } = useResource(
     async () => {
       if (!profile) return { students: [], dueByStudent: {} as Record<string, number> };
       const [students, fees] = await Promise.all([listEmployeeStudents(profile), listStudentFees(profile)]);
@@ -35,6 +35,7 @@ export function EmployeeStudentsScreen() {
     [profile?.userId],
   );
 
+  const { refreshing, onRefresh } = useRefresh(reload);
   const students = data?.students ?? [];
   const dueByStudent = data?.dueByStudent ?? {};
   const canRegisterStudents = profile?.permissions?.includes("register_students");
@@ -56,7 +57,11 @@ export function EmployeeStudentsScreen() {
 
   return (
     <View style={{ flex: 1, backgroundColor: D.bg }}>
-      <ScrollView contentContainerStyle={{ paddingBottom: 140 }} showsVerticalScrollIndicator={false}>
+      <ScrollView
+        contentContainerStyle={{ paddingBottom: 140 }}
+        showsVerticalScrollIndicator={false}
+        refreshControl={<ThemedRefresh refreshing={refreshing} onRefresh={onRefresh} />}
+      >
         <View style={[s.headerSection, { paddingTop: insets.top + 20 }]}>
           <View style={s.titleRow}>
             <Text style={s.pageTitle}>Students</Text>

@@ -5,8 +5,9 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useSession } from "../../providers/session";
 import { D } from "../../components/theme";
 import { AnimatedPressable, Stagger } from "../../components/motion";
+import { ThemedRefresh } from "../../components/ui";
 import { LinearGradient } from "expo-linear-gradient";
-import { useCachedResource } from "../../hooks/useResource";
+import { useCachedResource, useRefresh } from "../../hooks/useResource";
 import { listDoubtsForTeacher, listTeacherStudents, listTeacherResults, listTeacherTimetable } from "../../lib/erp";
 
 const quickActions = [
@@ -31,7 +32,7 @@ export function TeacherHomeScreen() {
   const insets = useSafeAreaInsets();
   const { profile } = useSession();
 
-  const { data: doubts } = useCachedResource(
+  const { data: doubts, reload: reloadDoubts } = useCachedResource(
     `teacher-doubts:${profile?.userId ?? "anon"}`,
     async () => {
       if (!profile) return [];
@@ -40,7 +41,7 @@ export function TeacherHomeScreen() {
     [profile?.userId],
   );
 
-  const { data: students } = useCachedResource(
+  const { data: students, reload: reloadStudents } = useCachedResource(
     `teacher-students:${profile?.userId ?? "anon"}`,
     async () => {
       if (!profile) return [];
@@ -49,7 +50,7 @@ export function TeacherHomeScreen() {
     [profile?.userId],
   );
 
-  const { data: results } = useCachedResource(
+  const { data: results, reload: reloadResults } = useCachedResource(
     `teacher-results:${profile?.userId ?? "anon"}`,
     async () => {
       if (!profile) return [];
@@ -58,13 +59,17 @@ export function TeacherHomeScreen() {
     [profile?.userId],
   );
 
-  const { data: timetable } = useCachedResource(
+  const { data: timetable, reload: reloadTimetable } = useCachedResource(
     `teacher-timetable:${profile?.userId ?? "anon"}`,
     async () => {
       if (!profile) return { timetableEntries: [], tests: [] };
       return listTeacherTimetable(profile);
     },
     [profile?.userId],
+  );
+
+  const { refreshing, onRefresh } = useRefresh(() =>
+    Promise.all([reloadDoubts(), reloadStudents(), reloadResults(), reloadTimetable()]),
   );
 
   const openDoubtsCount = (doubts ?? []).filter((d) => d.status === "open").length;
@@ -156,7 +161,11 @@ export function TeacherHomeScreen() {
 
   return (
     <View style={{ flex: 1, backgroundColor: D.bg }}>
-      <ScrollView contentContainerStyle={{ paddingBottom: 140 }} showsVerticalScrollIndicator={false}>
+      <ScrollView
+        contentContainerStyle={{ paddingBottom: 140 }}
+        showsVerticalScrollIndicator={false}
+        refreshControl={<ThemedRefresh refreshing={refreshing} onRefresh={onRefresh} />}
+      >
         {/* Gradient header */}
         <LinearGradient
           colors={[D.primary, D.primaryBtn, "#8B5CF6"]}

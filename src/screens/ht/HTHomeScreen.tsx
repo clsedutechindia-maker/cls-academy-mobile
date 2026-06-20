@@ -5,8 +5,9 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useSession } from "../../providers/session";
 import { D } from "../../components/theme";
 import { AnimatedPressable, Stagger } from "../../components/motion";
+import { ThemedRefresh } from "../../components/ui";
 import { LinearGradient } from "expo-linear-gradient";
-import { useCachedResource } from "../../hooks/useResource";
+import { useCachedResource, useRefresh } from "../../hooks/useResource";
 import { listDoubtsForTeacher, listPendingStudentsForTeacher, listTeacherTimetable } from "../../lib/erp";
 
 const quickActions = [
@@ -32,7 +33,7 @@ export function HTHomeScreen() {
   const insets = useSafeAreaInsets();
   const { profile } = useSession();
 
-  const { data: doubts } = useCachedResource(
+  const { data: doubts, reload: reloadDoubts } = useCachedResource(
     `ht-doubts:${profile?.userId ?? "anon"}`,
     async () => {
       if (!profile) return [];
@@ -41,7 +42,7 @@ export function HTHomeScreen() {
     [profile?.userId],
   );
 
-  const { data: pendingStudents } = useCachedResource(
+  const { data: pendingStudents, reload: reloadPending } = useCachedResource(
     `ht-pending:${profile?.userId ?? "anon"}`,
     async () => {
       if (!profile) return [];
@@ -50,13 +51,17 @@ export function HTHomeScreen() {
     [profile?.userId],
   );
 
-  const { data: timetable } = useCachedResource(
+  const { data: timetable, reload: reloadTimetable } = useCachedResource(
     `ht-timetable:${profile?.userId ?? "anon"}`,
     async () => {
       if (!profile) return { timetableEntries: [], tests: [] };
       return listTeacherTimetable(profile);
     },
     [profile?.userId],
+  );
+
+  const { refreshing, onRefresh } = useRefresh(() =>
+    Promise.all([reloadDoubts(), reloadPending(), reloadTimetable()]),
   );
 
   const openDoubtsCount = (doubts ?? []).filter((d) => d.status === "open").length;
@@ -137,7 +142,11 @@ export function HTHomeScreen() {
 
   return (
     <View style={{ flex: 1, backgroundColor: D.bg }}>
-      <ScrollView contentContainerStyle={{ paddingBottom: 100 }} showsVerticalScrollIndicator={false}>
+      <ScrollView
+        contentContainerStyle={{ paddingBottom: 100 }}
+        showsVerticalScrollIndicator={false}
+        refreshControl={<ThemedRefresh refreshing={refreshing} onRefresh={onRefresh} />}
+      >
         {/* Purple gradient header */}
         <LinearGradient
           colors={[D.primary, D.primaryBtn, "#8B5CF6"]}

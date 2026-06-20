@@ -14,18 +14,8 @@ import {
 import Animated, { FadeInDown } from "react-native-reanimated";
 import { LinearGradient } from "expo-linear-gradient";
 import { Ionicons } from "@expo/vector-icons";
-import * as WebBrowser from "expo-web-browser";
 import { useSession } from "../../src/providers/session";
 import { D } from "../../src/components/theme";
-
-// Self-signup pages live on the web app; mobile just links out to them. Each
-// submits approvalStatus="pending" — access unlocks after an admin approves.
-const WEB_BASE = (process.env.EXPO_PUBLIC_WEB_BASE_URL || "https://cls-academy.vercel.app").replace(/\/$/, "");
-const STAFF_LINKS: { label: string; sub: string; path: string; icon: keyof typeof Ionicons.glyphMap; color: string; bg: string }[] = [
-  { label: "Teacher sign-up", sub: "Register as faculty", path: "/teacher-signup", icon: "book-outline", color: "#10B981", bg: "#F0FDF4" },
-  { label: "Office staff sign-up", sub: "Employee / front-desk", path: "/employee-signup", icon: "briefcase-outline", color: "#F59E0B", bg: "#FFFBEB" },
-  { label: "Admin sign-up", sub: "Management access", path: "/admin-signup", icon: "shield-checkmark-outline", color: "#EF4444", bg: "#FEF2F2" },
-];
 
 export default function SignInRoute() {
   const { role, signIn, error, isReady } = useSession();
@@ -166,26 +156,6 @@ export default function SignInRoute() {
                 </Text>
               </View>
 
-              {/* Staff self-registration — opens the web signup pages */}
-              <View style={s.staffBlock}>
-                <Text style={s.staffHeading}>New staff member? Register here</Text>
-                {STAFF_LINKS.map((l) => (
-                  <Pressable
-                    key={l.path}
-                    onPress={() => void WebBrowser.openBrowserAsync(`${WEB_BASE}${l.path}`)}
-                    style={s.staffRow}
-                  >
-                    <View style={[s.staffIcon, { backgroundColor: l.bg }]}>
-                      <Ionicons name={l.icon} size={16} color={l.color} />
-                    </View>
-                    <View style={{ flex: 1 }}>
-                      <Text style={s.staffLabel}>{l.label}</Text>
-                      <Text style={s.staffSub}>{l.sub}</Text>
-                    </View>
-                    <Ionicons name="open-outline" size={16} color={D.outline} />
-                  </Pressable>
-                ))}
-              </View>
             </Animated.View>
           </ScrollView>
         </KeyboardAvoidingView>
@@ -308,10 +278,4 @@ const s = StyleSheet.create({
   btnPrimaryText: { color: "#fff", fontFamily: D.fontBold, fontSize: 15 },
   note: { flexDirection: "row", alignItems: "flex-start", gap: 8, backgroundColor: D.surfaceLow, borderRadius: 12, padding: 12 },
   noteText: { flex: 1, fontSize: 12, fontFamily: D.font, color: D.onSurfaceVariant, lineHeight: 18 },
-  staffBlock: { gap: 8, marginTop: 2 },
-  staffHeading: { fontSize: 12.5, fontFamily: D.fontBold, color: D.onSurfaceVariant, textAlign: "center", marginBottom: 2 },
-  staffRow: { flexDirection: "row", alignItems: "center", gap: 12, backgroundColor: D.surfaceLow, borderRadius: 12, padding: 12, borderWidth: 1, borderColor: D.outlineVariant },
-  staffIcon: { width: 34, height: 34, borderRadius: 10, alignItems: "center", justifyContent: "center" },
-  staffLabel: { fontSize: 13, fontFamily: D.fontBold, color: D.onSurface, letterSpacing: -0.1 },
-  staffSub: { fontSize: 11, fontFamily: D.font, color: D.outline, marginTop: 1 },
 });

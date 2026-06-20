@@ -4,10 +4,10 @@ import { router } from "expo-router";
 import { navigateBack } from "../lib/navigation";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useState } from "react";
-import { D, MOBILE_BOTTOM_SPACING } from "../components/ui";
+import { D, MOBILE_BOTTOM_SPACING, ThemedRefresh } from "../components/ui";
 import { AnimatedPressable } from "../components/motion";
 import { useSession } from "../providers/session";
-import { useResource } from "../hooks/useResource";
+import { useResource, useRefresh } from "../hooks/useResource";
 import { listResultsForAdmin } from "../lib/erp";
 
 const subjectColor: Record<string, { text: string; bg: string }> = {
@@ -35,13 +35,14 @@ export function AdminResultsScreen() {
   const [search, setSearch] = useState("");
   const [searchVisible, setSearchVisible] = useState(false);
 
-  const { data: results, loading, error } = useResource(
+  const { data: results, loading, error, reload } = useResource(
     async () => {
       if (!adminRecord) return [];
       return listResultsForAdmin(adminRecord);
     },
     [adminRecord?.role, adminRecord?.centreId, adminRecord?.regionId],
   );
+  const { refreshing, onRefresh } = useRefresh(reload);
 
   const all = results ?? [];
   const classNames = Array.from(new Set(all.map((r) => r.className).filter(Boolean)));
@@ -116,7 +117,11 @@ export function AdminResultsScreen() {
         )}
       </View>
 
-      <ScrollView contentContainerStyle={{ paddingHorizontal: 18, paddingBottom: MOBILE_BOTTOM_SPACING }} showsVerticalScrollIndicator={false}>
+      <ScrollView
+        contentContainerStyle={{ paddingHorizontal: 18, paddingBottom: MOBILE_BOTTOM_SPACING }}
+        showsVerticalScrollIndicator={false}
+        refreshControl={<ThemedRefresh refreshing={refreshing} onRefresh={onRefresh} />}
+      >
         <View style={s.filterRow}>
           <ScrollView horizontal showsHorizontalScrollIndicator={false} style={s.chipsScroll} contentContainerStyle={s.chipsRow}>
             {subjects.map((subj) => (

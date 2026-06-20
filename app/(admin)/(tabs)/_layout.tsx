@@ -4,6 +4,7 @@ import type { ColorValue } from "react-native";
 import { View } from "react-native";
 import { useEffect } from "react";
 import Animated, { useAnimatedStyle, useSharedValue, withSpring } from "react-native-reanimated";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { D } from "../../../src/components/ui";
 
 type IoniconsName = React.ComponentProps<typeof Ionicons>["name"];
@@ -41,6 +42,7 @@ function TabIcon(name: IoniconsName, activeName: IoniconsName) {
 }
 
 export default function AdminTabsLayout() {
+  const insets = useSafeAreaInsets();
   return (
     <Tabs
       backBehavior="history"
@@ -51,7 +53,7 @@ export default function AdminTabsLayout() {
         animation: "shift",
         tabBarStyle: {
           position: "absolute",
-          bottom: 18,
+          bottom: Math.max(insets.bottom + 8, 18),
           left: 14,
           right: 14,
           backgroundColor: "#ffffff",

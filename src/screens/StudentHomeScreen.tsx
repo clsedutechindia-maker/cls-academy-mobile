@@ -1,7 +1,7 @@
 import { router } from "expo-router";
 import { StyleSheet, Text, View, ScrollView } from "react-native";
 import { useMemo } from "react";
-import { useCachedResource } from "../hooks/useResource";
+import { useCachedResource, useRefresh } from "../hooks/useResource";
 import {
   listAnnouncementsForProfile,
   listLearningResourcesForProfile,
@@ -11,7 +11,7 @@ import {
 } from "../lib/erp";
 import { formatDateLabel } from "../lib/date";
 import { useSession } from "../providers/session";
-import { EmptyCard, ErrorCard, LoadingCard, D, MOBILE_BOTTOM_SPACING } from "../components/ui";
+import { EmptyCard, ErrorCard, LoadingCard, D, MOBILE_BOTTOM_SPACING, ThemedRefresh } from "../components/ui";
 import { attendancePercent, daysRemaining, monthKey, percent, resultDelta, subjectBgColor, subjectColor } from "./studentUtils";
 import { Ionicons } from "@expo/vector-icons";
 import { AnimatedPressable, Stagger } from "../components/motion";
@@ -68,13 +68,19 @@ export function StudentHomeScreen() {
   const initials = profile?.name?.split(" ").map((n) => n[0]).join("").substring(0, 2).toUpperCase() || "ST";
   const batchMeta = [profile?.studentClass || "Class 11 · Section B", `Roll ${profile?.rollNumber || "--"}`].filter(Boolean).join(" · ");
 
+  const { refreshing, onRefresh } = useRefresh(resource.reload);
+
   if (resource.loading) return <ScreenWrap><LoadingCard label="Loading your dashboard..." /></ScreenWrap>;
   if (resource.error) return <ScreenWrap><ErrorCard message={resource.error} onRetry={() => void resource.reload()} /></ScreenWrap>;
   if (!resource.data) return <ScreenWrap><EmptyCard title="Profile pending" message="Your student profile is still being prepared." /></ScreenWrap>;
 
   return (
     <View style={styles.container}>
-      <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+      <ScrollView
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
+        refreshControl={<ThemedRefresh refreshing={refreshing} onRefresh={onRefresh} />}
+      >
         {/* Top bar / greeting */}
         <LinearGradient
           colors={[D.primary, D.primaryBtn, '#8B5CF6']}
