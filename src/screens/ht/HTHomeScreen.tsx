@@ -4,7 +4,7 @@ import { router } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useSession } from "../../providers/session";
 import { D } from "../../components/theme";
-import { AnimatedPressable } from "../../components/motion";
+import { AnimatedPressable, Stagger } from "../../components/motion";
 import { LinearGradient } from "expo-linear-gradient";
 import { useCachedResource } from "../../hooks/useResource";
 import { listDoubtsForTeacher, listPendingStudentsForTeacher, listTeacherTimetable } from "../../lib/erp";
@@ -172,6 +172,7 @@ export function HTHomeScreen() {
 
         {/* Content */}
         <View style={s.contentOverlap}>
+          <Stagger>
           {/* Summary 2×2 grid — FeatureCard style */}
           <View style={s.grid2}>
             {summaryCards.map((c) => (
@@ -252,6 +253,7 @@ export function HTHomeScreen() {
               ))
             )}
           </View>
+          </Stagger>
 
           <View style={{ height: 124 }} />
         </View>

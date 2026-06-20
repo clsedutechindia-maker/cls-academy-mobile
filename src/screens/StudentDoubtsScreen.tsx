@@ -1,9 +1,10 @@
 import { router, useLocalSearchParams } from "expo-router";
 import { navigateBack } from "../lib/navigation";
 import { useEffect, useMemo, useState } from "react";
-import { Linking, StyleSheet, Text, TextInput, View, Pressable, ScrollView } from "react-native";
+import { Linking, StyleSheet, Text, TextInput, View, ScrollView } from "react-native";
 import { Card, EmptyCard, ErrorCard, LoadingCard, MOBILE_BOTTOM_SPACING, SectionListItem, uiStyles, D } from "../components/ui";
 import { formatDateTimeLabel } from "../lib/date";
+import { AnimatedPressable, Stagger } from "../components/motion";
 import {
   createStudentDoubt,
   createStudentDoubtReply,
@@ -73,13 +74,13 @@ export function StudentDoubtsScreen() {
     <View style={styles.page}>
       <ScrollView contentContainerStyle={[styles.pageContent, { paddingTop: Math.max(insets.top + 24, 56) }]} showsVerticalScrollIndicator={false}>
         <View style={styles.topHeader}>
-          <Pressable onPress={() => navigateBack(router)} style={styles.iconBtn}>
+          <AnimatedPressable onPress={() => navigateBack(router)} style={styles.iconBtn}>
             <Ionicons name="chevron-back" size={20} color={D.onSurface} />
-          </Pressable>
+          </AnimatedPressable>
           <Text style={styles.topTitle}>Doubts</Text>
-          <Pressable onPress={() => router.push("/(student)/submit-doubt")} style={styles.plusBtn}>
+          <AnimatedPressable onPress={() => router.push("/(student)/submit-doubt")} style={styles.plusBtn}>
             <Ionicons name="add" size={18} color={D.primary} />
-          </Pressable>
+          </AnimatedPressable>
         </View>
 
         {resource.loading ? (
@@ -90,8 +91,9 @@ export function StudentDoubtsScreen() {
           <EmptyCard title="No doubts yet" message="Tap + New to send your first doubt to a teacher." />
         ) : (
           <View style={styles.listContainer}>
+            <Stagger>
             {resource.data.doubts.map((doubt) => (
-              <Pressable
+              <AnimatedPressable
                 key={doubt.id}
                 onPress={() => router.push(`/(student)/doubt-detail?id=${encodeURIComponent(doubt.id)}`)}
                 style={styles.listItem}
@@ -108,8 +110,9 @@ export function StudentDoubtsScreen() {
                   <View style={styles.listMetaDot} />
                   <Text style={styles.listMetaTextLight}>{formatDateTimeLabel(doubt.createdAtIso)}</Text>
                 </View>
-              </Pressable>
+              </AnimatedPressable>
             ))}
+            </Stagger>
           </View>
         )}
 
@@ -152,9 +155,9 @@ export function StudentDoubtDetailScreen() {
     <View style={styles.page}>
       <ScrollView contentContainerStyle={[styles.pageContent, { paddingTop: Math.max(insets.top + 24, 56) }]} showsVerticalScrollIndicator={false}>
         <View style={styles.detailTopHeader}>
-          <Pressable onPress={() => navigateBack(router)} style={styles.iconBtn}>
+          <AnimatedPressable onPress={() => navigateBack(router)} style={styles.iconBtn}>
             <Ionicons name="chevron-back" size={20} color={D.onSurface} />
-          </Pressable>
+          </AnimatedPressable>
           <View style={{ flex: 1 }}>
             {!resource.loading && doubt ? <DSubjChip s={doubt.subjectName || "General"} /> : <Text style={styles.topTitle}>Doubt Detail</Text>}
           </View>
@@ -228,9 +231,9 @@ export function StudentDoubtDetailScreen() {
                   <Text style={styles.charCountText}>{replyText.length} / 300</Text>
                 </View>
                 {feedback ? <Text style={uiStyles.muted}>{feedback}</Text> : null}
-                <Pressable onPress={submitReply} disabled={!canReply} style={[styles.submitBtn, !canReply && styles.submitBtnDisabled]}>
+                <AnimatedPressable onPress={submitReply} disabled={!canReply} style={[styles.submitBtn, !canReply && styles.submitBtnDisabled]}>
                   <Text style={styles.submitBtnText}>{submitting ? "Sending..." : "Send follow-up"}</Text>
-                </Pressable>
+                </AnimatedPressable>
               </>
             )}
           </>
@@ -294,9 +297,9 @@ export function StudentSubmitDoubtScreen() {
     <View style={styles.page}>
       <ScrollView contentContainerStyle={[styles.pageContent, { paddingTop: Math.max(insets.top + 24, 56) }]} showsVerticalScrollIndicator={false}>
         <View style={styles.topHeader}>
-          <Pressable onPress={() => navigateBack(router)} style={styles.iconBtn}>
+          <AnimatedPressable onPress={() => navigateBack(router)} style={styles.iconBtn}>
             <Ionicons name="chevron-back" size={20} color={D.onSurface} />
-          </Pressable>
+          </AnimatedPressable>
           <Text style={styles.topTitle}>Submit Doubt</Text>
           <View style={styles.headerSpacer} />
         </View>
@@ -317,13 +320,13 @@ export function StudentSubmitDoubtScreen() {
                 const isSel = s === selSubjName;
                 const firstMapping = subjectsMap.get(s)?.[0];
                 return (
-                  <Pressable
+                  <AnimatedPressable
                     key={s}
                     onPress={() => firstMapping && setSelectedMappingId(firstMapping.id)}
                     style={[styles.pickerChip, isSel && { backgroundColor: sc.c, borderColor: sc.c }]}
                   >
                     <Text style={[styles.pickerChipText, isSel && { color: "#fff" }]}>{s}</Text>
-                  </Pressable>
+                  </AnimatedPressable>
                 );
               })}
             </View>
@@ -335,7 +338,7 @@ export function StudentSubmitDoubtScreen() {
               {selTeachers.map((t: any) => {
                 const isSel = t.id === selectedMappingId;
                 return (
-                  <Pressable
+                  <AnimatedPressable
                     key={t.id}
                     onPress={() => setSelectedMappingId(t.id)}
                     style={[styles.pickerChip, isSel && styles.pickerChipActive]}
@@ -343,7 +346,7 @@ export function StudentSubmitDoubtScreen() {
                     <Text style={[styles.pickerChipText, isSel && styles.pickerChipTextActive]}>
                       {t.teacherName || "Pending"}
                     </Text>
-                  </Pressable>
+                  </AnimatedPressable>
                 );
               })}
             </View>
@@ -372,13 +375,13 @@ export function StudentSubmitDoubtScreen() {
 
           {feedback ? <Text style={uiStyles.muted}>{feedback}</Text> : null}
 
-          <Pressable
+          <AnimatedPressable
             onPress={submit}
             disabled={!canSubmit}
             style={[styles.submitBtn, !canSubmit && styles.submitBtnDisabled]}
           >
             <Text style={styles.submitBtnText}>{submitting ? "Submitting..." : "Submit doubt"}</Text>
-          </Pressable>
+          </AnimatedPressable>
           </>
         )}
 

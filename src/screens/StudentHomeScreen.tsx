@@ -14,7 +14,7 @@ import { useSession } from "../providers/session";
 import { EmptyCard, ErrorCard, LoadingCard, D, MOBILE_BOTTOM_SPACING } from "../components/ui";
 import { attendancePercent, daysRemaining, monthKey, percent, resultDelta, subjectBgColor, subjectColor } from "./studentUtils";
 import { Ionicons } from "@expo/vector-icons";
-import { AnimatedPressable } from "../components/motion";
+import { AnimatedPressable, Stagger } from "../components/motion";
 import { LinearGradient } from "expo-linear-gradient";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
@@ -109,6 +109,7 @@ export function StudentHomeScreen() {
 
         {/* Content overlap */}
         <View style={styles.contentOverlap}>
+          <Stagger>
         {/* Attendance hero card */}
           <View style={styles.attendanceCard}>
             <View style={styles.attHeaderRow}>
@@ -260,6 +261,7 @@ export function StudentHomeScreen() {
             <QuickLink icon="warning-outline" label="Complaints" color="#EF4444" onPress={() => router.push("/(student)/complaints")} />
           </View>
 
+          </Stagger>
         </View>
       </ScrollView>
     </View>

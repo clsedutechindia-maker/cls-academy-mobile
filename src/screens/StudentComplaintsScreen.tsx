@@ -1,9 +1,10 @@
 import { router, useLocalSearchParams } from "expo-router";
 import { navigateBack } from "../lib/navigation";
 import { useMemo, useState } from "react";
-import { Linking, ScrollView, StyleSheet, Text, TextInput, View, Pressable } from "react-native";
+import { Linking, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import { Card, EmptyCard, ErrorCard, LoadingCard, MOBILE_BOTTOM_SPACING, SectionListItem, uiStyles, D } from "../components/ui";
 import { formatDateTimeLabel } from "../lib/date";
+import { AnimatedPressable, Stagger } from "../components/motion";
 import { createStudentComplaint, listStudentComplaints, type StudentComplaintRecord } from "../lib/erp";
 import { useResource } from "../hooks/useResource";
 import { useSession } from "../providers/session";
@@ -39,13 +40,13 @@ export function StudentComplaintsScreen() {
     <View style={styles.page}>
       <ScrollView contentContainerStyle={[styles.pageContent, { paddingTop: Math.max(insets.top + 24, 56) }]} showsVerticalScrollIndicator={false}>
         <View style={styles.topHeader}>
-          <Pressable onPress={() => navigateBack(router)} style={styles.iconBtn}>
+          <AnimatedPressable onPress={() => navigateBack(router)} style={styles.iconBtn}>
             <Ionicons name="chevron-back" size={20} color={D.onSurface} />
-          </Pressable>
+          </AnimatedPressable>
           <Text style={styles.topTitle}>Complaints</Text>
-          <Pressable onPress={() => router.push("/(student)/new-complaint")} style={styles.plusBtn}>
+          <AnimatedPressable onPress={() => router.push("/(student)/new-complaint")} style={styles.plusBtn}>
             <Ionicons name="add" size={18} color={D.primary} />
-          </Pressable>
+          </AnimatedPressable>
         </View>
 
         {resource.loading ? (
@@ -56,8 +57,9 @@ export function StudentComplaintsScreen() {
           <EmptyCard title="No complaints yet" message="Tap + New to raise your first issue." />
         ) : (
           <View style={styles.listContainer}>
+            <Stagger>
             {resource.data.map((complaint) => (
-              <Pressable
+              <AnimatedPressable
                 key={complaint.id}
                 onPress={() => router.push(`/(student)/complaint-detail?id=${encodeURIComponent(complaint.id)}`)}
                 style={styles.listItem}
@@ -79,8 +81,9 @@ export function StudentComplaintsScreen() {
                     </Text>
                   </View>
                 ) : null}
-              </Pressable>
+              </AnimatedPressable>
             ))}
+            </Stagger>
           </View>
         )}
 
@@ -100,9 +103,9 @@ export function StudentComplaintDetailScreen() {
     <View style={styles.page}>
       <ScrollView contentContainerStyle={[styles.pageContent, { paddingTop: Math.max(insets.top + 24, 56) }]} showsVerticalScrollIndicator={false}>
         <View style={styles.detailTopHeader}>
-          <Pressable onPress={() => navigateBack(router)} style={styles.iconBtn}>
+          <AnimatedPressable onPress={() => navigateBack(router)} style={styles.iconBtn}>
             <Ionicons name="chevron-back" size={20} color={D.onSurface} />
-          </Pressable>
+          </AnimatedPressable>
           <Text style={styles.detailTopTitle} numberOfLines={2}>
             {complaint?.subject || "Complaint Detail"}
           </Text>
@@ -184,9 +187,9 @@ export function StudentNewComplaintScreen() {
     <View style={styles.page}>
       <ScrollView contentContainerStyle={[styles.pageContent, { paddingTop: Math.max(insets.top + 24, 56) }]} showsVerticalScrollIndicator={false}>
         <View style={styles.topHeader}>
-          <Pressable onPress={() => navigateBack(router)} style={styles.iconBtn}>
+          <AnimatedPressable onPress={() => navigateBack(router)} style={styles.iconBtn}>
             <Ionicons name="chevron-back" size={20} color={D.onSurface} />
-          </Pressable>
+          </AnimatedPressable>
           <Text style={styles.topTitle}>New Complaint</Text>
           <View style={styles.headerSpacer} />
         </View>
@@ -224,9 +227,9 @@ export function StudentNewComplaintScreen() {
 
         {feedback ? <Text style={uiStyles.muted}>{feedback}</Text> : null}
 
-        <Pressable onPress={submit} disabled={!canSubmit} style={[styles.submitBtn, !canSubmit && styles.submitBtnDisabled]}>
+        <AnimatedPressable onPress={submit} disabled={!canSubmit} style={[styles.submitBtn, !canSubmit && styles.submitBtnDisabled]}>
           <Text style={styles.submitBtnText}>{submitting ? "Submitting..." : "Submit complaint"}</Text>
-        </Pressable>
+        </AnimatedPressable>
 
       </ScrollView>
     </View>

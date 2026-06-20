@@ -1,5 +1,6 @@
 import { Redirect, Stack, usePathname } from "expo-router";
 import { useSession } from "../../src/providers/session";
+import { stackScreenOptions } from "../../src/lib/screenTransitions";
 
 export default function TeacherLayout() {
   const { role, isReady, profile } = useSession();
@@ -16,5 +17,5 @@ export default function TeacherLayout() {
   ) {
     return <Redirect href="/(teacher)/complete-profile" />;
   }
-  return <Stack screenOptions={{ headerShown: false }} />;
+  return <Stack screenOptions={stackScreenOptions} />;
 }

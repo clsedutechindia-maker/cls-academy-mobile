@@ -5,6 +5,9 @@
   "build": {
     "preview": {
       "distribution": "internal",
+      "env": {
+        "EXPO_PUBLIC_WEB_BASE_URL": "https://cls-academy.vercel.app"
+      },
       "android": {
         "buildType": "apk"
       },
@@ -14,6 +17,9 @@
     },
     "production": {
       "autoIncrement": true,
+      "env": {
+        "EXPO_PUBLIC_WEB_BASE_URL": "https://cls-academy.vercel.app"
+      },
       "android": {
         "buildType": "app-bundle"
       },

@@ -3,6 +3,7 @@ import { useMemo } from "react";
 import { D } from "../../components/theme";
 import { type FeePaymentRecord } from "../../lib/fees";
 import { formatDateLabel } from "../../lib/date";
+import { Animated, fade } from "../../components/motion";
 
 const money = (n: number) => `₹${Number(n || 0).toLocaleString("en-IN")}`;
 
@@ -67,7 +68,7 @@ export function FeeLedgerList({
         </View>
       )}
       {!loading && !error && payments.length > 0 && (
-        <View style={s.card}>
+        <Animated.View entering={fade()} style={s.card}>
           {payments.map((p, i) => {
             const isRefund = p.amount < 0 || p.refunded;
             return (
@@ -99,7 +100,7 @@ export function FeeLedgerList({
               </View>
             );
           })}
-        </View>
+        </Animated.View>
       )}
     </View>
   );

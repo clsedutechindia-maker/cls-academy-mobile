@@ -6,6 +6,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useSession } from "../../providers/session";
 import { D } from "../../components/theme";
 import { AnimatedPressable } from "../../components/motion";
+import { DeleteAccountButton } from "../../components/DeleteAccountButton";
 
 type IoniconsName = React.ComponentProps<typeof Ionicons>["name"];
 
@@ -91,6 +92,8 @@ export function HTAccountScreen() {
             </AnimatedPressable>
           ))}
         </View>
+
+        <DeleteAccountButton />
 
         <Text style={s.versionText}>CLS Academy · v1.0.0</Text>
       </ScrollView>

@@ -10,6 +10,7 @@ import { D, MOBILE_BOTTOM_SPACING } from "../components/ui";
 import { AnimatedPressable } from "../components/motion";
 import { updateStudentProfileContact } from "../lib/erp";
 import { useSession } from "../providers/session";
+import { DeleteAccountButton } from "../components/DeleteAccountButton";
 
 function AccSection({ title, children, action }: { title: string; children: React.ReactNode; action?: React.ReactNode }) {
   return (
@@ -151,6 +152,8 @@ export function StudentAccountScreen() {
       <AnimatedPressable onPress={() => void signOutUser()} style={styles.signOutBtn}>
         <Text style={styles.signOutText}>Sign out</Text>
       </AnimatedPressable>
+
+      <DeleteAccountButton />
 
     </ScrollView>
   );

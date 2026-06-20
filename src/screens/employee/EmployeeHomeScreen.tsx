@@ -4,7 +4,7 @@ import { router } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useSession } from "../../providers/session";
 import { D } from "../../components/theme";
-import { AnimatedPressable } from "../../components/motion";
+import { AnimatedPressable, Stagger } from "../../components/motion";
 import { LinearGradient } from "expo-linear-gradient";
 import { useCachedResource } from "../../hooks/useResource";
 import { listEmployeeResults, listEmployeeClasses, listEmployeeStudents } from "../../lib/erp";
@@ -102,6 +102,7 @@ export function EmployeeHomeScreen() {
         </LinearGradient>
 
         <View style={s.contentOverlap}>
+          <Stagger>
           <View style={s.grid2}>
             {summaryCards.map((c) => (
               <AnimatedPressable key={c.label} style={s.featureCard} onPress={c.onPress}>
@@ -161,6 +162,7 @@ export function EmployeeHomeScreen() {
               ))}
             </View>
           )}
+          </Stagger>
         </View>
       </ScrollView>
     </View>

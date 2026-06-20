@@ -1,8 +1,9 @@
 import { router } from "expo-router";
 import { navigateBack } from "../lib/navigation";
-import { ScrollView, StyleSheet, Text, View, Pressable } from "react-native";
+import { ScrollView, StyleSheet, Text, View } from "react-native";
 import { EmptyCard, ErrorCard, LoadingCard, MOBILE_BOTTOM_SPACING, Pill, uiStyles, D } from "../components/ui";
 import { formatDateTimeLabel } from "../lib/date";
+import { AnimatedPressable, Animated, fade } from "../components/motion";
 import { getStudentNotifications, markStudentNotificationsSeen } from "../lib/erp";
 import { useCachedResource } from "../hooks/useResource";
 import { useSession } from "../providers/session";
@@ -29,14 +30,14 @@ function NotificationRow({
   onPress: () => void;
 }) {
   return (
-    <Pressable onPress={onPress} style={styles.notificationRow}>
+    <AnimatedPressable onPress={onPress} style={styles.notificationRow}>
       <View style={styles.notificationHeaderRow}>
         <Text style={styles.notificationTitle}>{title}</Text>
         <Pill label={type} tone={notificationTone(type)} />
       </View>
       <Text style={styles.notificationMessage}>{message}</Text>
       <Text style={styles.notificationMeta}>{formatDateTimeLabel(createdAtIso)}</Text>
-    </Pressable>
+    </AnimatedPressable>
   );
 }
 
@@ -55,9 +56,9 @@ export function StudentNotificationsScreen() {
     <View style={styles.page}>
       <ScrollView contentContainerStyle={[styles.pageContent, { paddingTop: Math.max(insets.top + 24, 56) }]} showsVerticalScrollIndicator={false}>
         <View style={styles.topHeader}>
-          <Pressable onPress={() => navigateBack(router)} style={styles.iconBtn}>
+          <AnimatedPressable onPress={() => navigateBack(router)} style={styles.iconBtn}>
             <Ionicons name="chevron-back" size={20} color={D.onSurface} />
-          </Pressable>
+          </AnimatedPressable>
           <Text style={styles.topTitle}>Notifications</Text>
           <View style={styles.headerSpacer} />
         </View>
@@ -70,7 +71,7 @@ export function StudentNotificationsScreen() {
           <EmptyCard title="No notifications" message="You are all caught up." />
         ) : (
           <>
-            <View style={styles.listCard}>
+            <Animated.View entering={fade(80)} style={styles.listCard}>
               {items.map((item, index) => (
                 <View key={item.id} style={index < items.length - 1 ? styles.rowBorder : undefined}>
                   <NotificationRow
@@ -82,7 +83,7 @@ export function StudentNotificationsScreen() {
                   />
                 </View>
               ))}
-            </View>
+            </Animated.View>
             <Text style={[uiStyles.muted, { paddingHorizontal: 4 }]}>Opening this screen marks the current notification batch as seen.</Text>
           </>
         )}

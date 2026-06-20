@@ -4,6 +4,7 @@ import { router } from "expo-router";
 import { useSession } from "../providers/session";
 import { AvatarCircle, D } from "../components/ui";
 import { Animated, AnimatedPressable, enter } from "../components/motion";
+import { DeleteAccountButton } from "../components/DeleteAccountButton";
 
 function MenuRow({
   icon,
@@ -106,6 +107,8 @@ export function AccountScreen() {
           <Ionicons name="refresh-outline" size={16} color={D.primaryBtn} />
           <Text style={s.refreshText}>Refresh Access</Text>
         </AnimatedPressable>
+
+        <DeleteAccountButton />
       </ScrollView>
     </SafeAreaView>
   );
