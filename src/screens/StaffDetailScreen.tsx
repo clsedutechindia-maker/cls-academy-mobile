@@ -1,13 +1,27 @@
-import { useMemo, useState } from "react";
-import { ScrollView, StyleSheet, Text, View } from "react-native";
+import { useEffect, useMemo, useState } from "react";
+import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { router } from "expo-router";
 import { navigateBack } from "../lib/navigation";
 import { useResource } from "../hooks/useResource";
-import { listStaffAttendanceForUser } from "../lib/erp";
+import {
+  listStaffAttendanceForUser,
+  listCentres,
+  getUserProfileById,
+  updateStaffAccess,
+  type CentreOption,
+} from "../lib/erp";
 import { D, EmptyCard, ErrorCard, LoadingCard, MOBILE_BOTTOM_SPACING } from "../components/ui";
 import { Animated, AnimatedPressable, CountUp, FadeIn } from "../components/motion";
 import { Ionicons } from "@expo/vector-icons";
+import { showAlert } from "../lib/alert";
+import {
+  CAPABILITY_GROUPS,
+  CAPABILITY_LABELS,
+  DEFAULT_CAPABILITIES_BY_ROLE,
+  normalizeCapabilities,
+  type Capability,
+} from "../shared";
 import type { StaffAttendanceRecord } from "../lib/erp";
 
 const MONTH_NAMES = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
@@ -118,6 +132,167 @@ function AttendanceCalendar({ records, year, month, onPrevMonth, onNextMonth }: 
   );
 }
 
+// Superadmin assigns a staff member their centre + capabilities. Without a centre
+// AND the relevant capability, staff write paths (e.g. logging an inquiry) are
+// blocked by firestore.rules — this card is how access gets granted on mobile.
+function ManageAccessCard({ userId }: { userId: string }) {
+  const profileResource = useResource(() => getUserProfileById(userId), [userId]);
+  const centresResource = useResource(() => listCentres(), []);
+
+  const [centre, setCentre] = useState<CentreOption | null>(null);
+  const [caps, setCaps] = useState<Set<Capability>>(new Set());
+  const [seeded, setSeeded] = useState(false);
+  const [pickerOpen, setPickerOpen] = useState(false);
+  const [saving, setSaving] = useState(false);
+
+  const profile = profileResource.data;
+
+  // Seed local state once the profile + centre list have loaded.
+  useEffect(() => {
+    if (seeded || !profile) return;
+    setCaps(new Set(normalizeCapabilities(profile.permissions)));
+    if (profile.centreId) {
+      const match = (centresResource.data ?? []).find((c) => c.centreId === profile.centreId);
+      setCentre(
+        match ?? {
+          centreId: profile.centreId,
+          centreName: profile.centreName || "Assigned centre",
+          regionId: profile.regionId,
+          regionName: profile.regionName,
+        },
+      );
+    }
+    setSeeded(true);
+  }, [profile, centresResource.data, seeded]);
+
+  if (profileResource.loading) return <LoadingCard label="Loading access..." />;
+  if (profileResource.error) return <ErrorCard message={profileResource.error} onRetry={() => void profileResource.reload()} />;
+  if (!profile) return null;
+
+  // Students are managed elsewhere; this editor is staff-only.
+  if (profile.role === "student") return null;
+
+  const roleDefaults = DEFAULT_CAPABILITIES_BY_ROLE[profile.role] ?? [];
+
+  const toggleCap = (cap: Capability) => {
+    setCaps((prev) => {
+      const next = new Set(prev);
+      if (next.has(cap)) next.delete(cap);
+      else next.add(cap);
+      return next;
+    });
+  };
+
+  const applyDefaults = () => setCaps(new Set(roleDefaults));
+
+  const save = async () => {
+    if (!centre) {
+      showAlert("Pick a centre", "Assign a centre before saving — staff actions are scoped to a centre.");
+      return;
+    }
+    setSaving(true);
+    try {
+      await updateStaffAccess(userId, {
+        centreId: centre.centreId,
+        centreName: centre.centreName,
+        regionId: centre.regionId,
+        regionName: centre.regionName,
+        permissions: Array.from(caps),
+        approve: true,
+      });
+      showAlert("Saved", "Access updated. The staff member can now use their granted features.");
+      void profileResource.reload();
+    } catch (e) {
+      showAlert("Error", e instanceof Error ? e.message : "Could not save access.");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const pending = profile.approvalStatus === "pending";
+
+  return (
+    <View style={access.card}>
+      <View style={access.cardHeadRow}>
+        <Text style={access.cardTitle}>Manage Access</Text>
+        {pending ? <View style={access.pendingPill}><Text style={access.pendingText}>PENDING</Text></View> : null}
+      </View>
+      <Text style={access.cardHint}>Assign a centre and the features this staff member can use.</Text>
+
+      {/* Centre picker */}
+      <Text style={access.label}>CENTRE</Text>
+      <AnimatedPressable onPress={() => setPickerOpen(true)} style={access.centreBtn}>
+        <Ionicons name="business-outline" size={16} color={D.primary} />
+        <Text style={[access.centreBtnText, !centre && { color: D.outline }]} numberOfLines={1}>
+          {centre ? centre.centreName : "Select a centre"}
+        </Text>
+        <Ionicons name="chevron-down" size={16} color={D.outline} />
+      </AnimatedPressable>
+
+      {/* Capabilities */}
+      <View style={access.capHeadRow}>
+        <Text style={access.label}>PERMISSIONS</Text>
+        <AnimatedPressable onPress={applyDefaults}>
+          <Text style={access.defaultsLink}>Use {profile.role} defaults</Text>
+        </AnimatedPressable>
+      </View>
+      {CAPABILITY_GROUPS.map((group) => (
+        <View key={group.label} style={access.group}>
+          <Text style={access.groupLabel}>{group.label}</Text>
+          {group.caps.map((cap) => {
+            const on = caps.has(cap);
+            return (
+              <AnimatedPressable key={cap} onPress={() => toggleCap(cap)} style={access.capRow}>
+                <View style={[access.checkbox, on && access.checkboxOn]}>
+                  {on ? <Ionicons name="checkmark" size={13} color="#fff" /> : null}
+                </View>
+                <Text style={access.capLabel}>{CAPABILITY_LABELS[cap]}</Text>
+              </AnimatedPressable>
+            );
+          })}
+        </View>
+      ))}
+
+      <AnimatedPressable onPress={save} disabled={saving} style={[access.saveBtn, saving && { opacity: 0.6 }]}>
+        <Ionicons name="checkmark-circle" size={18} color="#fff" />
+        <Text style={access.saveText}>{saving ? "Saving…" : pending ? "Approve & Save" : "Save Access"}</Text>
+      </AnimatedPressable>
+
+      <Modal visible={pickerOpen} transparent animationType="fade" onRequestClose={() => setPickerOpen(false)}>
+        <Pressable style={access.modalBackdrop} onPress={() => setPickerOpen(false)}>
+          <Pressable style={access.modalCard} onPress={(e) => e.stopPropagation()}>
+            <Text style={access.modalTitle}>Select centre</Text>
+            <ScrollView style={{ maxHeight: 360 }}>
+              {centresResource.loading ? (
+                <Text style={access.modalEmpty}>Loading centres…</Text>
+              ) : (centresResource.data ?? []).length === 0 ? (
+                <Text style={access.modalEmpty}>No centres found.</Text>
+              ) : (
+                (centresResource.data ?? []).map((c) => (
+                  <AnimatedPressable
+                    key={c.centreId}
+                    onPress={() => { setCentre(c); setPickerOpen(false); }}
+                    style={access.modalRow}
+                  >
+                    <View style={{ flex: 1 }}>
+                      <Text style={access.modalRowName}>{c.centreName}</Text>
+                      {c.regionName ? <Text style={access.modalRowSub}>{c.regionName}</Text> : null}
+                    </View>
+                    {centre?.centreId === c.centreId ? <Ionicons name="checkmark" size={18} color={D.primary} /> : null}
+                  </AnimatedPressable>
+                ))
+              )}
+            </ScrollView>
+            <AnimatedPressable onPress={() => setPickerOpen(false)} style={access.modalClose}>
+              <Text style={access.modalCloseText}>Close</Text>
+            </AnimatedPressable>
+          </Pressable>
+        </Pressable>
+      </Modal>
+    </View>
+  );
+}
+
 type Props = {
   userId: string;
   name: string;
@@ -165,6 +340,7 @@ export function StaffDetailScreen({ userId, name, teacherId, className, centreNa
 
       <Animated.View entering={FadeIn.duration(240)} style={{ flex: 1 }}>
         <ScrollView contentContainerStyle={styles.content}>
+          <ManageAccessCard userId={userId} />
           {attendanceResource.loading ? (
             <LoadingCard label="Loading attendance..." />
           ) : attendanceResource.error ? (
@@ -221,6 +397,47 @@ const cal = StyleSheet.create({
   legendItem: { flexDirection: "row", alignItems: "center", gap: 4 },
   legendDot: { width: 10, height: 10, borderRadius: 3, borderWidth: 1 },
   legendText: { fontSize: 10, color: D.onSurfaceVariant, fontFamily: D.fontMedium },
+});
+
+const access = StyleSheet.create({
+  card: { backgroundColor: D.surface, borderRadius: 14, padding: 14, borderWidth: 1, borderColor: D.outlineVariant, gap: 10 },
+  cardHeadRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
+  cardTitle: { fontSize: 15, fontFamily: D.fontBold, color: D.onSurface, letterSpacing: -0.3 },
+  pendingPill: { backgroundColor: "#fef3c7", paddingVertical: 3, paddingHorizontal: 8, borderRadius: 999 },
+  pendingText: { fontSize: 9.5, fontFamily: D.fontBold, color: "#B45309", letterSpacing: 0.4 },
+  cardHint: { fontSize: 12, fontFamily: D.font, color: D.onSurfaceVariant, lineHeight: 17 },
+  label: { fontSize: 10.5, fontFamily: D.fontBold, color: D.outline, letterSpacing: 0.5 },
+  centreBtn: {
+    flexDirection: "row", alignItems: "center", gap: 10,
+    paddingVertical: 12, paddingHorizontal: 12, borderRadius: 12,
+    backgroundColor: D.surfaceLow, borderWidth: 1, borderColor: D.outlineVariant,
+  },
+  centreBtnText: { flex: 1, fontSize: 14, fontFamily: D.fontMedium, color: D.onSurface },
+  capHeadRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginTop: 2 },
+  defaultsLink: { fontSize: 12, fontFamily: D.fontSemiBold, color: D.primary },
+  group: { gap: 6 },
+  groupLabel: { fontSize: 11, fontFamily: D.fontSemiBold, color: D.onSurfaceVariant, marginTop: 4 },
+  capRow: { flexDirection: "row", alignItems: "center", gap: 10, paddingVertical: 5 },
+  checkbox: {
+    width: 20, height: 20, borderRadius: 6, borderWidth: 1.5, borderColor: D.outline,
+    alignItems: "center", justifyContent: "center", backgroundColor: D.surface,
+  },
+  checkboxOn: { backgroundColor: D.primary, borderColor: D.primary },
+  capLabel: { fontSize: 13.5, fontFamily: D.fontMedium, color: D.onSurface },
+  saveBtn: {
+    flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8,
+    height: 48, borderRadius: 12, backgroundColor: D.primary, marginTop: 6,
+  },
+  saveText: { fontSize: 14, fontFamily: D.fontBold, color: "#fff" },
+  modalBackdrop: { flex: 1, backgroundColor: "rgba(0,0,0,0.4)", justifyContent: "center", padding: 24 },
+  modalCard: { backgroundColor: D.surface, borderRadius: 16, padding: 16, gap: 10 },
+  modalTitle: { fontSize: 15, fontFamily: D.fontBold, color: D.onSurface },
+  modalEmpty: { fontSize: 13, fontFamily: D.font, color: D.outline, paddingVertical: 16, textAlign: "center" },
+  modalRow: { flexDirection: "row", alignItems: "center", gap: 10, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: D.outlineVariant },
+  modalRowName: { fontSize: 14, fontFamily: D.fontMedium, color: D.onSurface },
+  modalRowSub: { fontSize: 11.5, fontFamily: D.font, color: D.outline, marginTop: 1 },
+  modalClose: { height: 44, borderRadius: 10, alignItems: "center", justifyContent: "center", backgroundColor: D.surfaceLow },
+  modalCloseText: { fontSize: 13.5, fontFamily: D.fontSemiBold, color: D.onSurface },
 });
 
 const styles = StyleSheet.create({

@@ -2597,7 +2597,7 @@ export async function listVisibleProfilesForAdmin(_admin: AdminRecord) {
 
   return snapshot.docs
     .map((item) => normalizeUserProfileRecord(item.id, item.data()))
-    .filter((item) => item.role === "student" || item.role === "teacher" || item.role === "team")
+    .filter((item) => item.role === "student" || item.role === "teacher" || item.role === "team" || item.role === "employee")
     .sort((left, right) => left.name.localeCompare(right.name));
 }
 
@@ -3250,6 +3250,77 @@ export async function getPendingApprovalsCount(admin: AdminRecord): Promise<numb
   const constraints = [where("approvalStatus", "==", "pending")];
   const snap = await getDocs(query(col, ...constraints));
   return snap.size;
+}
+
+// ---------------------------------------------------------------------------
+// Staff access management (superadmin assigns a centre + capabilities)
+// ---------------------------------------------------------------------------
+
+export type CentreOption = {
+  centreId: string;
+  centreName: string;
+  regionId: string;
+  regionName: string;
+};
+
+// Centres + regions are world-readable, so a single pass builds the picker list
+// with region names resolved.
+export async function listCentres(): Promise<CentreOption[]> {
+  const [centresSnap, regionsSnap] = await Promise.all([
+    getDocs(collection(firestoreDb, "centres")),
+    getDocs(collection(firestoreDb, "regions")),
+  ]);
+  const regionName = new Map<string, string>();
+  for (const r of regionsSnap.docs) {
+    const d = r.data() as Record<string, unknown>;
+    regionName.set(r.id, normalizeString(d.name) || normalizeString(d.regionName) || "Region");
+  }
+  return centresSnap.docs
+    .map((c) => {
+      const d = c.data() as Record<string, unknown>;
+      const regionId = normalizeString(d.regionId);
+      return {
+        centreId: c.id,
+        centreName: normalizeString(d.name) || normalizeString(d.centreName) || "Centre",
+        regionId,
+        regionName: regionName.get(regionId) || "",
+      };
+    })
+    .sort((a, b) => a.centreName.localeCompare(b.centreName));
+}
+
+export async function getUserProfileById(userId: string): Promise<UserProfileRecord | null> {
+  const snap = await getDoc(doc(firestoreDb, userProfilesCollectionName, userId));
+  if (!snap.exists()) return null;
+  return normalizeUserProfileRecord(snap.id, snap.data());
+}
+
+// Superadmin assigns a staff member their centre + capability set, and (optionally)
+// approves them in one write. Requires isSuperAdmin per firestore.rules.
+export async function updateStaffAccess(
+  userId: string,
+  input: {
+    centreId: string;
+    centreName: string;
+    regionId: string;
+    regionName: string;
+    permissions: string[];
+    approve: boolean;
+  },
+): Promise<void> {
+  const nowIso = new Date().toISOString();
+  await updateDoc(doc(firestoreDb, userProfilesCollectionName, userId), {
+    centreId: input.centreId,
+    centreName: input.centreName,
+    regionId: input.regionId,
+    regionName: input.regionName,
+    permissions: input.permissions,
+    ...(input.approve
+      ? { approvalStatus: "approved", approvalUpdatedAtIso: nowIso }
+      : {}),
+    updatedAt: nowIso,
+    updatedAtIso: nowIso,
+  });
 }
 
 export async function savePushToken(userId: string, token: string): Promise<void> {
