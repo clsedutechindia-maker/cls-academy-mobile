@@ -3,11 +3,17 @@ import type { SessionSlotStatus, SessionType } from "../../shared";
 const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 
 export const STATUS_META: Record<SessionSlotStatus, { label: string; fg: string; bg: string }> = {
-  open: { label: "Open", fg: "#15803D", bg: "#DCFCE7" },
   requested: { label: "Requested", fg: "#B45309", bg: "#FEF3C7" },
   confirmed: { label: "Confirmed", fg: "#1D4ED8", bg: "#DBEAFE" },
   completed: { label: "Completed", fg: "#4B3E66", bg: "#EDE9F5" },
+  rejected: { label: "Rejected", fg: "#B91C1C", bg: "#FEE2E2" },
 };
+
+// When a confirmed/completed session has a set time, show it; pending requests show just the date.
+export function formatRequestWhen(date: string, start: string, end: string): string {
+  if (start && end) return formatSessionWhen(date, start, end);
+  return formatSessionDate(date);
+}
 
 export function sessionTypeLabel(type: SessionType): string {
   if (type === "doubt") return "Doubt Session";

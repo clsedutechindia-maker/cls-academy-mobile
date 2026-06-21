@@ -215,6 +215,26 @@ export function formatDisplayName(value: string) {
     .join(" ");
 }
 
+// Deterministic, URL-safe document id from a free-text name. Mirrors the web
+// (cls-academy/lib/organization.ts) so ids stay identical across surfaces.
+export function slugify(value: string) {
+  return value
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 80);
+}
+
+// Subject/course code: uppercase alphanumeric, max 12 chars.
+export function formatSubjectCode(value: string) {
+  return value
+    .trim()
+    .toUpperCase()
+    .replace(/[^A-Z0-9]/g, "")
+    .slice(0, 12);
+}
+
 export function normalizeRegionRecord(
   id: string,
   data: Partial<Omit<RegionRecord, "id">> | undefined,

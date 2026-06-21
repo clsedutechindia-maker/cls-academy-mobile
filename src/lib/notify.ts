@@ -16,7 +16,7 @@ export type NotifyEvent =
   | "complaint.updated"
   | "leave.decided"
   | "leave.submitted"
-  | "session.booked"
+  | "session.requested"
   | "session.decided"
   | "schedule.posted"
   | "plan.submitted"

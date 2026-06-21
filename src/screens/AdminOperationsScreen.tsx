@@ -30,9 +30,10 @@ const QUICK_ACTIONS: NavItem[] = [
 
 const NAV_CARDS: NavItem[] = [
   { label: "Approvals", sub: "Students & staff access", icon: "person-add-outline", color: "#1D4ED8", bg: "#DBEAFE", route: "/(admin)/approvals", badge: "approvals" },
+  { label: "Structure", sub: "Batches, subjects, courses", icon: "git-branch-outline", color: "#0D9488", bg: "#CCFBF1", route: "/(admin)/structure" },
   { label: "Schedule", sub: "Timetable & exams", icon: "calendar-outline", color: D.primary, bg: D.surfaceLow, route: "/(admin)/schedule" },
   { label: "Teaching Plan", sub: "Review & approve", icon: "reader-outline", color: "#7C3AED", bg: "#F3E8FF", route: "/(admin)/teaching-plans", badge: "teachingPlans" },
-  { label: "Sessions", sub: "Doubt & remedial", icon: "time-outline", color: "#0D9488", bg: "#CCFBF1", route: "/(admin)/sessions" },
+  { label: "Session Requests", sub: "Confirm or reject", icon: "time-outline", color: "#0D9488", bg: "#CCFBF1", route: "/(admin)/sessions" },
   { label: "Results", sub: "Test results", icon: "trophy-outline", color: D.success, bg: "#dcfce7", route: "/(admin)/results" },
   { label: "Leave", sub: "Manage requests", icon: "document-text-outline", color: "#B45309", bg: "#FEF3C7", route: "/(admin)/leave", badge: "leave" },
 ];

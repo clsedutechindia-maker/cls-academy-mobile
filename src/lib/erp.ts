@@ -58,6 +58,9 @@ import {
   classesCollectionName,
   coursesCollectionName,
   subjectsCollectionName,
+  formatDisplayName,
+  formatSubjectCode,
+  slugify,
   normalizeClassRecord,
   normalizeCourseRecord,
   normalizeSubjectRecord,
@@ -1138,47 +1141,42 @@ export async function listSessionTeachersForStudent(profile: UserProfileRecord):
   return out;
 }
 
-export async function createSessionSlot(input: {
-  teacherUserId: string;
-  teacherName: string;
-  subjectId: string;
-  subjectName: string;
-  centreId: string;
-  centreName: string;
-  regionId: string;
-  regionName: string;
+// Student creates a session request for one of their subject teachers. Only a
+// date is supplied — office staff set the exact time when they confirm.
+export async function createSessionRequest(input: {
+  teacher: SessionTeacherOption;
   date: string;
-  startTime: string;
-  endTime: string;
-  locationNote: string;
-  actor: ScheduleActor;
+  sessionType: SessionType;
+  topic: string;
+  student: UserProfileRecord;
 }): Promise<void> {
   const nowIso = new Date().toISOString();
+  const studentName = input.student.name || input.student.fullName || "Student";
   const fields = {
-    teacherUserId: input.teacherUserId,
-    teacherName: input.teacherName,
-    subjectId: input.subjectId,
-    subjectName: input.subjectName,
-    centreId: input.centreId,
-    centreName: input.centreName,
-    regionId: input.regionId,
-    regionName: input.regionName,
+    teacherUserId: input.teacher.teacherUserId,
+    teacherName: input.teacher.teacherName,
+    subjectId: input.teacher.subjectId,
+    subjectName: input.teacher.subjectName,
+    centreId: input.teacher.centreId,
+    centreName: input.teacher.centreName,
+    regionId: input.teacher.regionId,
+    regionName: input.teacher.regionName,
     date: input.date,
-    startTime: input.startTime,
-    endTime: input.endTime,
-    locationNote: input.locationNote.trim(),
-    status: "open" as const,
-    sessionType: "" as const,
-    topic: "",
-    bookedByUserId: "",
-    bookedByName: "",
-    bookedClassId: "",
-    bookedClassName: "",
+    startTime: "",
+    endTime: "",
+    locationNote: "",
+    status: "requested" as const,
+    sessionType: input.sessionType,
+    topic: input.topic.trim(),
+    bookedByUserId: input.student.userId,
+    bookedByName: studentName,
+    bookedClassId: input.student.classId,
+    bookedClassName: input.student.className,
     declineNote: "",
     createdAtIso: nowIso,
     updatedAtIso: nowIso,
-    updatedByUserId: input.actor.userId,
-    updatedByName: input.actor.name,
+    updatedByUserId: input.student.userId,
+    updatedByName: studentName,
   };
   if (isDemoMode()) {
     await hydrateDemoState();
@@ -1186,9 +1184,16 @@ export async function createSessionSlot(input: {
     return;
   }
   await addDoc(collection(firestoreDb, sessionSlotsCollectionName), fields);
+  notifyEvent("session.requested", {
+    centreId: input.teacher.centreId,
+    studentName,
+    teacherName: input.teacher.teacherName,
+    date: input.date,
+  });
 }
 
-export async function deleteSessionSlot(id: string) {
+// Student cancels their own still-pending request (hard delete).
+export async function cancelSessionRequest(id: string) {
   if (isDemoMode()) { deleteDemoSessionSlot(id); return; }
   await deleteDoc(doc(firestoreDb, sessionSlotsCollectionName, id));
 }
@@ -1208,88 +1213,41 @@ export async function listTeacherSessionSlots(profile: UserProfileRecord): Promi
     .sort((a, b) => `${b.date}-${b.startTime}`.localeCompare(`${a.date}-${a.startTime}`));
 }
 
-export async function listOpenSlotsForTeacher(teacherUserId: string): Promise<SessionSlotRecord[]> {
-  if (!teacherUserId) return [];
-  const today = getTodayDateValue();
-  if (isDemoMode()) {
-    await hydrateDemoState();
-    return getDemoSessionSlots()
-      .filter((slot) => slot.teacherUserId === teacherUserId && slot.status === "open" && slot.date >= today)
-      .sort((a, b) => `${a.date}-${a.startTime}`.localeCompare(`${b.date}-${b.startTime}`));
-  }
-  const snapshot = await getDocs(
-    query(
-      collection(firestoreDb, sessionSlotsCollectionName),
-      where("teacherUserId", "==", teacherUserId),
-      where("status", "==", "open"),
-    ),
-  );
-  return snapshot.docs
-    .map((item) => normalizeSessionSlotRecord(item.id, item.data()))
-    .filter((slot) => slot.date >= today)
-    .sort((a, b) => `${a.date}-${a.startTime}`.localeCompare(`${b.date}-${b.startTime}`));
-}
-
-export async function bookSessionSlot(input: {
-  slot: SessionSlotRecord;
-  sessionType: SessionType;
-  topic: string;
-  student: UserProfileRecord;
-}): Promise<void> {
+// Office staff / admin confirm a request, setting the agreed time + optional location.
+export async function confirmSessionRequest(
+  id: string,
+  actor: ScheduleActor,
+  details: { startTime: string; endTime: string; locationNote: string },
+) {
   const nowIso = new Date().toISOString();
   const patch = {
     status: "confirmed" as const,
-    sessionType: input.sessionType,
-    topic: input.topic.trim(),
-    bookedByUserId: input.student.userId,
-    bookedByName: input.student.name || input.student.fullName || "Student",
-    bookedClassId: input.student.classId,
-    bookedClassName: input.student.className,
+    startTime: details.startTime,
+    endTime: details.endTime,
+    locationNote: details.locationNote.trim(),
     declineNote: "",
     updatedAtIso: nowIso,
-    updatedByUserId: input.student.userId,
-    updatedByName: input.student.name || "Student",
+    updatedByUserId: actor.userId,
+    updatedByName: actor.name,
   };
-  if (isDemoMode()) { await hydrateDemoState(); updateDemoSessionSlot(input.slot.id, patch); return; }
-  await updateDoc(doc(firestoreDb, sessionSlotsCollectionName, input.slot.id), patch);
-  notifyEvent("session.booked", {
-    teacherUserId: input.slot.teacherUserId,
-    studentName: input.student.name || input.student.fullName || "Student",
-    date: input.slot.date,
-  });
-}
-
-const SESSION_RESET = {
-  status: "open" as const,
-  sessionType: "" as const,
-  topic: "",
-  bookedByUserId: "",
-  bookedByName: "",
-  bookedClassId: "",
-  bookedClassName: "",
-};
-
-export async function cancelSessionBooking(id: string, actor: ScheduleActor) {
-  const nowIso = new Date().toISOString();
-  const patch = { ...SESSION_RESET, declineNote: "", updatedAtIso: nowIso, updatedByUserId: actor.userId, updatedByName: actor.name };
-  if (isDemoMode()) { updateDemoSessionSlot(id, patch); return; }
-  await updateDoc(doc(firestoreDb, sessionSlotsCollectionName, id), patch);
-}
-
-export async function confirmSessionRequest(id: string, actor: ScheduleActor) {
-  const nowIso = new Date().toISOString();
-  const patch = { status: "confirmed" as const, updatedAtIso: nowIso, updatedByUserId: actor.userId, updatedByName: actor.name };
   if (isDemoMode()) { updateDemoSessionSlot(id, patch); return; }
   await updateDoc(doc(firestoreDb, sessionSlotsCollectionName, id), patch);
   notifyEvent("session.decided", { sessionSlotId: id, status: "confirmed" });
 }
 
-export async function declineSessionRequest(id: string, actor: ScheduleActor, note: string) {
+// Office staff / admin reject a request with a reason (terminal — student resubmits).
+export async function rejectSessionRequest(id: string, actor: ScheduleActor, note: string) {
   const nowIso = new Date().toISOString();
-  const patch = { ...SESSION_RESET, declineNote: note.trim(), updatedAtIso: nowIso, updatedByUserId: actor.userId, updatedByName: actor.name };
+  const patch = {
+    status: "rejected" as const,
+    declineNote: note.trim(),
+    updatedAtIso: nowIso,
+    updatedByUserId: actor.userId,
+    updatedByName: actor.name,
+  };
   if (isDemoMode()) { updateDemoSessionSlot(id, patch); return; }
   await updateDoc(doc(firestoreDb, sessionSlotsCollectionName, id), patch);
-  notifyEvent("session.decided", { sessionSlotId: id, status: "declined" });
+  notifyEvent("session.decided", { sessionSlotId: id, status: "rejected" });
 }
 
 export async function completeSession(id: string, actor: ScheduleActor) {
@@ -3287,6 +3245,122 @@ export async function listCentres(): Promise<CentreOption[]> {
       };
     })
     .sort((a, b) => a.centreName.localeCompare(b.centreName));
+}
+
+// ---------------------------------------------------------------------------
+// Org-structure management (superadmin creates batches/subjects/courses).
+// The list* readers above drop inactive rows (they feed pickers); the admin
+// Structure screen needs the full set so it can re-activate. These do not
+// filter on `active`. Requires isSuperAdmin per firestore.rules.
+// ---------------------------------------------------------------------------
+
+export async function listAllClassesForAdmin(): Promise<ClassRecord[]> {
+  const snapshot = await getDocs(collection(firestoreDb, classesCollectionName));
+  return snapshot.docs
+    .map((item) => normalizeClassRecord(item.id, item.data()))
+    .sort((left, right) => left.name.localeCompare(right.name));
+}
+
+export async function listAllSubjectsForAdmin(): Promise<SubjectRecord[]> {
+  const snapshot = await getDocs(collection(firestoreDb, subjectsCollectionName));
+  return snapshot.docs
+    .map((item) => normalizeSubjectRecord(item.id, item.data()))
+    .sort((left, right) => left.name.localeCompare(right.name));
+}
+
+export async function listAllCoursesForAdmin(): Promise<CourseRecord[]> {
+  const snapshot = await getDocs(collection(firestoreDb, coursesCollectionName));
+  return snapshot.docs
+    .map((item) => normalizeCourseRecord(item.id, item.data()))
+    .sort((left, right) => left.name.localeCompare(right.name));
+}
+
+function assertUniqueName(name: string, existing: { name: string }[]) {
+  const target = name.trim().toLowerCase();
+  if (existing.some((item) => item.name.trim().toLowerCase() === target)) {
+    throw new Error(`"${name.trim()}" already exists.`);
+  }
+}
+
+export async function createSubject(input: { name: string; code: string }): Promise<SubjectRecord> {
+  const name = formatDisplayName(input.name);
+  const code = formatSubjectCode(input.code);
+  if (!name) throw new Error("Subject name is required.");
+  const id = slugify(code || name);
+  if (!id) throw new Error("Subject name must contain letters or numbers.");
+  assertUniqueName(name, await listAllSubjectsForAdmin());
+  await setDoc(
+    doc(firestoreDb, subjectsCollectionName, id),
+    { name, code, active: true, createdAt: serverTimestamp(), updatedAt: serverTimestamp() },
+    { merge: true },
+  );
+  return { id, name, code, active: true };
+}
+
+export async function createCourse(input: { name: string; code: string }): Promise<CourseRecord> {
+  const name = formatDisplayName(input.name);
+  const code = formatSubjectCode(input.code);
+  if (!name) throw new Error("Course name is required.");
+  const id = slugify(code || name);
+  if (!id) throw new Error("Course name must contain letters or numbers.");
+  assertUniqueName(name, await listAllCoursesForAdmin());
+  await setDoc(
+    doc(firestoreDb, coursesCollectionName, id),
+    { name, code, active: true, createdAt: serverTimestamp(), updatedAt: serverTimestamp() },
+    { merge: true },
+  );
+  return { id, name, code, active: true };
+}
+
+export async function createClass(input: { name: string; centre: CentreOption }): Promise<ClassRecord> {
+  const name = formatDisplayName(input.name);
+  const { centre } = input;
+  if (!name) throw new Error("Batch name is required.");
+  if (!centre?.centreId) throw new Error("Select a centre for this batch.");
+  const id = slugify(`${centre.centreId}-${name}`);
+  if (!id) throw new Error("Batch name must contain letters or numbers.");
+  await setDoc(
+    doc(firestoreDb, classesCollectionName, id),
+    {
+      name,
+      regionId: centre.regionId,
+      regionName: centre.regionName,
+      centreId: centre.centreId,
+      centreName: centre.centreName,
+      teacherUserId: "",
+      teacherId: "",
+      teacherName: "",
+      active: true,
+      createdAt: serverTimestamp(),
+      updatedAt: serverTimestamp(),
+    },
+    { merge: true },
+  );
+  return {
+    id,
+    name,
+    regionId: centre.regionId,
+    regionName: centre.regionName,
+    centreId: centre.centreId,
+    centreName: centre.centreName,
+    teacherUserId: "",
+    teacherId: "",
+    teacherName: "",
+    active: true,
+  };
+}
+
+export type OrgEntityKind = "classes" | "subjects" | "courses";
+
+export async function setOrgEntityActive(kind: OrgEntityKind, id: string, active: boolean): Promise<void> {
+  await updateDoc(doc(firestoreDb, kind, id), { active, updatedAt: serverTimestamp() });
+}
+
+export async function renameOrgEntity(kind: OrgEntityKind, id: string, name: string): Promise<string> {
+  const formatted = formatDisplayName(name);
+  if (!formatted) throw new Error("Name is required.");
+  await updateDoc(doc(firestoreDb, kind, id), { name: formatted, updatedAt: serverTimestamp() });
+  return formatted;
 }
 
 export async function getUserProfileById(userId: string): Promise<UserProfileRecord | null> {

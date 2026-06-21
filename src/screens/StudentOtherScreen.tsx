@@ -39,7 +39,7 @@ const SECTIONS = [
     badgeKey: null as null | "doubts" | "circulars",
   },
   {
-    title: "Book a Session",
+    title: "Request a Session",
     subtitle: "Doubt / remedial class",
     icon: "time-outline" as const,
     href: "/(student)/book-session" as const,

@@ -14,7 +14,7 @@ const cards: { l: string; sub: string; icon: IoniconsName; color: string; bg: st
   { l: "Materials", sub: "Study resources", icon: "library-outline", color: "#15803D", bg: "#F0FDF4", route: "/(employee)/materials", cap: "materials" },
   { l: "Inquiries", sub: "Admission leads", icon: "person-add-outline", color: "#7C3AED", bg: "#F3E8FF", route: "/(employee)/inquiries", cap: "inquiries" },
   { l: "Teaching Plans", sub: "View & upload plans", icon: "book-outline", color: "#0369A1", bg: "#E0F2FE", route: "/(employee)/teaching-plans", cap: "teaching_plans" },
-  { l: "Sessions", sub: "Doubt & remedial slots", icon: "time-outline", color: "#0D9488", bg: "#CCFBF1", route: "/(employee)/sessions", cap: "sessions" },
+  { l: "Session Requests", sub: "Confirm or reject doubts", icon: "time-outline", color: "#0D9488", bg: "#CCFBF1", route: "/(employee)/sessions", cap: "sessions" },
   { l: "Fees", sub: "Collect, dues & receipts", icon: "card-outline", color: "#B45309", bg: "#FEF3C7", route: "/(employee)/fees", cap: "fees" },
   { l: "Fee Plans", sub: "Set up fee structures", icon: "options-outline", color: "#9333EA", bg: "#F3E8FF", route: "/(employee)/fee-structures", cap: "fee_plans" },
 ];

@@ -296,9 +296,9 @@ export function normalizeTestScheduleRecord(
   };
 }
 
-// --- Session slots (teacher-published; student books doubt/remedial) ---
+// --- Session requests (student requests a teacher; office staff confirm/reject) ---
 
-export type SessionSlotStatus = "open" | "requested" | "confirmed" | "completed";
+export type SessionSlotStatus = "requested" | "confirmed" | "completed" | "rejected";
 export type SessionType = "" | "doubt" | "remedial";
 
 export type SessionSlotRecord = {
@@ -330,8 +330,8 @@ export type SessionSlotRecord = {
 };
 
 function normalizeSessionSlotStatus(value: unknown): SessionSlotStatus {
-  if (value === "requested" || value === "confirmed" || value === "completed") return value;
-  return "open";
+  if (value === "confirmed" || value === "completed" || value === "rejected") return value;
+  return "requested";
 }
 
 function normalizeSessionType(value: unknown): SessionType {

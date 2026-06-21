@@ -26,9 +26,11 @@ export function TeacherSessionsScreen() {
   useFocusEffect(useCallback(() => { void slotsRes.reload(); }, [slotsRes.reload]));
 
   const today = new Date().toISOString().slice(0, 10);
-  const upcoming = slots.filter((s) => s.status !== "completed" && s.date >= today)
+  // Teachers only see sessions office staff have confirmed; pending/rejected requests
+  // are not theirs to act on.
+  const upcoming = slots.filter((s) => s.status === "confirmed" && s.date >= today)
     .sort((a, b) => `${a.date}-${a.startTime}`.localeCompare(`${b.date}-${b.startTime}`));
-  const past = slots.filter((s) => s.status === "completed" || s.date < today)
+  const past = slots.filter((s) => s.status === "completed" || (s.status === "confirmed" && s.date < today))
     .sort((a, b) => `${b.date}-${b.startTime}`.localeCompare(`${a.date}-${a.startTime}`));
 
   async function markDone(id: string) {
@@ -68,22 +70,19 @@ export function TeacherSessionsScreen() {
             <Text style={s.sectionLabel}>UPCOMING</Text>
             {upcoming.map((slot) => {
               const st = STATUS_META[slot.status];
-              const booked = !!slot.bookedByName;
               return (
                 <View key={slot.id} style={s.card}>
                   <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start" }}>
-                    <Text style={s.cardType}>
-                      {booked ? sessionTypeLabel(slot.sessionType) : "Open Slot"}
-                    </Text>
+                    <Text style={s.cardType}>{sessionTypeLabel(slot.sessionType)}</Text>
                     <View style={[s.pill, { backgroundColor: st.bg }]}>
                       <Text style={[s.pillText, { color: st.fg }]}>{st.label}</Text>
                     </View>
                   </View>
                   <Text style={s.cardWhen}>{formatSessionWhen(slot.date, slot.startTime, slot.endTime)}</Text>
                   <Text style={s.cardMeta}>{slot.subjectName}{slot.locationNote ? ` · ${slot.locationNote}` : ""}</Text>
-                  {booked && (
+                  {slot.bookedByName ? (
                     <Text style={s.cardStudent}>{slot.bookedByName} · {slot.bookedClassName}</Text>
-                  )}
+                  ) : null}
                   {slot.topic ? <Text style={s.cardTopic}>"{slot.topic}"</Text> : null}
                   {slot.status === "confirmed" && (
                     <AnimatedPressable style={s.doneBtn} onPress={() => void markDone(slot.id)}>

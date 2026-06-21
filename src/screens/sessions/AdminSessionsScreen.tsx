@@ -10,20 +10,22 @@ import { useSession } from "../../providers/session";
 import { useResource } from "../../hooks/useResource";
 import { listAdminSessions } from "../../lib/erp";
 import type { SessionSlotStatus } from "../../shared";
-import { STATUS_META, formatSessionWhen, sessionTypeLabel } from "./sessionShared";
+import { STATUS_META, formatRequestWhen, sessionTypeLabel } from "./sessionShared";
+import { SessionDecideActions } from "./SessionDecideActions";
 
 const FILTERS: { key: SessionSlotStatus | "all"; label: string }[] = [
   { key: "requested", label: "Requested" },
   { key: "confirmed", label: "Confirmed" },
-  { key: "open", label: "Open" },
   { key: "completed", label: "Completed" },
+  { key: "rejected", label: "Rejected" },
   { key: "all", label: "All" },
 ];
 
 export function AdminSessionsScreen() {
   const insets = useSafeAreaInsets();
-  const { adminRecord } = useSession();
+  const { adminRecord, authUser } = useSession();
   const [filter, setFilter] = useState<SessionSlotStatus | "all">("requested");
+  const actor = { userId: authUser?.uid ?? "", name: adminRecord?.email || "Admin" };
 
   const { data, loading, error, reload } = useResource(
     async () => (adminRecord ? listAdminSessions(adminRecord) : []),
@@ -71,13 +73,15 @@ export function AdminSessionsScreen() {
           return (
             <View key={slot.id} style={s.card}>
               <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start" }}>
-                <Text style={s.type}>{slot.status === "open" ? "Open Slot" : sessionTypeLabel(slot.sessionType)}</Text>
+                <Text style={s.type}>{sessionTypeLabel(slot.sessionType)}</Text>
                 <View style={[s.pill, { backgroundColor: st.bg }]}><Text style={[s.pillText, { color: st.fg }]}>{st.label}</Text></View>
               </View>
               <Text style={s.teacher}>{slot.teacherName} · {slot.subjectName}</Text>
               {slot.bookedByName ? <Text style={s.student}>Student: {slot.bookedByName} · {slot.bookedClassName}</Text> : null}
-              <Text style={s.when}>{formatSessionWhen(slot.date, slot.startTime, slot.endTime)}</Text>
+              <Text style={s.when}>{formatRequestWhen(slot.date, slot.startTime, slot.endTime)}</Text>
               {slot.topic ? <Text style={s.topic}>“{slot.topic}”</Text> : null}
+              {slot.status === "rejected" && slot.declineNote ? <Text style={s.reject}>Reason: {slot.declineNote}</Text> : null}
+              {slot.status === "requested" && <SessionDecideActions slot={slot} actor={actor} onDone={reload} />}
             </View>
           );
         })}
@@ -99,6 +103,7 @@ const s = StyleSheet.create({
   student: { fontSize: 12, fontFamily: D.font, color: D.onSurfaceVariant },
   when: { fontSize: 12, fontFamily: D.font, color: D.onSurfaceVariant },
   topic: { fontSize: 12, fontFamily: D.font, color: D.outline, fontStyle: "italic", marginTop: 2 },
+  reject: { fontSize: 12, fontFamily: D.fontMedium, color: "#B91C1C", marginTop: 4 },
   pill: { borderRadius: 999, paddingHorizontal: 9, paddingVertical: 4 },
   pillText: { fontSize: 10, fontFamily: D.fontBold, letterSpacing: 0.2 },
   empty: { padding: 32, alignItems: "center", gap: 10 },
