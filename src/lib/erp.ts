@@ -87,6 +87,9 @@ import {
   normalizeAdmissionInquiryRecord,
   normalizeInquiryFollowUpRecord,
   normalizeInquiryPhoneKey,
+  normalizeContactLeadRecord,
+  type ContactLeadRecord,
+  type ContactLeadStatus,
   type AdmissionInquiryRecord,
   type InquiryFollowUpRecord,
   type InquiryMode,
@@ -1532,6 +1535,33 @@ export async function listAdminInquiries(admin: AdminRecord): Promise<AdmissionI
         ? await getDocs(query(col, where("centreId", "==", admin.centreId)))
         : await getDocs(query(col, where("regionId", "==", admin.regionId)));
   return snapshot.docs.map((d) => normalizeAdmissionInquiryRecord(d.id, d.data())).sort(inquirySort);
+}
+
+// --- Web marketing leads (contactInquiries) ---------------------------------
+// Public site contact form writes here. No centreId on the docs → global list,
+// no scoping. Readable/updatable by admins and capable employees (see rules).
+const contactInquiriesCollectionName = "contactInquiries";
+
+export async function listWebLeads(): Promise<ContactLeadRecord[]> {
+  if (isDemoMode()) return [];
+  const snapshot = await getDocs(collection(firestoreDb, contactInquiriesCollectionName));
+  return snapshot.docs
+    .map((d) => normalizeContactLeadRecord(d.id, d.data()))
+    .sort((a, b) => b.createdAtIso.localeCompare(a.createdAtIso));
+}
+
+export async function setWebLeadStatus(id: string, status: ContactLeadStatus): Promise<void> {
+  if (isDemoMode()) return;
+  await updateDoc(doc(firestoreDb, contactInquiriesCollectionName, id), {
+    status,
+    updatedAtIso: new Date().toISOString(),
+  });
+}
+
+export async function getWebLeadsSummary(): Promise<{ newCount: number }> {
+  if (isDemoMode()) return { newCount: 0 };
+  const leads = await listWebLeads();
+  return { newCount: leads.filter((l) => l.status === "new").length };
 }
 
 export async function listInquiryFollowUps(inquiryId: string): Promise<InquiryFollowUpRecord[]> {

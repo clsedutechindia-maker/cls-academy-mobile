@@ -14,6 +14,7 @@ const quickActions = [
   { label: "Upload\nResult", icon: "bar-chart-outline" as const, color: D.primary, route: "/(employee)/upload-result" as const, cap: "upload_results" },
   { label: "Mark\nAttendance", icon: "checkmark-circle-outline" as const, color: "#0369A1", route: "/(employee)/attendance" as const, cap: "attendance" },
   { label: "Log\nInquiry", icon: "person-add-outline" as const, color: "#15803D", route: "/(employee)/log-inquiry" as const, cap: "inquiries" },
+  { label: "Web\nLeads", icon: "globe-outline" as const, color: "#0891B2", route: "/(employee)/web-leads" as const, cap: "inquiries" },
   { label: "View\nSchedule", icon: "calendar-outline" as const, color: "#B45309", route: "/(employee)/schedules" as const, cap: "schedules" },
 ];
 

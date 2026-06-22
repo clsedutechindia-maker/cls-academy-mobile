@@ -13,11 +13,12 @@ import {
   listStudentLeaveRequestsForAdmin,
   getPendingApprovalsCount,
   getInquirySummaryForAdmin,
+  getWebLeadsSummary,
   listTeachingPlansForAdmin,
 } from "../lib/erp";
 
 type IoniconsName = React.ComponentProps<typeof Ionicons>["name"];
-type BadgeKey = "complaints" | "teachingPlans" | "inquiries" | "leave" | "approvals";
+type BadgeKey = "complaints" | "teachingPlans" | "inquiries" | "leave" | "approvals" | "webLeads";
 type NavItem = { label: string; sub: string; icon: IoniconsName; color: string; bg: string; route: string; badge?: BadgeKey };
 
 // Top 4 = priority quick actions (rendered as compact circle buttons).
@@ -29,6 +30,7 @@ const QUICK_ACTIONS: NavItem[] = [
 ];
 
 const NAV_CARDS: NavItem[] = [
+  { label: "Web Leads", sub: "Website enquiries", icon: "globe-outline", color: "#0891B2", bg: "#CFFAFE", route: "/(admin)/web-leads", badge: "webLeads" },
   { label: "Approvals", sub: "Students & staff access", icon: "person-add-outline", color: "#1D4ED8", bg: "#DBEAFE", route: "/(admin)/approvals", badge: "approvals" },
   { label: "Structure", sub: "Batches, subjects, courses", icon: "git-branch-outline", color: "#0D9488", bg: "#CCFBF1", route: "/(admin)/structure" },
   { label: "Schedule", sub: "Timetable & exams", icon: "calendar-outline", color: D.primary, bg: D.surfaceLow, route: "/(admin)/schedule" },
@@ -45,15 +47,16 @@ export function AdminOperationsScreen() {
 
   const { data: counts, reload } = useResource<Counts>(
     async () => {
-      const empty: Counts = { complaints: 0, teachingPlans: 0, inquiries: 0, leave: 0, approvals: 0 };
+      const empty: Counts = { complaints: 0, teachingPlans: 0, inquiries: 0, leave: 0, approvals: 0, webLeads: 0 };
       if (!adminRecord) return empty;
-      const [complaints, leave, studentLeave, approvals, inquiries, plans] = await Promise.all([
+      const [complaints, leave, studentLeave, approvals, inquiries, plans, webLeads] = await Promise.all([
         listAdminComplaints(adminRecord),
         listPendingLeaveRequests(adminRecord),
         listStudentLeaveRequestsForAdmin(adminRecord),
         getPendingApprovalsCount(adminRecord),
         getInquirySummaryForAdmin(adminRecord),
         listTeachingPlansForAdmin(adminRecord),
+        getWebLeadsSummary(),
       ]);
       return {
         complaints: complaints.filter((c) => c.status === "open" || c.status === "in_progress").length,
@@ -61,6 +64,7 @@ export function AdminOperationsScreen() {
         approvals,
         inquiries: inquiries.newCount,
         teachingPlans: plans.filter((p) => p.status === "submitted").length,
+        webLeads: webLeads.newCount,
       };
     },
     [adminRecord?.role, adminRecord?.centreId, adminRecord?.regionId],
