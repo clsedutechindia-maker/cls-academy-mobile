@@ -21,7 +21,7 @@ type IoniconsName = React.ComponentProps<typeof Ionicons>["name"];
 type BadgeKey = "complaints" | "teachingPlans" | "inquiries" | "leave" | "approvals" | "webLeads";
 type NavItem = { label: string; sub: string; icon: IoniconsName; color: string; bg: string; route: string; badge?: BadgeKey };
 
-// Top 4 = priority quick actions (rendered as compact circle buttons).
+// Priority actions — rendered first in the same 2-up card grid as the rest.
 const QUICK_ACTIONS: NavItem[] = [
   { label: "Fees", sub: "Collections & dues", icon: "card", color: "#047857", bg: "#ECFDF5", route: "/(admin)/fees" },
   { label: "Inquiries", sub: "Admission leads", icon: "call", color: "#4338CA", bg: "#E0E7FF", route: "/(admin)/inquiries", badge: "inquiries" },
@@ -39,6 +39,8 @@ const NAV_CARDS: NavItem[] = [
   { label: "Results", sub: "Test results", icon: "trophy-outline", color: D.success, bg: "#dcfce7", route: "/(admin)/results" },
   { label: "Leave", sub: "Manage requests", icon: "document-text-outline", color: "#B45309", bg: "#FEF3C7", route: "/(admin)/leave", badge: "leave" },
 ];
+
+const ALL_ACTIONS: NavItem[] = [...QUICK_ACTIONS, ...NAV_CARDS];
 
 type Counts = Record<BadgeKey, number>;
 
@@ -83,9 +85,9 @@ export function AdminOperationsScreen() {
           </AnimatedPressable>
         </View>
 
-        {/* Quick actions — soft circle tiles */}
+        {/* Top 8 — soft circle tiles (2 rows of 4) */}
         <View style={styles.quickRow}>
-          {QUICK_ACTIONS.map((item) => {
+          {ALL_ACTIONS.slice(0, 8).map((item) => {
             const count = badgeFor(item);
             return (
               <AnimatedPressable key={item.label} style={styles.quick} onPress={() => router.push(item.route as any)}>
@@ -107,7 +109,7 @@ export function AdminOperationsScreen() {
 
         {/* Rest — 2-up tile grid */}
         <View style={styles.grid}>
-          {NAV_CARDS.map((c) => {
+          {ALL_ACTIONS.slice(8).map((c) => {
             const count = badgeFor(c);
             return (
               <AnimatedPressable key={c.label} style={styles.gridCard} onPress={() => router.push(c.route as any)}>
@@ -146,7 +148,7 @@ const styles = StyleSheet.create({
     alignItems: "center", justifyContent: "center",
   },
 
-  quickRow: { flexDirection: "row", justifyContent: "space-between", marginTop: 18, marginBottom: 4 },
+  quickRow: { flexDirection: "row", flexWrap: "wrap", justifyContent: "space-between", rowGap: 16, marginTop: 18, marginBottom: 4 },
   quick: { alignItems: "center", gap: 9, width: "23%" },
   quickCircleWrap: { position: "relative" },
   quickCircle: {
