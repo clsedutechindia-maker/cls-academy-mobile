@@ -89,7 +89,7 @@ export default function SignInRoute() {
                     onChangeText={(v) => { setIdentifier(v); setLocalError(null); }}
                     onFocus={() => setFocused("id")}
                     onBlur={() => setFocused(null)}
-                    autoCapitalize="characters"
+                    autoCapitalize="none"
                     autoCorrect={false}
                     keyboardType="default"
                     autoComplete="username"
