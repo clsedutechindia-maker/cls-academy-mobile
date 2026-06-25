@@ -103,6 +103,8 @@ export function getNotificationRoute(data: Record<string, unknown> | undefined):
   if (role === "employee") {
     switch (type) {
       case "fee": return "/(employee)/fees";
+      case "inquiry": return "/(employee)/inquiries";
+      case "circular": return "/(employee)/notifications";
       case "leave": return "/(employee)/notifications";
       case "salary": return "/(employee)/account";
       default: return "/(employee)/notifications";

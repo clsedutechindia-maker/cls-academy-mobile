@@ -1,7 +1,8 @@
-import { ActivityIndicator, Alert, ScrollView, StyleSheet, Text, View } from "react-native";
+import { ActivityIndicator, ScrollView, StyleSheet, Text, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { router, useLocalSearchParams } from "expo-router";
 import { navigateBack } from "../lib/navigation";
+import { showAlert } from "../lib/alert";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useState } from "react";
 import { D } from "../components/ui";
@@ -9,8 +10,18 @@ import { AnimatedPressable } from "../components/motion";
 import { useResource } from "../hooks/useResource";
 import { getStudentProfile, listStudentAttendanceByIdWithDemo, listStudentResultsByIdWithDemo, removeStudentFromCentre } from "../lib/erp";
 import type { UserProfileRecord, StudentAttendanceRecord, StudentResultRecord } from "../shared";
+import { listStudentFeesByUserId, listPaymentsForFee } from "../lib/fees";
 
 const tabs = ["Basic Info", "Results", "Attendance", "Fee"];
+
+const money = (n: number) => `₹${Number(n || 0).toLocaleString("en-IN")}`;
+
+const INST_TONES: Record<string, { bg: string; fg: string }> = {
+  paid: { bg: "#ECFDF5", fg: "#047857" },
+  partial: { bg: "#E0F2FE", fg: "#0369A1" },
+  overdue: { bg: "#FEF2F2", fg: "#B91C1C" },
+  due: { bg: "#F3F4F6", fg: "#6B7280" },
+};
 
 function getInitials(name: string) {
   return name
@@ -75,7 +86,7 @@ function BasicInfoTab({ profile, userId }: { profile: UserProfileRecord | null; 
 
   function handleRemove() {
     const name = profile?.name || "this student";
-    Alert.alert("Remove Student", `Remove ${name} and revoke their access?`, [
+    showAlert("Remove Student", `Remove ${name} and revoke their access?`, [
       { text: "Cancel", style: "cancel" },
       {
         text: "Remove", style: "destructive", onPress: async () => {
@@ -84,7 +95,7 @@ function BasicInfoTab({ profile, userId }: { profile: UserProfileRecord | null; 
             await removeStudentFromCentre(userId);
             navigateBack(router);
           } catch {
-            Alert.alert("Error", "Could not remove student. Try again.");
+            showAlert("Error", "Could not remove student. Try again.");
             setRemoving(false);
           }
         },
@@ -313,15 +324,104 @@ function AttendanceTab({ userId }: { userId: string }) {
   );
 }
 
-function FeeTab() {
+function FeeTab({ userId }: { userId: string }) {
+  const { data, loading, error } = useResource(
+    async () => {
+      const fees = await listStudentFeesByUserId(userId);
+      return Promise.all(
+        fees.map(async (fee) => ({ fee, payments: await listPaymentsForFee(fee.id, { studentUserId: userId }) })),
+      );
+    },
+    [userId],
+  );
+  const groups = data ?? [];
+
+  if (loading) {
+    return (
+      <View style={[s.card, { marginTop: 16, padding: 24, alignItems: "center" }]}>
+        <ActivityIndicator color={D.primary} />
+      </View>
+    );
+  }
+  if (error) {
+    return (
+      <View style={[s.card, { marginTop: 16, padding: 16 }]}>
+        <Text style={{ color: "#B91C1C", fontFamily: D.font, fontSize: 13 }}>{error}</Text>
+      </View>
+    );
+  }
+  if (groups.length === 0) {
+    return (
+      <View style={[s.card, { marginTop: 16, padding: 20, alignItems: "center" }]}>
+        <Ionicons name="card-outline" size={30} color={D.outline} style={{ marginBottom: 8 }} />
+        <Text style={{ fontSize: 13, fontFamily: D.font, color: D.outline }}>No fee records yet.</Text>
+      </View>
+    );
+  }
+
   return (
-    <View style={[s.card, { marginTop: 16, padding: 20, alignItems: "center" }]}>
-      <Ionicons name="card-outline" size={32} color={D.outline} style={{ marginBottom: 10 }} />
-      <Text style={{ fontSize: 14, fontWeight: "700", fontFamily: D.fontBold, color: D.onSurface, marginBottom: 4 }}>Fee records managed by admin</Text>
-      <Text style={{ fontSize: 12, fontFamily: D.font, color: D.outline, textAlign: "center" }}>Fee information is maintained by the admin team.</Text>
+    <View style={{ marginTop: 16 }}>
+      {groups.map(({ fee, payments }) => (
+        <View key={fee.id} style={{ marginBottom: 16 }}>
+          <View style={[s.card, { padding: 16 }]}>
+            <Text style={{ fontSize: 15, fontWeight: "800", fontFamily: D.fontExtraBold, color: D.onSurface, letterSpacing: -0.3 }}>{fee.title}</Text>
+            <Text style={{ fontSize: 12, fontFamily: D.font, color: D.outline, marginTop: 3 }}>
+              {fee.className}{fee.academicYear ? ` · ${fee.academicYear}` : ""}{fee.published ? "" : " · draft"}
+            </Text>
+            <View style={{ flexDirection: "row", gap: 10, marginTop: 14 }}>
+              <View style={fs.bal}><Text style={fs.balLabel}>TOTAL</Text><Text style={fs.balValue}>{money(fee.totalAmount)}</Text></View>
+              <View style={fs.bal}><Text style={fs.balLabel}>PAID</Text><Text style={[fs.balValue, { color: "#047857" }]}>{money(fee.paidAmount)}</Text></View>
+              <View style={fs.bal}><Text style={fs.balLabel}>DUE</Text><Text style={[fs.balValue, { color: fee.dueAmount > 0 ? "#B45309" : D.onSurface }]}>{money(fee.dueAmount)}</Text></View>
+            </View>
+          </View>
+
+          <Text style={[s.sectionLabel, { marginTop: 14, marginBottom: 8 }]}>SCHEDULE</Text>
+          <View style={s.card}>
+            {fee.installments.map((inst, i) => {
+              const tone = INST_TONES[inst.status] || INST_TONES.due;
+              return (
+                <View key={inst.label + i} style={[fs.row, i < fee.installments.length - 1 && s.divider]}>
+                  <View style={{ flex: 1 }}>
+                    <Text style={fs.rowTitle}>{inst.label}</Text>
+                    <Text style={fs.rowMeta}>{money(inst.amount)}{inst.dueDateIso ? ` · due ${inst.dueDateIso.slice(0, 10)}` : ""}</Text>
+                  </View>
+                  <View style={{ paddingHorizontal: 8, paddingVertical: 2, borderRadius: 99, backgroundColor: tone.bg }}>
+                    <Text style={{ fontSize: 9.5, fontWeight: "700", fontFamily: D.fontBold, color: tone.fg, textTransform: "capitalize" }}>{inst.status}</Text>
+                  </View>
+                </View>
+              );
+            })}
+          </View>
+
+          {payments.length > 0 && (
+            <>
+              <Text style={[s.sectionLabel, { marginTop: 14, marginBottom: 8 }]}>RECEIPTS</Text>
+              <View style={s.card}>
+                {payments.map((p, i) => (
+                  <View key={p.id} style={[fs.row, i < payments.length - 1 && s.divider]}>
+                    <View style={{ flex: 1 }}>
+                      <Text style={[fs.rowTitle, p.amount < 0 && { color: "#B91C1C" }]}>{money(p.amount)} · {p.mode.toUpperCase()}</Text>
+                      <Text style={fs.rowMeta}>{p.receiptNo} · {new Date(p.paidAtIso).toLocaleDateString("en-IN")}</Text>
+                    </View>
+                  </View>
+                ))}
+              </View>
+            </>
+          )}
+        </View>
+      ))}
     </View>
   );
 }
+
+const fs = StyleSheet.create({
+  bal: { flex: 1, backgroundColor: D.surfaceLow, borderRadius: 12, padding: 12 },
+  balLabel: { fontSize: 9, fontWeight: "700", fontFamily: D.fontBold, color: D.outline, letterSpacing: 0.5 },
+  balValue: { marginTop: 4, fontSize: 14, fontWeight: "800", fontFamily: D.fontExtraBold, color: D.onSurface },
+  row: { flexDirection: "row", alignItems: "center", gap: 12, padding: 14 },
+  rowTitle: { fontSize: 13, fontWeight: "700", fontFamily: D.fontBold, color: D.onSurface },
+  rowMeta: { fontSize: 11, fontFamily: D.font, color: D.outline, marginTop: 2 },
+});
 
 export function AdminStudentDetailScreen() {
   const insets = useSafeAreaInsets();
@@ -367,7 +467,7 @@ export function AdminStudentDetailScreen() {
           {activeTab === 0 && <BasicInfoTab profile={profile} userId={userId} />}
           {activeTab === 1 && userId && <ResultsTab userId={userId} />}
           {activeTab === 2 && userId && <AttendanceTab userId={userId} />}
-          {activeTab === 3 && <FeeTab />}
+          {activeTab === 3 && userId && <FeeTab userId={userId} />}
         </ScrollView>
       )}
     </View>

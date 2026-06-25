@@ -3,18 +3,15 @@ import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
 import { navigateBack } from "../lib/navigation";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { useState } from "react";
 import { D } from "../components/ui";
 import { AnimatedPressable } from "../components/motion";
 import { useSession } from "../providers/session";
 import { useResource } from "../hooks/useResource";
 import { showAlert } from "../lib/alert";
 import { listOwnStudentFees, listPaymentsForFee, feeRemindersDueOn, type StudentFeeRecord, type FeePaymentRecord } from "../lib/fees";
-import { startFeeCheckout, isOnlinePaymentAvailable } from "../lib/payu";
 import { exportFeeReceiptPdf } from "./employee/feePdf";
 
 const money = (n: number) => `₹${Number(n || 0).toLocaleString("en-IN")}`;
-const round2 = (n: number) => Math.round((n + Number.EPSILON) * 100) / 100;
 
 const INST_TONES: Record<string, { bg: string; fg: string }> = {
   paid: { bg: "#ECFDF5", fg: "#047857" },
@@ -27,7 +24,7 @@ export function StudentFeesScreen() {
   const insets = useSafeAreaInsets();
   const { profile } = useSession();
 
-  const { data, loading, error, reload } = useResource(
+  const { data, loading, error } = useResource(
     async () => {
       if (!profile) return [] as { fee: StudentFeeRecord; payments: FeePaymentRecord[] }[];
       const fees = await listOwnStudentFees(profile);
@@ -37,9 +34,6 @@ export function StudentFeesScreen() {
   );
 
   const groups = data ?? [];
-  const canPayOnline = isOnlinePaymentAvailable();
-  const [payingKey, setPayingKey] = useState<string | null>(null);
-  const [processing, setProcessing] = useState(false);
 
   const todayIso = new Date().toISOString().slice(0, 10);
   const alertFees = groups
@@ -49,31 +43,6 @@ export function StudentFeesScreen() {
     ));
   const anyOverdue = alertFees.some((fee) => fee.installments.some((i) => i.status === "overdue"));
   const alertTotal = alertFees.reduce((sum, fee) => sum + fee.dueAmount, 0);
-
-  // Online payments settle server-side (PayU callback + webhook write the receipt),
-  // so after the checkout browser closes we just refetch — twice, to ride out any
-  // webhook lag — rather than trusting the browser's reported outcome.
-  async function pay(fee: StudentFeeRecord, installmentLabel?: string) {
-    if (payingKey) return;
-    const key = installmentLabel ? `${fee.id}__${installmentLabel}` : fee.id;
-    setPayingKey(key);
-    try {
-      const result = await startFeeCheckout({ studentFeeId: fee.id, installmentLabel });
-      await reload();
-      if (result.status === "failed") {
-        showAlert("Payment not completed", "No money was deducted. You can try again.");
-      } else {
-        setProcessing(true);
-        setTimeout(() => {
-          void reload().finally(() => setProcessing(false));
-        }, 4000);
-      }
-    } catch (e) {
-      showAlert("Payment", e instanceof Error ? e.message : "Couldn't start payment.");
-    } finally {
-      setPayingKey(null);
-    }
-  }
 
   async function printReceipt(payment: FeePaymentRecord, fee: StudentFeeRecord) {
     try {
@@ -98,17 +67,11 @@ export function StudentFeesScreen() {
         </View>
 
         <View style={{ paddingHorizontal: 18 }}>
-          {processing && (
-            <View style={[s.banner, { backgroundColor: "#EEF2FF", borderColor: "#C7D2FE" }]}>
-              <ActivityIndicator size="small" color={D.primary} />
-              <Text style={[s.bannerText, { color: "#3730A3" }]}>Confirming your payment…</Text>
-            </View>
-          )}
           {!loading && alertFees.length > 0 && (
             <View style={[s.banner, { backgroundColor: anyOverdue ? "#FEF2F2" : "#FEF3C7", borderColor: anyOverdue ? "#FECACA" : "#FDE68A" }]}>
               <Ionicons name={anyOverdue ? "alert-circle" : "time-outline"} size={20} color={anyOverdue ? "#B91C1C" : "#B45309"} />
               <Text style={[s.bannerText, { color: anyOverdue ? "#B91C1C" : "#92400E" }]}>
-                {anyOverdue ? "Fees overdue" : "Fees due soon"} — {money(alertTotal)} pending. {canPayOnline ? "Pay below." : "Please pay at the office."}
+                {anyOverdue ? "Fees overdue" : "Fees due soon"} — {money(alertTotal)} pending. Please pay at the office.
               </Text>
             </View>
           )}
@@ -121,9 +84,7 @@ export function StudentFeesScreen() {
             </View>
           )}
 
-          {groups.map(({ fee, payments }) => {
-            const payAllBusy = payingKey === fee.id;
-            return (
+          {groups.map(({ fee, payments }) => (
             <View key={fee.id} style={{ marginBottom: 18 }}>
               <View style={[s.card, s.pad]}>
                 <Text style={s.planTitle}>{fee.title}</Text>
@@ -133,55 +94,21 @@ export function StudentFeesScreen() {
                   <View style={s.balItem}><Text style={s.balLabel}>PAID</Text><Text style={[s.balValue, { color: "#047857" }]}>{money(fee.paidAmount)}</Text></View>
                   <View style={s.balItem}><Text style={s.balLabel}>DUE</Text><Text style={[s.balValue, { color: fee.dueAmount > 0 ? "#B45309" : D.onSurface }]}>{money(fee.dueAmount)}</Text></View>
                 </View>
-                {canPayOnline && fee.dueAmount > 0 && (
-                  <Pressable
-                    disabled={!!payingKey}
-                    style={[s.payAllBtn, !!payingKey && { opacity: 0.6 }]}
-                    onPress={() => pay(fee)}
-                  >
-                    {payAllBusy ? (
-                      <ActivityIndicator color="#fff" />
-                    ) : (
-                      <>
-                        <Ionicons name="card" size={16} color="#fff" />
-                        <Text style={s.payAllText}>Pay {money(fee.dueAmount)} now</Text>
-                      </>
-                    )}
-                  </Pressable>
-                )}
               </View>
 
               <Text style={s.sectionLabel}>SCHEDULE</Text>
               <View style={s.card}>
                 {fee.installments.map((inst, i) => {
                   const tone = INST_TONES[inst.status] || INST_TONES.due;
-                  const remaining = round2(inst.amount - inst.paidAmount);
-                  const canPayThis = canPayOnline && fee.dueAmount > 0 && remaining > 0 && inst.status !== "paid";
-                  const rowKey = `${fee.id}__${inst.label}`;
-                  const rowBusy = payingKey === rowKey;
                   return (
                     <View key={inst.label + i} style={[s.row, i < fee.installments.length - 1 && s.divider]}>
                       <View style={{ flex: 1 }}>
                         <Text style={s.rowTitle}>{inst.label}</Text>
                         <Text style={s.rowMeta}>{money(inst.amount)}{inst.dueDateIso ? ` · due ${inst.dueDateIso.slice(0, 10)}` : ""}</Text>
                       </View>
-                      {canPayThis ? (
-                        <Pressable
-                          disabled={!!payingKey}
-                          style={[s.payPill, inst.status === "overdue" && s.payPillOverdue, !!payingKey && { opacity: 0.5 }]}
-                          onPress={() => pay(fee, inst.label)}
-                        >
-                          {rowBusy ? (
-                            <ActivityIndicator size="small" color={inst.status === "overdue" ? "#B91C1C" : D.primary} />
-                          ) : (
-                            <Text style={[s.payPillText, inst.status === "overdue" && { color: "#B91C1C" }]}>Pay {money(remaining)}</Text>
-                          )}
-                        </Pressable>
-                      ) : (
-                        <View style={[s.badge, { backgroundColor: tone.bg }]}>
-                          <Text style={[s.badgeText, { color: tone.fg }]}>{inst.status}</Text>
-                        </View>
-                      )}
+                      <View style={[s.badge, { backgroundColor: tone.bg }]}>
+                        <Text style={[s.badgeText, { color: tone.fg }]}>{inst.status}</Text>
+                      </View>
                     </View>
                   );
                 })}
@@ -209,8 +136,7 @@ export function StudentFeesScreen() {
                 </>
               )}
             </View>
-            );
-          })}
+          ))}
         </View>
       </ScrollView>
     </View>
@@ -232,11 +158,6 @@ const s = StyleSheet.create({
   balItem: { flex: 1, backgroundColor: D.surfaceLow, borderRadius: 10, padding: 12 },
   balLabel: { fontSize: 9, fontWeight: "700", fontFamily: D.fontBold, color: D.outline, letterSpacing: 0.5 },
   balValue: { marginTop: 4, fontSize: 14, fontWeight: "800", fontFamily: D.fontExtraBold, color: D.onSurface },
-  payAllBtn: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, marginTop: 14, backgroundColor: D.primary, borderRadius: 12, paddingVertical: 13 },
-  payAllText: { color: "#fff", fontSize: 14, fontWeight: "700", fontFamily: D.fontBold },
-  payPill: { paddingHorizontal: 12, paddingVertical: 7, borderRadius: 99, backgroundColor: "#EEF2FF", borderWidth: 1, borderColor: "#C7D2FE", minWidth: 72, alignItems: "center", justifyContent: "center" },
-  payPillOverdue: { backgroundColor: "#FEF2F2", borderColor: "#FECACA" },
-  payPillText: { fontSize: 11.5, fontWeight: "700", fontFamily: D.fontBold, color: D.primary },
   sectionLabel: { fontSize: 10, fontWeight: "700", fontFamily: D.fontBold, color: D.outline, letterSpacing: 0.6, marginTop: 18, marginBottom: 10 },
   divider: { borderBottomWidth: 1, borderBottomColor: D.outlineVariant },
   row: { flexDirection: "row", alignItems: "center", gap: 12, padding: 14 },

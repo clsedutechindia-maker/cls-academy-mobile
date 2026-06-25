@@ -30,10 +30,9 @@ import type { UserProfileRecord } from "../shared";
 
 // ---------------------------------------------------------------------------
 // Student fee module (EIS-Digital-style). Managed by the employee role only;
-// students/parents can read their own records. Manual (cash/UPI/etc.) payments are
-// recorded here by staff; ONLINE payments (PayU) are settled server-side via the
-// firebase-admin SDK in the web app (lib/server/feeSettle.ts) — clients never write
-// online receipts. See firestore.rules for access enforcement.
+// students/parents can read their own records. All payments (cash/UPI/cheque/etc.)
+// are recorded at the office by staff — there is no online payment gateway.
+// See firestore.rules for access enforcement.
 // ---------------------------------------------------------------------------
 
 export const feeStructuresCollectionName = "feeStructures";
@@ -52,7 +51,6 @@ export const FEE_MODES: { value: FeeMode; label: string }[] = [
   { value: "bank", label: "Bank Transfer" },
   { value: "cheque", label: "Cheque" },
   { value: "pdc", label: "Post-dated Cheque" },
-  { value: "online", label: "Online (PayU)" },
 ];
 
 // Template installment (no payment state).
@@ -651,6 +649,24 @@ export async function listOwnStudentFees(profile: UserProfileRecord): Promise<St
   return snapshot.docs
     .map((d) => normalizeStudentFee(d.id, d.data() as Record<string, unknown>))
     .filter((f) => f.published) // students only see finalised fees
+    .sort((a, b) => b.createdAtIso.localeCompare(a.createdAtIso));
+}
+
+// Staff/admin oversight of one student's fees (queried by studentUserId). Unlike
+// listOwnStudentFees this returns drafts too, for full visibility.
+export async function listStudentFeesByUserId(userId: string): Promise<StudentFeeRecord[]> {
+  if (!userId) return [];
+  if (isDemoMode()) {
+    await hydrateDemoState();
+    return getDemoStudentFees()
+      .filter((f) => f.studentUserId === userId)
+      .sort((a, b) => b.createdAtIso.localeCompare(a.createdAtIso));
+  }
+  const snapshot = await getDocs(
+    query(collection(firestoreDb, studentFeesCollectionName), where("studentUserId", "==", userId)),
+  );
+  return snapshot.docs
+    .map((d) => normalizeStudentFee(d.id, d.data() as Record<string, unknown>))
     .sort((a, b) => b.createdAtIso.localeCompare(a.createdAtIso));
 }
 
