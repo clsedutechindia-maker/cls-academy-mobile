@@ -17,8 +17,13 @@ import { DevSwitcher } from "../src/components/DevSwitcher";
 import { NavigationHistoryTracker } from "../src/lib/navigation";
 import { setupNotificationHandler, registerForPushNotifications, getNotificationRoute } from "../src/lib/notifications";
 import { savePushToken } from "../src/lib/erp";
+import { installGlobalFontScaling, loadFontScale } from "../src/lib/fontScale";
 
 SplashScreen.preventAutoHideAsync();
+
+// Patch Text/TextInput before any screen renders, then load saved size.
+installGlobalFontScaling();
+void loadFontScale();
 
 // Run once at module level (before any component mounts)
 if (Platform.OS !== "web") {
