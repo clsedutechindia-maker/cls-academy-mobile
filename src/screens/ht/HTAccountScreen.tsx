@@ -7,6 +7,7 @@ import { useSession } from "../../providers/session";
 import { D } from "../../components/theme";
 import { AnimatedPressable } from "../../components/motion";
 import { DeleteAccountButton } from "../../components/DeleteAccountButton";
+import { TextSizeSetting } from "../../components/TextSizeSetting";
 
 type IoniconsName = React.ComponentProps<typeof Ionicons>["name"];
 
@@ -92,6 +93,8 @@ export function HTAccountScreen() {
             </AnimatedPressable>
           ))}
         </View>
+
+        <TextSizeSetting />
 
         <DeleteAccountButton />
 
