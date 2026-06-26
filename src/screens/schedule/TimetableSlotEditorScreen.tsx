@@ -1,9 +1,10 @@
 import { useMemo, useState } from "react";
-import { ActivityIndicator, Alert, ScrollView, Text, TextInput, View } from "react-native";
+import { ActivityIndicator, ScrollView, Text, TextInput, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { router, useLocalSearchParams } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { navigateBack } from "../../lib/navigation";
+import { showAlert } from "../../lib/alert";
 import { D } from "../../components/theme";
 import { AnimatedPressable } from "../../components/motion";
 import { useSession } from "../../providers/session";
@@ -80,23 +81,23 @@ export function TimetableSlotEditorScreen() {
 
   async function handleSave() {
     if (!classRecord) {
-      Alert.alert("Error", "Class not found.");
+      showAlert("Error", "Class not found.");
       return;
     }
     if (!selectedMapping) {
-      Alert.alert("Missing Info", "Select a subject.");
+      showAlert("Missing Info", "Select a subject.");
       return;
     }
     if (!slotLabel.trim()) {
-      Alert.alert("Missing Info", "Enter a period label.");
+      showAlert("Missing Info", "Enter a period label.");
       return;
     }
     if (!startTime || !endTime) {
-      Alert.alert("Missing Info", "Set start and end time.");
+      showAlert("Missing Info", "Set start and end time.");
       return;
     }
     if (endTime <= startTime) {
-      Alert.alert("Invalid Time", "End time must be after start time.");
+      showAlert("Invalid Time", "End time must be after start time.");
       return;
     }
     setSaving(true);
@@ -114,16 +115,16 @@ export function TimetableSlotEditorScreen() {
       if (isEdit && entryId && entryId !== newId) {
         await deleteClassTimetableEntry(entryId);
       }
-      Alert.alert("Saved", "Timetable updated.", [{ text: "OK", onPress: () => navigateBack(router) }]);
+      showAlert("Saved", "Timetable updated.", [{ text: "OK", onPress: () => navigateBack(router) }]);
     } catch {
-      Alert.alert("Error", "Could not save. Try again.");
+      showAlert("Error", "Could not save. Try again.");
     } finally {
       setSaving(false);
     }
   }
 
   function handleDelete() {
-    Alert.alert("Delete Period", "Remove this period from the timetable?", [
+    showAlert("Delete Period", "Remove this period from the timetable?", [
       { text: "Cancel", style: "cancel" },
       {
         text: "Delete",
@@ -131,8 +132,8 @@ export function TimetableSlotEditorScreen() {
         onPress: () => {
           setSaving(true);
           deleteClassTimetableEntry(entryId)
-            .then(() => Alert.alert("Deleted", "Period removed.", [{ text: "OK", onPress: () => navigateBack(router) }]))
-            .catch(() => Alert.alert("Error", "Could not delete. Try again."))
+            .then(() => showAlert("Deleted", "Period removed.", [{ text: "OK", onPress: () => navigateBack(router) }]))
+            .catch(() => showAlert("Error", "Could not delete. Try again."))
             .finally(() => setSaving(false));
         },
       },

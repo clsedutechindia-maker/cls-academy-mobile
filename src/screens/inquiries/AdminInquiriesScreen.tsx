@@ -6,6 +6,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { navigateBack } from "../../lib/navigation";
 import { D } from "../../components/theme";
 import { AnimatedPressable } from "../../components/motion";
+import { FilterDropdown } from "../../components/FilterDropdown";
 import { useSession } from "../../providers/session";
 import { useResource } from "../../hooks/useResource";
 import { listAdminInquiries } from "../../lib/erp";
@@ -144,22 +145,17 @@ export function AdminInquiriesScreen() {
           )}
         </View>
 
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 7, paddingTop: 12 }}>
-          {chips.map((key) => {
-            const active = key === filter;
-            const label = key === "all" ? "All" : inquiryStatusMeta(key).label;
-            const count = key === "all" ? base.length : base.filter((x) => x.status === key).length;
-            return (
-              <AnimatedPressable
-                key={key}
-                style={[s.chip, { backgroundColor: active ? D.primary : D.surface, borderColor: active ? D.primary : D.outlineVariant }]}
-                onPress={() => setFilter(key)}
-              >
-                <Text style={[s.chipText, { color: active ? "#fff" : D.onSurfaceVariant }]}>{label} · {count}</Text>
-              </AnimatedPressable>
-            );
-          })}
-        </ScrollView>
+        <View style={{ paddingTop: 12 }}>
+          <FilterDropdown
+            options={chips.map((key) => ({
+              key,
+              label: key === "all" ? "All" : inquiryStatusMeta(key).label,
+              count: key === "all" ? base.length : base.filter((x) => x.status === key).length,
+            }))}
+            value={filter}
+            onChange={setFilter}
+          />
+        </View>
       </View>
 
       <ScrollView contentContainerStyle={{ paddingHorizontal: 18, paddingTop: 14, paddingBottom: 140 }} showsVerticalScrollIndicator={false}>

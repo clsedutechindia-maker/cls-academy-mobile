@@ -9,6 +9,7 @@ import { listAdminComplaints } from "../lib/erp";
 import { useSession } from "../providers/session";
 import { D, EmptyCard, ErrorCard, LoadingCard, MOBILE_BOTTOM_SPACING, Pill } from "../components/ui";
 import { AnimatedPressable, Stagger } from "../components/motion";
+import { FilterDropdown } from "../components/FilterDropdown";
 import type { StudentComplaintRecord } from "../lib/erp";
 
 type FilterValue = "all" | StudentComplaintRecord["status"];
@@ -75,18 +76,10 @@ export function AdminComplaintsScreen() {
           </View>
         </View>
 
-        {/* Filter chips */}
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.chipRow}>
-          {FILTER_OPTIONS.map((opt) => (
-            <AnimatedPressable
-              key={opt.key}
-              onPress={() => setFilter(opt.key)}
-              style={[s.chip, filter === opt.key && s.chipActive]}
-            >
-              <Text style={[s.chipText, filter === opt.key && s.chipTextActive]}>{opt.label}</Text>
-            </AnimatedPressable>
-          ))}
-        </ScrollView>
+        {/* Filter dropdown */}
+        <View style={s.chipRow}>
+          <FilterDropdown options={FILTER_OPTIONS} value={filter} onChange={setFilter} />
+        </View>
 
         {resource.loading ? (
           <LoadingCard label="Loading complaints..." />

@@ -6,6 +6,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { navigateBack } from "../../lib/navigation";
 import { D } from "../../components/theme";
 import { AnimatedPressable } from "../../components/motion";
+import { FilterDropdown } from "../../components/FilterDropdown";
 import { useSession } from "../../providers/session";
 import { useResource } from "../../hooks/useResource";
 import { listTeachingPlansForAdmin } from "../../lib/erp";
@@ -47,21 +48,15 @@ export function AdminTeachingPlansScreen() {
           </AnimatedPressable>
           <Text style={s.title}>Teaching Plans</Text>
         </View>
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 7 }}>
-          {FILTERS.map((f) => {
-            const active = f.key === filter;
-            const count = f.key === "all" ? plans.length : plans.filter((p) => p.status === f.key).length;
-            return (
-              <AnimatedPressable
-                key={f.key}
-                style={[s.chip, { backgroundColor: active ? D.primary : D.surface, borderColor: active ? D.primary : D.outlineVariant }]}
-                onPress={() => setFilter(f.key)}
-              >
-                <Text style={[s.chipText, { color: active ? "#fff" : D.onSurfaceVariant }]}>{f.label} · {count}</Text>
-              </AnimatedPressable>
-            );
-          })}
-        </ScrollView>
+        <FilterDropdown
+          options={FILTERS.map((f) => ({
+            key: f.key,
+            label: f.label,
+            count: f.key === "all" ? plans.length : plans.filter((p) => p.status === f.key).length,
+          }))}
+          value={filter}
+          onChange={setFilter}
+        />
       </View>
 
       <ScrollView contentContainerStyle={{ paddingHorizontal: 18, paddingTop: 14, paddingBottom: 140 }} showsVerticalScrollIndicator={false}>

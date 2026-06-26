@@ -1,9 +1,10 @@
 import { useState } from "react";
-import { ActivityIndicator, Alert, Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
+import { ActivityIndicator, Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { router, useLocalSearchParams } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { navigateBack } from "../../lib/navigation";
+import { showAlert } from "../../lib/alert";
 import { D } from "../../components/theme";
 import { AnimatedPressable } from "../../components/motion";
 import { useSession } from "../../providers/session";
@@ -40,7 +41,7 @@ export function TeachingPlanDetailScreen() {
     try {
       await exportTeachingPlanPdf(plan);
     } catch {
-      Alert.alert("Error", "Could not export PDF.");
+      showAlert("Error", "Could not export PDF.");
     } finally {
       setExporting(false);
     }
@@ -59,20 +60,20 @@ export function TeachingPlanDetailScreen() {
     try {
       await action();
       if (goBack) {
-        Alert.alert("Done", successMsg, [{ text: "OK", onPress: () => navigateBack(router) }]);
+        showAlert("Done", successMsg, [{ text: "OK", onPress: () => navigateBack(router) }]);
       } else {
         await reload();
-        Alert.alert("Done", successMsg);
+        showAlert("Done", successMsg);
       }
     } catch {
-      Alert.alert("Error", "Action failed. Try again.");
+      showAlert("Error", "Action failed. Try again.");
     } finally {
       setBusy(false);
     }
   }
 
   function confirmDelete() {
-    Alert.alert("Delete Plan", "Delete this draft?", [
+    showAlert("Delete Plan", "Delete this draft?", [
       { text: "Cancel", style: "cancel" },
       { text: "Delete", style: "destructive", onPress: () => void run(() => deleteTeachingPlan(planId), "Plan deleted.", true) },
     ]);

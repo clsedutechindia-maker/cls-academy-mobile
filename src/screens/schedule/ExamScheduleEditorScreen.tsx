@@ -1,9 +1,10 @@
 import { useMemo, useState } from "react";
-import { ActivityIndicator, Alert, ScrollView, Text, TextInput, View } from "react-native";
+import { ActivityIndicator, ScrollView, Text, TextInput, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { router, useLocalSearchParams } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { navigateBack } from "../../lib/navigation";
+import { showAlert } from "../../lib/alert";
 import { D } from "../../components/theme";
 import { AnimatedPressable } from "../../components/motion";
 import { useSession } from "../../providers/session";
@@ -91,27 +92,27 @@ export function ExamScheduleEditorScreen() {
 
   async function handleSave() {
     if (!classRecord) {
-      Alert.alert("Error", "Class not found.");
+      showAlert("Error", "Class not found.");
       return;
     }
     if (!selectedMapping) {
-      Alert.alert("Missing Info", "Select a subject.");
+      showAlert("Missing Info", "Select a subject.");
       return;
     }
     if (!title.trim()) {
-      Alert.alert("Missing Info", "Enter an assessment title.");
+      showAlert("Missing Info", "Enter an assessment title.");
       return;
     }
     if (!scheduleDate) {
-      Alert.alert("Missing Info", "Pick a date.");
+      showAlert("Missing Info", "Pick a date.");
       return;
     }
     if (!startTime || !endTime) {
-      Alert.alert("Missing Info", "Set start and end time.");
+      showAlert("Missing Info", "Set start and end time.");
       return;
     }
     if (endTime <= startTime) {
-      Alert.alert("Invalid Time", "End time must be after start time.");
+      showAlert("Invalid Time", "End time must be after start time.");
       return;
     }
     setSaving(true);
@@ -130,16 +131,16 @@ export function ExamScheduleEditorScreen() {
       if (isEdit && entryId && entryId !== newId) {
         await deleteTestSchedule(entryId);
       }
-      Alert.alert("Saved", "Exam schedule updated.", [{ text: "OK", onPress: () => navigateBack(router) }]);
+      showAlert("Saved", "Exam schedule updated.", [{ text: "OK", onPress: () => navigateBack(router) }]);
     } catch {
-      Alert.alert("Error", "Could not save. Try again.");
+      showAlert("Error", "Could not save. Try again.");
     } finally {
       setSaving(false);
     }
   }
 
   function handleDelete() {
-    Alert.alert("Delete Exam", "Remove this exam from the schedule?", [
+    showAlert("Delete Exam", "Remove this exam from the schedule?", [
       { text: "Cancel", style: "cancel" },
       {
         text: "Delete",
@@ -147,8 +148,8 @@ export function ExamScheduleEditorScreen() {
         onPress: () => {
           setSaving(true);
           deleteTestSchedule(entryId)
-            .then(() => Alert.alert("Deleted", "Exam removed.", [{ text: "OK", onPress: () => navigateBack(router) }]))
-            .catch(() => Alert.alert("Error", "Could not delete. Try again."))
+            .then(() => showAlert("Deleted", "Exam removed.", [{ text: "OK", onPress: () => navigateBack(router) }]))
+            .catch(() => showAlert("Error", "Could not delete. Try again."))
             .finally(() => setSaving(false));
         },
       },
