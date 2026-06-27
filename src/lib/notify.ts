@@ -7,6 +7,7 @@ const NOTIFY_URL = process.env.EXPO_PUBLIC_NOTIFY_URL?.replace(/\/$/, "") || "";
 
 export type NotifyEvent =
   | "result.published"
+  | "result.updated"
   | "circular.posted"
   | "material.posted"
   | "doubt.answered"

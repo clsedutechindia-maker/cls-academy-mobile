@@ -2252,7 +2252,9 @@ export async function saveEmployeeResult({
 }) {
   if (isDemoMode()) return;
   const recordId = buildStudentResultId(studentProfile.userId, classSubject.id, assessmentCategory, assessmentTitle);
-  await setDoc(doc(firestoreDb, studentResultsCollectionName, recordId), {
+  const recordRef = doc(firestoreDb, studentResultsCollectionName, recordId);
+  const alreadyExists = (await getDoc(recordRef)).exists();
+  await setDoc(recordRef, {
     studentUserId: studentProfile.userId,
     teacherUserId: classSubject.teacherUserId || "",
     teacherName: classSubject.teacherName || "",
@@ -2272,7 +2274,7 @@ export async function saveEmployeeResult({
     remarks: remarks.trim() || "No feedback.",
     publishedAtIso: new Date().toISOString(),
   });
-  notifyEvent("result.published", {
+  notifyEvent(alreadyExists ? "result.updated" : "result.published", {
     studentUserId: studentProfile.userId,
     subjectName: classSubject.subjectName,
     assessmentTitle,
@@ -2430,8 +2432,10 @@ export async function saveTeacherResult({
 }) {
   if (isDemoMode()) return;
   const recordId = buildStudentResultId(studentProfile.userId, mapping.id, assessmentCategory, assessmentTitle);
+  const recordRef = doc(firestoreDb, studentResultsCollectionName, recordId);
+  const alreadyExists = (await getDoc(recordRef)).exists();
 
-  await setDoc(doc(firestoreDb, studentResultsCollectionName, recordId), {
+  await setDoc(recordRef, {
     studentUserId: studentProfile.userId,
     teacherUserId: teacherProfile.userId,
     teacherName: teacherProfile.name,
@@ -2450,7 +2454,7 @@ export async function saveTeacherResult({
     remarks: remarks.trim() || "No teacher feedback yet.",
     publishedAtIso: new Date().toISOString(),
   });
-  notifyEvent("result.published", {
+  notifyEvent(alreadyExists ? "result.updated" : "result.published", {
     studentUserId: studentProfile.userId,
     subjectName: mapping.subjectName,
     assessmentTitle,
